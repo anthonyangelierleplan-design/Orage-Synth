@@ -93,7 +93,7 @@ SynthPanel::SynthPanel (OrageAudioProcessor& p) : proc (p)
     auto place = [] (juce::Rectangle<int> r, std::vector<KnobUnit*> ks, int x0, int cellW)
     {
         int x = r.getX() + x0;
-        const int kh = juce::jmin (r.getHeight(), cellW + 24), y = r.getY() + (r.getHeight() - kh) / 2;
+        const int kh = juce::jmin (r.getHeight(), cellW + 28), y = r.getY() + (r.getHeight() - kh) / 2;
         for (auto* k : ks) { k->setBounds (x, y, cellW, kh); x += cellW; }
     };
     const juce::StringArray waves { "SAW", "PULSE", "TRI" }, octs { "-2", "-1", "0", "+1", "+2" };
@@ -107,7 +107,7 @@ SynthPanel::SynthPanel (OrageAudioProcessor& p) : proc (p)
         u->layoutFn = [=] (juce::Rectangle<int> r)
         {
             w->setBounds (r.getX(), r.getY() + 6, 170, 46); o->setBounds (r.getX(), r.getY() + 62, 170, 34);
-            pw->setBounds (r.getX() + 180, r.getY() + 6, 84, r.getHeight() - 12);
+            pw->setBounds (r.getX() + 180, r.getY() + 6, 88, r.getHeight() - 12);
         };
     }
     {
@@ -117,13 +117,13 @@ SynthPanel::SynthPanel (OrageAudioProcessor& p) : proc (p)
         u->layoutFn = [=] (juce::Rectangle<int> r)
         {
             w->setBounds (r.getX(), r.getY() + 6, 170, 46); o->setBounds (r.getX(), r.getY() + 62, 170, 34);
-            place (r, { tu, fi, pw }, 180, 84);
+            place (r, { tu, fi, pw }, 180, 88);
         };
     }
     {
         auto* u = unit ("VCO MIXER");
         auto* a = knob (*u, "s_lvl1", "VCO 1 LEVEL"); auto* b = knob (*u, "s_lvl2", "VCO 2 LEVEL"); auto* c = knob (*u, "s_noise", "NOISE"); auto* d = knob (*u, "s_master", "VOLUME");
-        u->layoutFn = [=] (juce::Rectangle<int> r) { place (r, { a, b, c, d }, 0, 84); };
+        u->layoutFn = [=] (juce::Rectangle<int> r) { place (r, { a, b, c, d }, 0, 88); };
     }
     {
         auto* u = unit ("MODULATION  (SYNC / FM / RING)");
@@ -132,7 +132,7 @@ SynthPanel::SynthPanel (OrageAudioProcessor& p) : proc (p)
         u->layoutFn = [=] (juce::Rectangle<int> r)
         {
             sy->setBounds (r.getX(), r.getY() + 6, 120, 30);
-            place (r.withTrimmedTop (38), { fm, rg, gl }, 0, 84);
+            place (r.withTrimmedTop (38), { fm, rg, gl }, 0, 88);
         };
     }
 
@@ -140,87 +140,105 @@ SynthPanel::SynthPanel (OrageAudioProcessor& p) : proc (p)
     {
         auto* u = unit ("VC HIGHPASS FILTER");
         auto* a = knob (*u, "s_hpf", "CUTOFF"); auto* b = knob (*u, "s_hpfRes", "PEAK");
-        u->layoutFn = [=] (juce::Rectangle<int> r) { place (r, { a, b }, 0, 84); };
+        u->layoutFn = [=] (juce::Rectangle<int> r) { place (r, { a, b }, 0, 88); };
     }
     {
         auto* u = unit ("VC LOWPASS FILTER");
         auto* a = knob (*u, "s_lpf", "CUTOFF"); auto* b = knob (*u, "s_lpfRes", "PEAK"); auto* c = knob (*u, "s_fltEnv", "EG AMOUNT");
         auto* d = knob (*u, "s_key", "KEY TRACK"); auto* e = knob (*u, "s_drive", "DRIVE");
-        u->layoutFn = [=] (juce::Rectangle<int> r) { place (r, { a, b, c, d, e }, 0, 84); };
+        u->layoutFn = [=] (juce::Rectangle<int> r) { place (r, { a, b, c, d, e }, 0, 88); };
     }
     {
         auto* u = unit ("ENVELOPE GENERATOR 1  (FILTER)");
         auto* a = knob (*u, "s_fA", "ATTACK"); auto* d = knob (*u, "s_fD", "DECAY"); auto* s = knob (*u, "s_fS", "SUSTAIN"); auto* r2 = knob (*u, "s_fR", "RELEASE");
-        u->layoutFn = [=] (juce::Rectangle<int> r) { place (r, { a, d, s, r2 }, 0, 84); };
+        u->layoutFn = [=] (juce::Rectangle<int> r) { place (r, { a, d, s, r2 }, 0, 88); };
     }
     {
         auto* u = unit ("ENVELOPE GENERATOR 2  (AMP)");
         auto* a = knob (*u, "s_aA", "ATTACK"); auto* d = knob (*u, "s_aD", "DECAY"); auto* s = knob (*u, "s_aS", "SUSTAIN"); auto* r2 = knob (*u, "s_aR", "RELEASE");
-        u->layoutFn = [=] (juce::Rectangle<int> r) { place (r, { a, d, s, r2 }, 0, 84); };
+        u->layoutFn = [=] (juce::Rectangle<int> r) { place (r, { a, d, s, r2 }, 0, 88); };
     }
 
-    // ---- rang C : 4 LFO avec S&H (indices 8..11)
-    for (int i = 1; i <= kLfos; ++i)
+    // ---- rang C : un LFO (choisi dans un menu), wavefolder, macros, arpegiateur (indices 8..11)
     {
-        const juce::String pre ("s_l" + juce::String (i));
-        auto* u = unit ("MODULATION GENERATOR " + juce::String (i));
-        auto* wv    = selector (*u, (pre + "Wave").toRawUTF8(), lfoWaves);
-        auto* rate  = knob (*u, (pre + "Rate").toRawUTF8(), "FREQUENCY");
-        auto* slew  = knob (*u, (pre + "Slew").toRawUTF8(), "S&H SLEW");
-        auto* fade  = knob (*u, (pre + "Fade").toRawUTF8(), "FADE-IN");
-        auto* sync  = combo (*u, (pre + "Sync").toRawUTF8());
-        auto* trig  = toggle (*u, (pre + "Trig").toRawUTF8(), "RETRIG");
-        auto view = std::make_unique<LfoView> (proc.apvts, pre + "Wave", pre + "Slew");
-        auto* vp = view.get(); u->addAndMakeVisible (*view); lfoViews.push_back (vp); owned.push_back (std::move (view));
-        u->layoutFn = [=] (juce::Rectangle<int> r)
+        auto* u = unit ("MODULATION GENERATOR");
+        struct LfoSet { LfoView* view; SegmentSelector* wave; KnobUnit *rate, *slew, *fade; juce::ComboBox* sync; LedToggle* trig; };
+        auto sets = std::make_shared<std::vector<LfoSet>>();
+        for (int i = 1; i <= kLfos; ++i)
         {
-            vp->setBounds (r.getX(), r.getY(), r.getWidth(), 40);
-            wv->setBounds (r.getX(), r.getY() + 46, r.getWidth(), 44);
-            sync->setBounds (r.getX(), r.getY() + 96, r.getWidth() / 2 - 4, 26);
-            trig->setBounds (r.getX() + r.getWidth() / 2, r.getY() + 94, r.getWidth() / 2, 30);
-            const int cw = r.getWidth() / 3, y = r.getY() + 126, h = r.getHeight() - 126;
-            rate->setBounds (r.getX(), y, cw, h); slew->setBounds (r.getX() + cw, y, cw, h); fade->setBounds (r.getX() + 2 * cw, y, cw, h);
+            const juce::String pre ("s_l" + juce::String (i));
+            LfoSet st;
+            st.wave  = selector (*u, (pre + "Wave").toRawUTF8(), lfoWaves);
+            st.rate  = knob (*u, (pre + "Rate").toRawUTF8(), "FREQUENCY");
+            st.slew  = knob (*u, (pre + "Slew").toRawUTF8(), "S&H SLEW");
+            st.fade  = knob (*u, (pre + "Fade").toRawUTF8(), "FADE-IN");
+            st.sync  = combo (*u, (pre + "Sync").toRawUTF8());
+            st.trig  = toggle (*u, (pre + "Trig").toRawUTF8(), "RETRIG");
+            auto view = std::make_unique<LfoView> (proc.apvts, pre + "Wave", pre + "Slew");
+            st.view = view.get(); u->addAndMakeVisible (*view); lfoViews.push_back (st.view); owned.push_back (std::move (view));
+            sets->push_back (st);
+        }
+        auto pick = std::make_unique<juce::ComboBox>();
+        for (int i = 1; i <= kLfos; ++i) pick->addItem ("LFO " + juce::String (i), i);
+        pick->setSelectedId (1, juce::dontSendNotification);
+        pick->setScrollWheelEnabled (false);
+        u->addAndMakeVisible (*pick);
+        auto* pk = pick.get(); owned.push_back (std::move (pick));
+        auto show = [sets, pk]
+        {
+            const int sel = pk->getSelectedId() - 1;
+            for (size_t k = 0; k < sets->size(); ++k)
+            {
+                auto& st = (*sets)[k]; const bool on = (int) k == sel;
+                for (juce::Component* c : { (juce::Component*) st.view, (juce::Component*) st.wave, (juce::Component*) st.rate, (juce::Component*) st.slew,
+                                            (juce::Component*) st.fade, (juce::Component*) st.sync, (juce::Component*) st.trig })
+                    c->setVisible (on);
+            }
+        };
+        pk->onChange = show; show();
+        u->layoutFn = [sets, pk] (juce::Rectangle<int> r)
+        {
+            pk->setBounds (r.getX(), r.getY() + 2, 104, 28);
+            for (auto& st : *sets)
+            {
+                st.view->setBounds (r.getX() + 114, r.getY(), r.getWidth() - 114, 40);
+                st.wave->setBounds (r.getX(), r.getY() + 46, r.getWidth(), 46);
+                st.sync->setBounds (r.getX(), r.getY() + 98, r.getWidth() / 2 - 4, 28);
+                st.trig->setBounds (r.getX() + r.getWidth() / 2, r.getY() + 96, r.getWidth() / 2, 32);
+                const int cw = r.getWidth() / 3, y = r.getY() + 132, h = r.getHeight() - 132;
+                st.rate->setBounds (r.getX(), y, cw, h); st.slew->setBounds (r.getX() + cw, y, cw, h); st.fade->setBounds (r.getX() + 2 * cw, y, cw, h);
+            }
         };
     }
-
-    // ---- rang D : macros + matrice de modulation (indices 12, 13)
+    {
+        auto* u = unit ("WAVEFOLDER");
+        auto* a = knob (*u, "s_fold", "FOLD"); auto* b = knob (*u, "s_foldSym", "SYMMETRY", "-", "+");
+        u->layoutFn = [=] (juce::Rectangle<int> r) { place (r, { a, b }, (r.getWidth() - 2 * 92) / 2, 92); };
+    }
     {
         auto* u = unit ("MACROS");
         auto* a = knob (*u, "s_m1", "MACRO 1"); auto* b = knob (*u, "s_m2", "MACRO 2"); auto* c = knob (*u, "s_m3", "MACRO 3"); auto* d = knob (*u, "s_m4", "MACRO 4");
-        u->layoutFn = [=] (juce::Rectangle<int> r) { place (r, { a, b, c, d }, 0, r.getWidth() / 4); };
+        u->layoutFn = [=] (juce::Rectangle<int> r)
+        {
+            const int cw = r.getWidth() / 2, kh = juce::jmin (r.getHeight() / 2, cw + 22);
+            a->setBounds (r.getX(), r.getY(), cw, kh); b->setBounds (r.getX() + cw, r.getY(), cw, kh);
+            c->setBounds (r.getX(), r.getY() + kh, cw, kh); d->setBounds (r.getX() + cw, r.getY() + kh, cw, kh);
+        };
     }
     {
-        auto* u = unit ("MODULATION MATRIX   source > destination > quantite");
-        struct Cell { juce::ComboBox *s, *d; DetentSlider* a; };
-        auto cells = std::make_shared<std::vector<Cell>>();
-        for (int i = 1; i <= kSlots; ++i)
+        auto* u = unit ("ARPEGGIATOR");
+        auto* on = toggle (*u, "s_arpOn", "ARP ON"); auto* hold = toggle (*u, "s_arpHold", "HOLD");
+        auto* div = combo (*u, "s_arpDiv");
+        auto* mode = selector (*u, "s_arpMode", juce::StringArray { "UP", "DOWN", "UP-DN", "RAND" });
+        auto* oct = selector (*u, "s_arpOct", juce::StringArray { "1 OCT", "2 OCT", "3 OCT", "4 OCT" });
+        auto* rat = selector (*u, "s_arpRatchet", juce::StringArray { "RATCH x1", "x2", "x3", "x4" });
+        auto* gate = knob (*u, "s_arpGate", "GATE"); auto* chance = knob (*u, "s_arpChance", "CHANCE");
+        u->layoutFn = [=] (juce::Rectangle<int> r)
         {
-            const juce::String pre ("s_slot" + juce::String (i));
-            auto* s = combo (*u, (pre + "Src").toRawUTF8());
-            auto* d = combo (*u, (pre + "Dst").toRawUTF8());
-            auto sl = std::make_unique<DetentSlider> (juce::Slider::LinearHorizontal, juce::Slider::NoTextBox);
-            sl->detent = 0.0; sl->showMark = true;
-            sl->setPopupDisplayEnabled (true, true, nullptr);
-            sl->setScrollWheelEnabled (false);
-            sl->setDoubleClickReturnValue (true, 0.0);
-            sl->setColour (juce::Slider::thumbColourId, juce::Colour (0xffe9e5d8));
-            sl->setColour (juce::Slider::trackColourId, juce::Colour (0xffc8281c));
-            sl->setColour (juce::Slider::backgroundColourId, juce::Colour (0xff0b0b0c));
-            u->addAndMakeVisible (*sl);
-            sliderAtt.push_back (std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (proc.apvts, pre + "Amt", *sl));
-            cells->push_back ({ s, d, sl.get() });
-            owned.push_back (std::move (sl));
-        }
-        u->layoutFn = [cells] (juce::Rectangle<int> r)
-        {
-            const int colW = r.getWidth() / 2, rowH = 26;
-            for (size_t i = 0; i < cells->size(); ++i)
-            {
-                const int cx = r.getX() + (int) (i / 4) * colW, cy = r.getY() + 2 + (int) (i % 4) * rowH;
-                (*cells)[i].s->setBounds (cx, cy, 116, 22);
-                (*cells)[i].d->setBounds (cx + 122, cy, 116, 22);
-                (*cells)[i].a->setBounds (cx + 246, cy, colW - 268, 22);
-            }
+            const int lw = juce::jmin (270, r.getWidth() - 190);
+            on->setBounds (r.getX(), r.getY() + 2, 88, 30); hold->setBounds (r.getX() + 92, r.getY() + 2, 88, 30); div->setBounds (r.getX() + 186, r.getY() + 4, lw - 186, 26);
+            mode->setBounds (r.getX(), r.getY() + 38, lw, 40); oct->setBounds (r.getX(), r.getY() + 84, lw, 40); rat->setBounds (r.getX(), r.getY() + 130, lw, 40);
+            place (r, { gate, chance }, lw + 8, (r.getWidth() - lw - 8) / 2);
         };
     }
     startTimerHz (10);
@@ -246,10 +264,9 @@ void SynthPanel::resized()
             x += w + gap;
         }
     };
-    row (0, 176, { { 0, 290.f }, { 1, 450.f }, { 2, 372.f }, { 3, 300.f } });
-    row (184, 176, { { 4, 200.f }, { 5, 470.f }, { 6, 372.f }, { 7, 372.f } });
-    row (368, 246, { { 8, 1.f }, { 9, 1.f }, { 10, 1.f }, { 11, 1.f } });
-    row (622, 150, { { 12, 3.2f }, { 13, 9.f } });
+    row (0, 212, { { 0, 290.f }, { 1, 450.f }, { 2, 372.f }, { 3, 300.f } });
+    row (220, 212, { { 4, 200.f }, { 5, 470.f }, { 6, 372.f }, { 7, 372.f } });
+    row (440, 276, { { 8, 400.f }, { 9, 210.f }, { 10, 240.f }, { 11, 520.f } });
 
     tex = juce::Image (juce::Image::RGB, juce::jmax (1, W), juce::jmax (1, getHeight()), false);
     juce::Graphics g (tex);
@@ -268,9 +285,60 @@ void SynthPanel::resized()
     }
 }
 
+// ---------------------------------------------------------------- volet de la matrice
+MatrixDrawer::MatrixDrawer (juce::AudioProcessorValueTreeState& apvts)
+{
+    for (int i = 1; i <= kSlots; ++i)
+    {
+        const juce::String pre ("s_slot" + juce::String (i));
+        auto r = std::make_unique<Row>();
+        for (auto* cb : { &r->src, &r->dst }) cb->setScrollWheelEnabled (false);
+        if (auto* ch = dynamic_cast<juce::AudioParameterChoice*> (apvts.getParameter (pre + "Src"))) r->src.addItemList (ch->choices, 1);
+        if (auto* ch = dynamic_cast<juce::AudioParameterChoice*> (apvts.getParameter (pre + "Dst"))) r->dst.addItemList (ch->choices, 1);
+        r->amt.detent = 0.0; r->amt.showMark = true;
+        r->amt.setPopupDisplayEnabled (true, true, nullptr);
+        r->amt.setScrollWheelEnabled (false);
+        r->amt.setDoubleClickReturnValue (true, 0.0);
+        r->amt.setColour (juce::Slider::thumbColourId, juce::Colour (0xffe9e5d8));
+        r->amt.setColour (juce::Slider::trackColourId, juce::Colour (0xffc8281c));
+        r->amt.setColour (juce::Slider::backgroundColourId, juce::Colour (0xff0b0b0c));
+        addAndMakeVisible (r->src); addAndMakeVisible (r->dst); addAndMakeVisible (r->amt);
+        comboAtt.push_back (std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (apvts, pre + "Src", r->src));
+        comboAtt.push_back (std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (apvts, pre + "Dst", r->dst));
+        sliderAtt.push_back (std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (apvts, pre + "Amt", r->amt));
+        rows.push_back (std::move (r));
+    }
+}
+
+void MatrixDrawer::paint (juce::Graphics& g)
+{
+    const auto b = getLocalBounds().toFloat();
+    g.setColour (juce::Colour (0xff0d0d0e));
+    g.fillRoundedRectangle (b, 6.f);
+    g.setColour (juce::Colour (0xffe9e5d8).withAlpha (0.75f));
+    g.drawRoundedRectangle (b.reduced (1.f), 6.f, 1.5f);
+    g.setColour (juce::Colour (0xffe9e5d8).withAlpha (0.95f));
+    g.setFont (bold (13.f));
+    g.drawText ("MODULATION MATRIX   source > destination > amount   (also reaches the effects and the BBD delay)", 14, 6, getWidth() - 28, 18, juce::Justification::centredLeft, false);
+    g.setColour (juce::Colour (0xffe9e5d8).withAlpha (0.35f));
+    g.fillRect (14, 28, getWidth() - 28, 1);
+}
+
+void MatrixDrawer::resized()
+{
+    const int rowH = 32;
+    for (size_t i = 0; i < rows.size(); ++i)
+    {
+        const int y = 38 + (int) i * rowH;
+        rows[i]->src.setBounds (14, y, 150, 26);
+        rows[i]->dst.setBounds (172, y, 176, 26);
+        rows[i]->amt.setBounds (358, y, getWidth() - 358 - 16, 26);
+    }
+}
+
 // ---------------------------------------------------------------- fenetre : onglets (synthe) + mise a l'echelle
 
-int SynthEditor::designHeight() const { return ORAGE_SYNTH ? 990 : 900; }
+int SynthEditor::designHeight() const { return ORAGE_SYNTH ? 30 + kFxH : kFxH; }
 int SynthEditor::designWidth() const  { return 1440; }
 
 SynthEditor::SynthEditor (OrageAudioProcessor& p)
@@ -296,11 +364,11 @@ SynthEditor::SynthEditor (OrageAudioProcessor& p)
     }
     synthTab.onClick = [this] { showTab (0); };
     fxTab.onClick    = [this] { showTab (1); };
-    keys = std::make_unique<juce::MidiKeyboardComponent> (p.keyboardState, juce::MidiKeyboardComponent::horizontalKeyboard);
-    content.addAndMakeVisible (*keys);
-    keys->setKeyPressBaseOctave (4);
-    keys->setLowestVisibleKey (36);
-    keys->setColour (juce::MidiKeyboardComponent::keyDownOverlayColourId, juce::Colour (0xffff7a1a).withAlpha (0.8f));
+    matrix = std::make_unique<MatrixDrawer> (p.apvts);
+    content.addChildComponent (*matrix);
+    matrixBtn.setClickingTogglesState (true);
+    content.addAndMakeVisible (matrixBtn);
+    matrixBtn.onClick = [this] { matrix->setVisible (matrixBtn.getToggleState()); matrix->toFront (false); };
     synthTab.setToggleState (true, juce::dontSendNotification);
     showTab (0);
 #endif
@@ -309,9 +377,9 @@ SynthEditor::SynthEditor (OrageAudioProcessor& p)
     float s = 1.f;                                                  // taille initiale : tient dans l'ecran
     if (auto* d = juce::Desktop::getInstance().getDisplays().getPrimaryDisplay())
         s = juce::jmin (1.f, (float) (d->userArea.getHeight() - 90) / (float) dh, (float) (d->userArea.getWidth() - 20) / (float) designWidth());
-    s = juce::jmax (0.5f, s);
+    s = juce::jmax (0.6f, s);
     constrainer.setFixedAspectRatio ((double) designWidth() / (double) dh);
-    constrainer.setSizeLimits (designWidth() / 2, dh / 2, designWidth() * 3 / 2, dh * 3 / 2);
+    constrainer.setSizeLimits (designWidth() * 6 / 10, dh * 6 / 10, designWidth() * 3 / 2, dh * 3 / 2);
     setConstrainer (&constrainer);
     setResizable (true, true);
     setSize (juce::roundToInt ((float) designWidth() * s), juce::roundToInt ((float) dh * s));
@@ -336,10 +404,12 @@ void SynthEditor::resized()
 #if ORAGE_SYNTH
     synthTab.setBounds (10, 3, 150, 24);
     fxTab.setBounds (166, 3, 150, 24);
-    fx.setBounds ((designWidth() - 1440) / 2, 30, 1440, 900);
-    synthPanel->setBounds (0, 30 + 118, designWidth(), 900 - 118);
-    keys->setBounds (10, 934, designWidth() - 20, 52);
+    matrixBtn.setBounds (322, 3, 150, 24);
+    fx.setBounds ((designWidth() - 1440) / 2, 30, 1440, kFxH);
+    synthPanel->setBounds (0, 30 + kHeaderH + 4, designWidth(), kFxH - kHeaderH - 4);
+    matrix->setBounds (322, 32, 640, 38 + kSlots * 32 + 10);
+    matrix->toFront (false);
 #else
-    fx.setBounds (0, 0, 1440, 900);
+    fx.setBounds (0, 0, 1440, kFxH);
 #endif
 }

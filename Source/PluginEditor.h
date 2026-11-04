@@ -11,6 +11,9 @@ inline const juce::Colour print  { 0xffe9e5d8 };       // serigraphie blanc cass
 inline const juce::Colour cvRing { 0xffe0662a };       // anneau orange des prises CV
 }
 
+constexpr int kHeaderH = 84;      // hauteur de l'en-tete (une seule lampe)
+constexpr int kFxH = 820;         // hauteur de conception de l'editeur d'effets
+
 class OrageAudioProcessorEditor;
 class RackView;
 class PatchBay;

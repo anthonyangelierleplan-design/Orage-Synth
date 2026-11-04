@@ -63,6 +63,13 @@ const PDef kDefs[] = {
     { "shSync",    "S&H Sync",         0,  15,  0,    kChoice, kSyncChoices },
     { "envRel",    "Env Release",      0,   1,  0.4f, kFloat,  nullptr },
     { "envLevel",  "Env Level",        0,   1,  0.6f, kFloat,  nullptr },
+    { "bbdTime",   "BBD Time",         0,   1,  0.4f, kFloat,  nullptr },
+    { "bbdFb",     "BBD Feedback",     0,   1,  0.4f, kFloat,  nullptr },
+    { "bbdTone",   "BBD Tone",         0,   1,  0.5f, kFloat,  nullptr },
+    { "bbdMod",    "BBD Mod",          0,   1,  0.3f, kFloat,  nullptr },
+    { "bbdMix",    "BBD Mix",          0,   1,  0.f,  kFloat,  nullptr },
+    { "bbdPing",   "BBD Ping-Pong",    0,   1,  1,    kBool,   nullptr },
+    { "bbdSync",   "BBD Sync",         0,  15,  0,    kChoice, kSyncChoices },
 };
 constexpr int kNumDefs = (int) (sizeof (kDefs) / sizeof (kDefs[0]));
 
@@ -110,6 +117,14 @@ const std::vector<SynDef>& synDefs()
             C (p + "Src", n + " Source", srcs.joinIntoString ("|"), 0);  C (p + "Dst", n + " Dest", dsts.joinIntoString ("|"), 0);
             F (p + "Amt", n + " Amount", -1, 1, 0);
         }
+        F ("s_fold", "Wavefolder", 0, 1, 0);  F ("s_foldSym", "Fold Symmetry", -1, 1, 0);
+        B ("s_arpOn", "Arp On", false);  B ("s_arpHold", "Arp Hold", false);
+        C ("s_arpMode", "Arp Mode", "Up|Down|Up-Down|Random", 0);
+        C ("s_arpDiv", "Arp Division", "1/4|1/8|1/8T|1/16|1/16T|1/32", 3);
+        C ("s_arpOct", "Arp Octaves", "1|2|3|4", 0);
+        F ("s_arpGate", "Arp Gate", 0, 1, 0.6f);
+        C ("s_arpRatchet", "Arp Ratchet", "x1|x2|x3|x4", 0);
+        F ("s_arpChance", "Arp Chance", 0, 1, 1);
         return v;
     }();
     return defs;
@@ -193,6 +208,33 @@ void sFm (OrageAudioProcessor& p)
     p.setParamReal ("s_slot1Src", MsEnv); p.setParamReal ("s_slot1Dst", MdFm); p.setParamReal ("s_slot1Amt", 0.6f);
     p.setParamReal ("s_aD", 0.35f); p.setParamReal ("s_aS", 0.4f);
 }
+void sMs20Bass (OrageAudioProcessor& p)
+{
+    p.setParamReal ("s_wave1", 0); p.setParamReal ("s_oct1", 1); p.setParamReal ("s_wave2", 1); p.setParamReal ("s_oct2", 1); p.setParamReal ("s_lvl2", 0.5f);
+    p.setParamReal ("s_hpf", 0.2f); p.setParamReal ("s_hpfRes", 0.8f);                      // le pic du HPF gonfle les basses
+    p.setParamReal ("s_lpf", 0.45f); p.setParamReal ("s_lpfRes", 0.7f); p.setParamReal ("s_fltEnv", 0.55f); p.setParamReal ("s_drive", 0.45f);
+    p.setParamReal ("s_fD", 0.3f); p.setParamReal ("s_fS", 0.1f); p.setParamReal ("s_aS", 0.9f);
+    p.setParamReal ("power", 0.5f); p.setParamReal ("compType", 1); p.setParamReal ("compAmt", 0.45f);
+}
+void sFoldLead (OrageAudioProcessor& p)
+{
+    p.setParamReal ("s_wave1", 2); p.setParamReal ("s_wave2", 0); p.setParamReal ("s_lvl2", 0.35f); p.setParamReal ("s_tune2", 0.1f);
+    p.setParamReal ("s_fold", 0.55f); p.setParamReal ("s_foldSym", 0.2f); p.setParamReal ("s_lpf", 0.75f); p.setParamReal ("s_lpfRes", 0.4f);
+    p.setParamReal ("s_slot1Src", MsEnv); p.setParamReal ("s_slot1Dst", MdFold); p.setParamReal ("s_slot1Amt", 0.5f);
+    p.setParamReal ("s_slot2Src", MsLfo1); p.setParamReal ("s_slot2Dst", MdFold); p.setParamReal ("s_slot2Amt", 0.25f);
+    p.setParamReal ("s_l1Rate", 0.3f);
+    p.setParamReal ("bbdMix", 0.3f); p.setParamReal ("bbdTime", 0.55f); p.setParamReal ("bbdFb", 0.45f);
+}
+void sArpBbd (OrageAudioProcessor& p)
+{
+    p.setParamReal ("s_wave1", 0); p.setParamReal ("s_wave2", 1); p.setParamReal ("s_lvl2", 0.4f); p.setParamReal ("s_tune2", 7);
+    p.setParamReal ("s_lpf", 0.55f); p.setParamReal ("s_lpfRes", 0.5f); p.setParamReal ("s_fltEnv", 0.5f); p.setParamReal ("s_fD", 0.18f); p.setParamReal ("s_fS", 0.f);
+    p.setParamReal ("s_aD", 0.25f); p.setParamReal ("s_aS", 0.2f);
+    p.setParamReal ("s_arpOn", 1); p.setParamReal ("s_arpMode", 2); p.setParamReal ("s_arpDiv", 3); p.setParamReal ("s_arpOct", 1); p.setParamReal ("s_arpGate", 0.45f);
+    p.setParamReal ("s_arpChance", 0.85f); p.setParamReal ("s_arpRatchet", 1);
+    p.setParamReal ("bbdMix", 0.45f); p.setParamReal ("bbdSync", 5); p.setParamReal ("bbdFb", 0.55f); p.setParamReal ("bbdPing", 1);
+    p.setParamReal ("s_slot1Src", MsLfo1); p.setParamReal ("s_slot1Dst", MdBbdMix); p.setParamReal ("s_slot1Amt", 0.3f);
+}
 void sRing (OrageAudioProcessor& p)
 {
     p.setParamReal ("s_wave1", 0); p.setParamReal ("s_wave2", 1); p.setParamReal ("s_ring", 0.8f); p.setParamReal ("s_tune2", 5.5f);
@@ -206,6 +248,7 @@ const Factory kFactory[] = {
     { "Init", fInit },
 #if ORAGE_SYNTH
     { "Hard Sync Lead", sLead }, { "Justice Bass Synth", sBass }, { "FM Bell Pluck", sFm }, { "Ring Wobble", sRing },
+    { "MS20 Bass Boost", sMs20Bass }, { "Wavefold Lead", sFoldLead }, { "Arp Echo BBD", sArpBbd },
 #endif
     { "Waters Of Nazareth (depart)", fWaters },
     { "Gated Fuzz Wall", fGated },
@@ -266,6 +309,8 @@ void OrageAudioProcessor::prepareToPlay (double sampleRate, int)
     engine.prepare ((float) sampleRate);
 #if ORAGE_SYNTH
     synth.prepare ((float) sampleRate);
+    arp.prepare ((float) sampleRate);
+    evs.clear(); evs.reserve (2048);
 #endif
 }
 
@@ -291,13 +336,14 @@ orage::Params OrageAudioProcessor::readParams() const
     p.lfo2Rate = f();  p.lfo2Shape = f();  p.lfo2Level = f();  p.lfo2Sync = n();
     p.shRate = f();  p.shSlew = f();  p.shLevel = f();  p.shSync = n();
     p.envRel = f();  p.envLevel = f();
+    p.bbdTime = f();  p.bbdFb = f();  p.bbdTone = f();  p.bbdMod = f();  p.bbdMix = f();  p.bbdPing = b();  p.bbdSync = n();
     jassert (i == kNumDefs);
     return p;
 }
 
 
 #if ORAGE_SYNTH
-orage::SynthParams OrageAudioProcessor::readSynth() const
+orage::SynthParams OrageAudioProcessor::readSynth()
 {
     size_t i = 0;
     auto f = [this, &i] { return rawSyn[i++]->load(); };
@@ -316,6 +362,9 @@ orage::SynthParams OrageAudioProcessor::readSynth() const
     for (auto& l : s.lfo) { l.rate = f(); l.wave = n(); l.slew = f(); l.fade = f(); l.sync = n(); l.trig = b() ? 1 : 0; }
     for (auto& m : s.macro) m = f();
     for (auto& sl : s.slot) { sl.src = n(); sl.dst = n(); sl.amt = f(); }
+    s.fold = f(); s.foldSym = f();
+    arpParams.on = b(); arpParams.hold = b(); arpParams.mode = n(); arpParams.div = n(); arpParams.octaves = n() + 1;
+    arpParams.gate = f(); arpParams.ratchet = n() + 1; arpParams.chance = f();
     jassert (i == rawSyn.size());
     return s;
 }
@@ -350,22 +399,47 @@ void OrageAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
         synth.setParams (readSynth());
         float* sl = buffer.getWritePointer (0);
         float* sr = nc > 1 ? buffer.getWritePointer (1) : buffer.getWritePointer (0);
+
+        // ---- evenements du bloc : MIDI direct, ou arpegiateur (qui genere ses propres notes)
+        evs.clear();
+        arp.setParams (arpParams);
+        if (arpParams.on != lastArpOn) { lastArpOn = arpParams.on; synth.allNotesOff(); if (! arpParams.on) arp.allOff(); }
+        for (const auto meta : midi)
+        {
+            const auto m = meta.getMessage();
+            const int pos = juce::jlimit (0, total - 1, meta.samplePosition);
+            if (m.isNoteOn())            { if (arpParams.on) arp.noteOn (m.getNoteNumber(), m.getFloatVelocity()); else evs.push_back ({ pos, 0, m.getNoteNumber(), m.getFloatVelocity() }); }
+            else if (m.isNoteOff())      { if (arpParams.on) arp.noteOff (m.getNoteNumber()); else evs.push_back ({ pos, 1, m.getNoteNumber(), 0.f }); }
+            else if (m.isAllNotesOff() || m.isAllSoundOff()) { arp.allOff(); evs.push_back ({ pos, 2, 0, 0.f }); }
+            else if (m.isPitchWheel())   evs.push_back ({ pos, 3, 0, (float) (m.getPitchWheelValue() - 8192) / 8192.f * 2.f });
+            else if (m.isController() && m.getControllerNumber() == 1) evs.push_back ({ pos, 4, 0, (float) m.getControllerValue() / 127.f });
+        }
+        {
+            orage::Arp::Ev ae[256];
+            const int ac = arp.process (total, bpm, ppq, playing && hasPpq, ae, 256);
+            for (int k = 0; k < ac; ++k) evs.push_back ({ juce::jlimit (0, total - 1, ae[k].pos), ae[k].on ? 0 : 1, ae[k].note, ae[k].vel });
+        }
+        std::stable_sort (evs.begin(), evs.end(), [] (const MidiEv& a, const MidiEv& b) { return a.pos < b.pos; });
+
         int pos = 0;
         auto render = [&] (int upTo)
         {
             if (upTo > pos) { synth.process (sl + pos, sr + pos, upTo - pos); pos = upTo; }
         };
-        for (const auto meta : midi)
+        for (const auto& e : evs)
         {
-            render (juce::jlimit (0, total, meta.samplePosition));
-            const auto m = meta.getMessage();
-            if (m.isNoteOn())                  synth.noteOn (m.getNoteNumber(), m.getFloatVelocity());
-            else if (m.isNoteOff())            synth.noteOff (m.getNoteNumber());
-            else if (m.isAllNotesOff() || m.isAllSoundOff()) synth.allNotesOff();
-            else if (m.isPitchWheel())         synth.setBend ((float) (m.getPitchWheelValue() - 8192) / 8192.f * 2.f);
-            else if (m.isController() && m.getControllerNumber() == 1) synth.setWheel ((float) m.getControllerValue() / 127.f);
+            render (e.pos);
+            switch (e.type)
+            {
+                case 0: synth.noteOn (e.a, e.v); break;
+                case 1: synth.noteOff (e.a); break;
+                case 2: synth.allNotesOff(); break;
+                case 3: synth.setBend (e.v); break;
+                default: synth.setWheel (e.v); break;
+            }
         }
         render (total);
+        engine.setExtMod (synth.fxMod());
     }
 #endif
     engine.setParams (readParams());

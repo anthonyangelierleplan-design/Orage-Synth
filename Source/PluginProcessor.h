@@ -5,6 +5,7 @@
  #define ORAGE_SYNTH 0
 #endif
 #include "Synth.h"
+#include "Arp.h"
 
 class OrageAudioProcessor : public juce::AudioProcessor
 {
@@ -58,13 +59,18 @@ public:
     juce::AudioProcessorValueTreeState apvts;
     juce::MidiKeyboardState keyboardState;  // clavier a l'ecran (version instrument)
     orage::Synth synth;                     // utilise seulement par la version instrument (ORAGE_SYNTH)
+    orage::Arp arp;                         // arpegiateur (version instrument)
     orage::Engine engine;                   // rack + patchbay vivent ici ; l'editeur les lit et les modifie
     juce::String presetName { "Init" };
 
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createLayout();
     orage::Params readParams() const;
-    orage::SynthParams readSynth() const;
+    orage::SynthParams readSynth();
+    orage::ArpParams arpParams;
+    struct MidiEv { int pos; int type; int a; float v; };       // type : 0 note on, 1 note off, 2 all off, 3 bend, 4 molette
+    std::vector<MidiEv> evs;
+    bool lastArpOn = false;
     std::vector<std::atomic<float>*> rawSyn;
     juce::ValueTree captureState();
     void applyState (juce::ValueTree state);

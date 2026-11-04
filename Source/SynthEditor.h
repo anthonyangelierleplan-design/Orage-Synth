@@ -15,6 +15,20 @@ private:
     juce::String wave, slew;
 };
 
+// Volet de la matrice de modulation : un menu deroulant au-dessus des deux onglets (SYNTH et EFFECTS)
+class MatrixDrawer : public juce::Component
+{
+public:
+    explicit MatrixDrawer (juce::AudioProcessorValueTreeState&);
+    void paint (juce::Graphics&) override;
+    void resized() override;
+private:
+    struct Row { juce::ComboBox src, dst; DetentSlider amt { juce::Slider::LinearHorizontal, juce::Slider::NoTextBox }; };
+    std::vector<std::unique_ptr<Row>> rows;
+    std::vector<std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment>> comboAtt;
+    std::vector<std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>> sliderAtt;
+};
+
 class SynthPanel : public juce::Component, private juce::Timer
 {
 public:
@@ -57,8 +71,8 @@ private:
     juce::Component content;
     OrageAudioProcessorEditor fx;
     std::unique_ptr<SynthPanel> synthPanel;
-    std::unique_ptr<juce::MidiKeyboardComponent> keys;
-    juce::TextButton synthTab { "SYNTH" }, fxTab { "EFFECTS" };
+    std::unique_ptr<MatrixDrawer> matrix;
+    juce::TextButton synthTab { "SYNTH" }, fxTab { "EFFECTS" }, matrixBtn { "MATRIX" };
     juce::ComponentBoundsConstrainer constrainer;
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SynthEditor)
 };

@@ -80,7 +80,7 @@ bool drawGlyph (juce::Graphics& g, const juce::String& name, juce::Rectangle<flo
 
 const char* nodeName (int n)
 {
-    static const char* names[kNumNodes] { "INPUT", "OCTAVER", "DISTORSION", "COLOR", "FILTER", "DESTROY", "COMP", "SPRING", "GATE", "OUTPUT" };
+    static const char* names[kNumNodes] { "INPUT", "OCTAVER", "DISTORSION", "COLOR", "FILTER", "DESTROY", "COMP", "SPRING", "GATE", "BBD DELAY", "OUTPUT" };
     return names[juce::jlimit (0, (int) kNumNodes - 1, n)];
 }
 
@@ -233,14 +233,14 @@ void KnobUnit::paint (juce::Graphics& g)
         g.fillEllipse (c.x + rad * std::sin (a) - dot * 0.5f, c.y - rad * std::cos (a) - dot * 0.5f, dot, dot);
         if (numbered)                                                              // chiffres 0..10 autour du bouton, comme le MS20
         {
-            g.setFont (font (8.f));
+            g.setFont (font (9.f));
             g.drawText (juce::String (i), (int) (c.x + r * 0.93f * std::sin (a)) - 7, (int) (c.y - r * 0.93f * std::cos (a)) - 5, 14, 10,
                         juce::Justification::centred, false);
         }
     }
     if (! numbered)
     {
-        g.setFont (font (8.5f));
+        g.setFont (font (9.5f));
         g.setColour (look::print.withAlpha (0.8f * alpha));
         g.drawText (loText, (int) (c.x - r * 0.78f) - 14, (int) (c.y + r * 0.88f), 28, 11, juce::Justification::centred, false);
         g.drawText (hiText, (int) (c.x + r * 0.78f) - 14, (int) (c.y + r * 0.88f), 28, 11, juce::Justification::centred, false);
@@ -251,7 +251,7 @@ void KnobUnit::paint (juce::Graphics& g)
         g.setColour (look::cvRing.withAlpha (0.95f * alpha));
         g.fillEllipse (c.x + rad * std::sin (a) - 2.f, c.y - rad * std::cos (a) - 2.f, 4.f, 4.f);
     }
-    g.setFont (font (getWidth() < 80 ? 10.f : 11.f));
+    g.setFont (font (getWidth() < 80 ? 11.f : 12.f));
     g.setColour (look::print.withAlpha (0.95f * alpha));
     g.drawText (text, -4, getHeight() - 15, getWidth() + 8, 14, juce::Justification::centred, false);
     if (cvActive)                                                            // un cable CV est branche sur ce reglage
@@ -650,7 +650,7 @@ void PatchPanel::layoutJacks()
         if (audioOut[n] != nullptr) audioOut[n]->setVisible (false);
         if (audioIn[n] != nullptr)  audioIn[n]->setVisible (false);
     }
-    const int x0 = 12, y0 = 64, pitch = 34, inX = 196, outX = 252;
+    const int x0 = 12, y0 = 58, pitch = 30, inX = 196, outX = 252;
     for (size_t i = 0; i < seq.size(); ++i)
     {
         const int n = seq[i], y = y0 + (int) i * pitch;
@@ -658,7 +658,7 @@ void PatchPanel::layoutJacks()
         if (audioIn[n] != nullptr)  { audioIn[n]->setVisible (true);  audioIn[n]->setCentrePosition (inX, y); }
         if (audioOut[n] != nullptr) { audioOut[n]->setVisible (true); audioOut[n]->setCentrePosition (outX, y); }
     }
-    const int ySrc = y0 + 10 * pitch + 44;                                                   // sorties de modulation
+    const int ySrc = y0 + 11 * pitch + 40;                                                   // sorties de modulation
     static const char* srcNames[kNumSrc] { "LFO 1", "LFO 2", "S&H", "ENV" };
     for (int s = 0; s < kNumSrc; ++s)
     {
@@ -669,7 +669,7 @@ void PatchPanel::layoutJacks()
     const int yCv = ySrc + 88;                                                               // entrees CV
     for (int d = 0; d < kNumCv; ++d)
     {
-        const int cx = 12 + 36 + (d % 4) * 70, cy = yCv + (d / 4) * 58;
+        const int cx = 12 + 36 + (d % 4) * 70, cy = yCv + (d / 4) * 56;
         const int ow = cvOwner (d);
         const bool avail = ow < 0 || e.inRack (ow);
         cvIn[d]->setVisible (avail);
@@ -691,13 +691,13 @@ void PatchPanel::paint (juce::Graphics& g)
         g.fillRect (12, y + 19, getWidth() - 24, 1);
     };
     head ("PATCHBAY", 5);
-    const int y0 = 64, pitch = 34;
+    const int y0 = 58, pitch = 30;
     g.setColour (look::print.withAlpha (0.7f));
     g.setFont (font (9.f));
     g.drawText ("IN", 196 - 20, 36, 40, 11, juce::Justification::centred, false);
     g.drawText ("OUT", 252 - 20, 36, 40, 11, juce::Justification::centred, false);
     g.drawText ("AUDIO", 12, 36, 100, 11, juce::Justification::centredLeft, false);
-    const int ySrc = y0 + 10 * pitch + 44;
+    const int ySrc = y0 + 11 * pitch + 40;
     head ("MODULATION OUT", ySrc - 46);
     head ("CV IN", ySrc + 44);
     g.setColour (look::print.withAlpha (0.55f));
@@ -741,8 +741,8 @@ void ModuleUnit::paint (juce::Graphics& g)
     const auto b = getLocalBounds().toFloat();
     drawPlate (g, b);
     g.setColour (look::print.withAlpha (0.95f));
-    g.setFont (font (11.f));
-    g.drawText (title, fixed ? 12 : 32, 5, getWidth() - (fixed ? 24 : 100), 16, juce::Justification::centredLeft, false);
+    g.setFont (font (12.5f));
+    g.drawText (title, fixed ? 12 : 32, 4, getWidth() - (fixed ? 24 : 100), 16, juce::Justification::centredLeft, false);
     g.setColour (look::print.withAlpha (0.35f));
     g.fillRect (fixed ? 12 : 32, 24, getWidth() - (fixed ? 24 : 100) - 12, 1);
     if (! fixed)
@@ -1010,7 +1010,7 @@ OrageAudioProcessorEditor::OrageAudioProcessorEditor (OrageAudioProcessor& p, ju
     cablesBtn.onClick = [this] { patchBay.cablesVisible = cablesBtn.getToggleState(); patchBay.repaint(); };
     addAndMakeVisible (patchBay);
 
-    setSize (1440, 900);
+    setSize (1440, kFxH);
     refreshRack();
     startTimerHz (30);
 }
@@ -1166,6 +1166,20 @@ void OrageAudioProcessorEditor::buildUnits()
         u->layoutFn = [=] (juce::Rectangle<int> r) { place (r, { a, b, c }, 0, kCell); };
     }
 
+    {   // BBD DELAY
+        auto* u = newUnit (NBbd, "BBD DELAY", kModH, false);
+        auto* a = mk (*u, "bbdTime", "TIME"); auto* b = mk (*u, "bbdFb", "FEEDBACK"); auto* c = mk (*u, "bbdTone", "TONE");
+        auto* d = mk (*u, "bbdMod", "WOBBLE"); auto* e = mk (*u, "bbdMix", "MIX");
+        auto* sync = addSync (*u, "bbdSync", a);
+        auto* ping = addToggle (*u, "bbdPing", "PING-PONG");
+        u->layoutFn = [=] (juce::Rectangle<int> r)
+        {
+            place (r, { a, b, c, d, e }, 0, kCell - 14);
+            sync->setBounds (r.getX() + 5 * (kCell - 14) + 20, r.getCentreY() - 40, 120, 26);
+            ping->setBounds (r.getX() + 5 * (kCell - 14) + 20, r.getCentreY() + 4, 120, 34);
+        };
+    }
+
     // ---------------- bandeau de modulation (fixe) : sources CV a droite de chaque module
     auto strip = [&] (const char* title, const char* prefix, int srcIdx, bool hasSync)
     {
@@ -1195,7 +1209,7 @@ void OrageAudioProcessorEditor::buildUnits()
     }
 
     // ---------------- panneau lateral : tuiles de modules + master + remises a zero + entree/sortie
-    static const int tileNodes[] = { NOct, NDist, NColor, NFilter, NDestroy, NComp, NSpring, NGate };
+    static const int tileNodes[] = { NOct, NDist, NColor, NFilter, NDestroy, NComp, NSpring, NBbd, NGate };
     for (int n : tileNodes)
     {
         auto b = std::make_unique<juce::TextButton> (nodeName (n));
@@ -1249,7 +1263,7 @@ void OrageAudioProcessorEditor::refreshRack()
     }
     rackView.setUnits (list);
     patchPanel.layoutJacks();
-    static const int tileNodes[] = { NOct, NDist, NColor, NFilter, NDestroy, NComp, NSpring, NGate };
+    static const int tileNodes[] = { NOct, NDist, NColor, NFilter, NDestroy, NComp, NSpring, NBbd, NGate };
     for (size_t i = 0; i < tiles.size(); ++i) tiles[i]->setToggleState (proc.engine.inRack (tileNodes[i]), juce::dontSendNotification);
     patchBay.repaint();
     lastRackHash = 0;
@@ -1411,20 +1425,21 @@ void OrageAudioProcessorEditor::timerCallback()
 void OrageAudioProcessorEditor::resized()
 {
     const int W = getWidth(), H = getHeight();
-    headerArea = { 0, 0, W, 108 };
+    headerArea = { 0, 0, W, kHeaderH };
 
     // ---- en-tete : presets
-    prevBtn.setBounds (W - 400, 40, 30, 28);
-    nameBtn.setBounds (W - 364, 40, 220, 28);
-    nextBtn.setBounds (W - 140, 40, 30, 28);
-    saveBtn.setBounds (W - 104, 40, 70, 28);
-    cablesBtn.setBounds (W - 140, 76, 108, 24);
+    prevBtn.setBounds (W - 400, 36, 30, 28);
+    nameBtn.setBounds (W - 364, 36, 220, 28);
+    nextBtn.setBounds (W - 140, 36, 30, 28);
+    saveBtn.setBounds (W - 104, 36, 70, 28);
+    cablesBtn.setBounds (W - 540, 38, 108, 24);
 
     // ---- colonnes : panneau lateral | rack | (bandeau de modulation en bas)
     const int vpW = W - 170 - 310;
-    patchPanel.setBounds (W - 310, 118, 300, H - 128);
-    side.setBounds (10, 118, 140, H - 128);
-    viewport.setBounds (160, 118, vpW, H - 118 - 8 - 172 - 8);
+    const int top = kHeaderH + 8;
+    patchPanel.setBounds (W - 310, top, 300, H - top - 10);
+    side.setBounds (10, top, 140, H - top - 10);
+    viewport.setBounds (160, top, vpW, H - top - 8 - 172 - 8);
     rackView.setSize (viewport.getMaximumVisibleWidth(), juce::jmax (90, rackView.getHeight()));
     patchBay.setBounds (getLocalBounds());
     patchBay.toFront (false);
@@ -1444,7 +1459,7 @@ void OrageAudioProcessorEditor::resized()
     }
 
     // ---- panneau lateral
-    for (size_t i = 0; i < tiles.size(); ++i) tiles[i]->setBounds (8, 32 + (int) i * 27, 124, 23);
+    for (size_t i = 0; i < tiles.size(); ++i) tiles[i]->setBounds (8, 32 + (int) i * 25, 124, 22);
     knobById.at ("mix")->setBounds (4, 274, 66, 94);
     knobById.at ("output")->setBounds (70, 274, 66, 94);
     knobById.at ("chaos")->setBounds (4, 372, 66, 94);
@@ -1490,17 +1505,17 @@ void OrageAudioProcessorEditor::resized()
     g.drawRect (5, 5, W - 10, H - 10, 1);
 
     g.setColour (look::print.withAlpha (0.93f));
-    g.setFont (font (50.f));
-    g.drawText (titleText, 30, 6, 340, 58, juce::Justification::centredLeft, false);
+    g.setFont (font (46.f));
+    g.drawText (titleText, 30, 2, 340, 52, juce::Justification::centredLeft, false);
     g.setColour (juce::Colour (0xffc8281c));
-    g.fillRect (32, 66, 180, 4);
+    g.fillRect (32, 54, 180, 4);
     g.setColour (look::print.withAlpha (0.85f));
     g.setFont (font (10.5f));
-    g.drawText (subText, 32, 76, 380, 14, juce::Justification::centredLeft, false);
+    g.drawText (subText, 32, 60, 380, 13, juce::Justification::centredLeft, false);
     g.setFont (font (9.f, false));
-    g.drawText ("FOUDRE AUDIO  -  PATCH IT. BREAK IT.", 32, 91, 360, 12, juce::Justification::centredLeft, false);
+    g.drawText ("FOUDRE AUDIO  -  PATCH IT. BREAK IT.", 32, 71, 360, 11, juce::Justification::centredLeft, false);
     g.setFont (font (9.5f));
-    g.drawText ("PRESET", W - 400, 24, 80, 13, juce::Justification::centredLeft, false);
+    g.drawText ("PRESET", W - 400, 20, 80, 13, juce::Justification::centredLeft, false);
 
     const juce::Point<float> screws[] = { { 16.f, 16.f }, { (float) W - 16.f, 16.f }, { 16.f, (float) H - 16.f }, { (float) W - 16.f, (float) H - 16.f } };
     for (auto p : screws)
@@ -1578,7 +1593,7 @@ void OrageAudioProcessorEditor::paint (juce::Graphics& g)
 {
     g.drawImageAt (panelTex, 0, 0);
 
-    const juce::Rectangle<float> win (440.f, 6.f, 400.f, 98.f);
+    const juce::Rectangle<float> win (640.f, 6.f, 150.f, 72.f);                      // une seule lampe : elle chauffe avec la distorsion
     g.setColour (juce::Colour (0xff040404));
     g.fillRoundedRectangle (win, 6.f);
     g.setColour (juce::Colour (0xff8d8d92).withAlpha (0.8f));
@@ -1587,31 +1602,14 @@ void OrageAudioProcessorEditor::paint (juce::Graphics& g)
     g.drawRoundedRectangle (win.reduced (3.f), 5.f, 2.f);
 
     const float h = heatShown;
-    struct T { float x, w, hgt, thr; };
-    const T tubes[] = { { 490.f, 34.f, 70.f, 0.00f }, { 570.f, 34.f, 70.f, 0.12f },
-                        { 655.f, 46.f, 88.f, 0.25f }, { 745.f, 46.f, 88.f, 0.40f } };
     {
         juce::Graphics::ScopedSaveState ss (g);
         g.reduceClipRegion (win.reduced (3.f).toNearestInt());
-        for (const auto& t : tubes)
-            drawTube (g, { t.x, 100.f - t.hgt, t.w, t.hgt }, juce::jlimit (0.f, 1.f, (h - t.thr) / (1.f - t.thr)), arcShown);
+        drawTube (g, { win.getCentreX() - 22.f, win.getBottom() - 6.f - 60.f, 44.f, 60.f }, juce::jlimit (0.f, 1.f, h), arcShown);
         if (arcShown > 0.35f)
-            drawBolt (g, { 510.f + rnd.nextFloat() * 40.f, 22.f }, { 800.f - rnd.nextFloat() * 40.f, 26.f });
+            drawBolt (g, { win.getX() + 14.f + rnd.nextFloat() * 20.f, win.getY() + 14.f }, { win.getRight() - 14.f - rnd.nextFloat() * 20.f, win.getY() + 18.f });
     }
-
-    const float lamp = juce::jlimit (0.f, 1.f, 0.30f + 0.70f * h) * (arcShown > 0.3f ? 1.f : 0.92f + 0.08f * rnd.nextFloat());
-    const juce::Point<float> c (385.f, 54.f);
-    g.setGradientFill (juce::ColourGradient (juce::Colour (0xffff2a1a).withAlpha (0.55f * lamp), c.x, c.y,
-                                             juce::Colour (0xffff2a1a).withAlpha (0.f), c.x + 40.f, c.y, true));
-    g.fillEllipse (c.x - 40.f, c.y - 40.f, 80.f, 80.f);
-    g.setColour (juce::Colour (0xff9a9aa0));
-    g.fillEllipse (c.x - 18.f, c.y - 18.f, 36.f, 36.f);
-    g.setGradientFill (juce::ColourGradient (juce::Colour (0xffffb09a).interpolatedWith (juce::Colour (0xffffe9b0), h * lamp), c.x - 4.f, c.y - 6.f,
-                                             juce::Colour (0xff4a0804).interpolatedWith (juce::Colour (0xffd01808), lamp), c.x + 12.f, c.y + 14.f, true));
-    g.fillEllipse (c.x - 14.f, c.y - 14.f, 28.f, 28.f);
-    g.setColour (juce::Colours::white.withAlpha (0.35f));
-    g.fillEllipse (c.x - 8.f, c.y - 10.f, 9.f, 5.f);
     g.setColour (look::print.withAlpha (0.9f));
     g.setFont (font (10.f));
-    g.drawText ("HEAT", (int) c.x - 30, (int) c.y + 24, 60, 14, juce::Justification::centred, false);
+    g.drawText ("HEAT", (int) win.getRight() + 8, (int) win.getCentreY() - 7, 40, 14, juce::Justification::centredLeft, false);
 }
