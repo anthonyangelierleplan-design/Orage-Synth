@@ -14,17 +14,18 @@ struct Theme
     juce::uint32 metalHi, metalMid, metalLo;                   // rampe du metal (potards, touches)
     juce::uint32 trim, pointer, led, scope, print;             // filets, repere de potard, LED, ecran, serigraphie
 };
-inline const Theme kThemes[3] {
+inline const Theme kThemes[4] {
     { "CHAMPAGNE", 0xff1f1c19, 0xff100f0d, 0xff1a1816, 0xff0e0d0c, 0xfff3e2b4, 0xffc9a45c, 0xff4a3a1c, 0xffd4b26a, 0xfffff0c8, 0xffff9a3a, 0xffffb84a, 0xffeee6d2 },
     { "ARGENT",    0xff1b1d21, 0xff0e0f11, 0xff17191c, 0xff0b0c0e, 0xfff4f6fa, 0xffb2b9c4, 0xff3a3f48, 0xffc3c9d3, 0xffffffff, 0xff7fd4ff, 0xff7fe0ff, 0xffe8ecf2 },
-    { "CUIVRE",    0xff161112, 0xff0a0808, 0xff130f10, 0xff080606, 0xfff2b89a, 0xffb8693f, 0xff3d1c0e, 0xffc97a4e, 0xffffd2b0, 0xffff6a3a, 0xffff7a4a, 0xffefe3d8 }
+    { "CUIVRE",    0xff161112, 0xff0a0808, 0xff130f10, 0xff080606, 0xfff2b89a, 0xffb8693f, 0xff3d1c0e, 0xffc97a4e, 0xffffd2b0, 0xffff6a3a, 0xffff7a4a, 0xffefe3d8 },
+    { "ORIGINAL",  0xff161617, 0xff0e0e0f, 0xff111112, 0xff0a0a0b, 0xff8a8a90, 0xff3a3a3e, 0xff101011, 0xff8a8a90, 0xfff0ece0, 0xffff7a1a, 0xffff9a3a, 0xffe9e5d8 }
 };
 inline int themeIdx = 0;
-inline const Theme& T() { return kThemes[themeIdx < 0 || themeIdx > 2 ? 0 : themeIdx]; }
+inline const Theme& T() { return kThemes[themeIdx < 0 || themeIdx > 3 ? 0 : themeIdx]; }
 inline juce::Colour paint  { 0xff111112 };       // fond des plaques (suit le theme)
 inline juce::Colour print  { 0xffe9e5d8 };       // serigraphie (suit le theme)
 inline const juce::Colour cvRing { 0xffe0662a }; // anneau orange des prises CV
-inline void applyTheme (int i) { themeIdx = juce::jlimit (0, 2, i); paint = juce::Colour (T().plateBot); print = juce::Colour (T().print); }
+inline void applyTheme (int i) { themeIdx = juce::jlimit (0, 3, i); paint = juce::Colour (T().plateBot); print = juce::Colour (T().print); }
 }
 
 void paintFacade (juce::Image& img, int W, int H, bool frame);     // fond de facade selon le theme

@@ -80,7 +80,12 @@ void drawKey (juce::Graphics& g, juce::Rectangle<float> r, bool pressed, bool ho
         g.fillRoundedRectangle (r.translated (0.f, 0.6f), 4.f);
         g.setGradientFill (juce::ColourGradient (juce::Colours::black.withAlpha (0.55f), r.getX(), r.getY(), juce::Colours::black.withAlpha (0.f), r.getX(), r.getY() + 7.f, false));
         g.fillRoundedRectangle (r.translated (0.f, 0.6f), 4.f);                      // ombre interieure
-        g.setColour (C (th.trim).withAlpha (0.75f));
+        if (look::themeIdx == 3)                                                      // theme d'origine : touche active teintee d'orange
+        {
+            g.setColour (C (th.led).withAlpha (0.16f));
+            g.fillRoundedRectangle (r.translated (0.f, 0.6f), 4.f);
+        }
+        g.setColour (look::themeIdx == 3 ? C (th.led).withAlpha (0.8f) : C (th.trim).withAlpha (0.75f));
         g.drawRoundedRectangle (r.translated (0.f, 0.6f), 4.f, 1.1f);
     }
 }
@@ -296,7 +301,7 @@ void OrageLookAndFeel::drawButtonBackground (juce::Graphics& g, juce::Button& b,
 void OrageLookAndFeel::drawButtonText (juce::Graphics& g, juce::TextButton& b, bool, bool down)
 {
     g.setFont (font (juce::jmin (12.f, (float) b.getHeight() * 0.5f + 2.f)));
-    g.setColour ((b.getToggleState() || down) ? juce::Colours::white : look::print.withAlpha (0.95f));
+    g.setColour ((b.getToggleState() || down) ? (look::themeIdx == 3 ? juce::Colour (look::T().led).brighter (0.3f) : juce::Colours::white) : look::print.withAlpha (0.95f));
     g.drawText (b.getButtonText(), b.getLocalBounds().translated (0, down ? 1 : 0), juce::Justification::centred, false);
 }
 
@@ -411,7 +416,7 @@ void SegmentSelector::paint (juce::Graphics& g)
         const bool on = (i == selected);
         drawKey (g, r, on);
         drawJewel (g, juce::Rectangle<float> (6.f, 6.f).withCentre ({ r.getCentreX(), r.getY() + 6.5f }), on, juce::Colour (look::T().led));
-        g.setColour (on ? look::print : look::print.withAlpha (0.72f));
+        g.setColour (on ? (look::themeIdx == 3 ? juce::Colour (look::T().led).brighter (0.4f) : look::print) : look::print.withAlpha (0.72f));
         const auto glyphArea = r.withTrimmedTop (13.f).withTrimmedBottom (r.getHeight() > 36.f ? 11.f : 0.f).reduced (7.f, 2.f);
         if (r.getHeight() > 36.f && drawGlyph (g, labels[i], glyphArea))
         {
@@ -438,7 +443,7 @@ void LedToggle::paintButton (juce::Graphics& g, bool over, bool down)
     const bool on = getToggleState();
     drawKey (g, r, on || down, over);
     drawJewel (g, juce::Rectangle<float> (7.f, 7.f).withCentre ({ r.getX() + 12.f, r.getCentreY() }), on, juce::Colour (look::T().led));
-    g.setColour (on ? look::print : look::print.withAlpha (0.72f));
+    g.setColour (on ? (look::themeIdx == 3 ? juce::Colour (look::T().led).brighter (0.4f) : look::print) : look::print.withAlpha (0.72f));
     g.setFont (font (10.f));
     g.drawText (getButtonText(), r.withTrimmedLeft (24.f), juce::Justification::centredLeft, false);
 }
@@ -1627,7 +1632,7 @@ void OrageAudioProcessorEditor::rebuildFacade()
 
 void OrageAudioProcessorEditor::cycleTheme()
 {
-    look::applyTheme (look::themeIdx + 1 > 2 ? 0 : look::themeIdx + 1);
+    look::applyTheme (look::themeIdx + 1 > 3 ? 0 : look::themeIdx + 1);
     saveThemePref (look::themeIdx);
     OrageLookAndFeel::refreshAll();
     themeBtn.setButtonText (look::T().name);

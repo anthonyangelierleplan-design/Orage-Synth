@@ -1,7 +1,7 @@
 # Orage v8 — Foudre Audio
 
 ## Nouveautés v8
-- **Design** : trois thèmes (CHAMPAGNE par défaut, ARGENT, CUIVRE), bouton LOOK dans l'en-tête ; potards et touches métalliques en relief, plus aucune usure ; Roulette et Chaos retirés.
+- **Design** : quatre thèmes (CHAMPAGNE par défaut, ARGENT, CUIVRE, ORIGINAL noir et orange), bouton LOOK dans l'en-tête ; potards et touches métalliques en relief, plus aucune usure ; Roulette et Chaos retirés.
 - **Oscilloscope** : un clic sur la lampe du haut bascule entre la lampe (chauffe) et l'oscilloscope (sortie finale).
 - **Réverb plaque** (Dattorro) avec SIZE, DECAY, PRE-DELAY, DAMPING, MOTION, WIDTH, LOW CUT, **SHIMMER** (+1 octave) et **FREEZE** ; module du rack, cibles de la matrice (MIX, DECAY, DAMP).
 - **Filtre passe-bas** au choix : MS-20, SEM (12 dB, morph LP/notch/HP) ou Ladder (24 dB).
