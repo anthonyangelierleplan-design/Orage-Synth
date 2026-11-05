@@ -233,6 +233,14 @@ public:
         }
     }
     void noteOffRaw (int note) { releaseNote (note, true); }
+    // arpegiateur en POLY : un "VCO" fixe par pas (rotation sur 4). Comme sur le Mono/Poly, chaque VCO reagit differemment a la FM.
+    void noteOnSlot (int note, float vel, int slot)
+    {
+        if (slot < 0 || slot >= kVoices) return;
+        static const float kFm[4] { 0.25f, 1.f, 0.65f, 1.4f };
+        if (auto* v = startVoice (note, vel, 0.f, 0.f, 1.f, slot, true)) v->fmK = kFm[slot & 3];
+    }
+    void noteOffSlot (int slot) { if (slot >= 0 && slot < kVoices && voices[slot].active && voices[slot].gated) release (voices[slot]); }
     const float* fxMod() const { return fxOut; }                  // modulations globales des effets (matrice : destinations FX/BBD)
     int activeVoices() const { int n = 0; for (auto& v : voices) n += v.active ? 1 : 0; return n; }
 
@@ -263,7 +271,7 @@ private:
     struct Voice
     {
         bool active = false; int note = 60; float vel = 1.f; uint64_t age = 0;
-        bool gated = false, raw = false; int slot = -1; float uniCents = 0.f, uniPan = 0.f, gainV = 1.f;
+        bool gated = false, raw = false; int slot = -1; float uniCents = 0.f, uniPan = 0.f, gainV = 1.f, fmK = 1.f;
         sy::Env aenv, fenv; float pitch = 60.f, ph1 = 0.f, ph2 = 0.f, prev2 = 0.f;
         sy::Hp hp; sy::Lp lp; sy::Sem sem; sy::Ladder lad; float pat = 0.f, patS = 0.f, rndv = 0.f; float xPrev = 0.f; float lph[kLfos] {}, lfade[kLfos] {}, lsh[kLfos] {}, lcur[kLfos] {};
     };
@@ -491,7 +499,7 @@ private:
         for (int i = 0; i < len; ++i)
         {
             // VCO1 est module en frequence par VCO2 (FM audio), VCO2 est recale par VCO1 (hard sync)
-            const float inc1 = dt1 * std::pow (2.f, fmA * 2.5f * v.prev2);
+            const float inc1 = dt1 * std::pow (2.f, fmA * v.fmK * 2.5f * v.prev2);
             v.ph1 += inc1;
             if (v.ph1 >= 1.f) { v.ph1 -= 1.f; if (P.sync) v.ph2 = v.ph1 * dt2 / std::max (inc1, 1e-6f); }
             v.ph2 += dt2; if (v.ph2 >= 1.f) v.ph2 -= 1.f;
