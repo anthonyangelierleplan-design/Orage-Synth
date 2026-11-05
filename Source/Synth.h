@@ -8,6 +8,7 @@
 namespace orage
 {
 constexpr int kVoices = 6, kLfos = 4, kMacros = 4, kSlots = 12;
+enum Assign { AsPoly, AsMono, AsUnison, AsShare, AsChord };
 enum ModSrc { MsNone, MsLfo1, MsLfo2, MsLfo3, MsLfo4, MsMac1, MsMac2, MsMac3, MsMac4, MsEnv, MsVel, MsWheel, MsAmpEnv, MsKey, MsRandom, MsChanAT, MsPolyAT, kNumModSrc };
 enum ModDst { MdNone, MdPitch, MdPitch2, MdPw1, MdPw2, MdFm, MdRing, MdMix, MdHpf, MdLpf, MdReso, MdLevel, MdPan,
               MdFold, MdFxPower, MdFxClip, MdFxUnc, MdFxHpf, MdFxLpf, MdFxPeak, MdFxDestroy, MdFxRate, MdFxSpring, MdFxMix, MdFxChaos, MdBbdTime, MdBbdFb, MdBbdMix,
@@ -34,6 +35,8 @@ struct SynthParams
     float hpf = 0.f, hpfRes = 0.f, lpf = 0.7f, lpfRes = 0.25f, fltEnv = 0.3f, keytrack = 0.5f, drive = 0.2f;
     float aA = 0.01f, aD = 0.3f, aS = 0.8f, aR = 0.25f;
     float fA = 0.01f, fD = 0.35f, fS = 0.2f, fR = 0.25f;
+    int assign = 0, hold = 0;                 // affectation des touches (Poly, Mono, Unison, Share, Chord) et HOLD
+    float uniDetune = 0.3f;                   // ecart de desaccord des voix empilees
     int ftype = 0;                            // filtre passe-bas : 0 MS20, 1 SEM, 2 Ladder
     float semMorph = 0.f;                     // SEM : LP -> notch -> HP
     float fold = 0.f, foldSym = 0.f;           // wavefolder : quantite, symetrie
@@ -183,39 +186,52 @@ public:
         for (int i = 0; i < kLfos; ++i) { gPhase[i] = 0.f; gSh[i] = 0.f; gCur[i] = 0.f; }
         counter = 0; seed = 12345u;
     }
-    void setParams (const SynthParams& p) { P = p; }
+    void setParams (const SynthParams& p)
+    {
+        const int oldAssign = P.assign; const bool oldHold = P.hold != 0;
+        P = p;
+        if (P.assign != oldAssign) allNotesOff();
+        else if (oldHold && ! P.hold) dropLatched();
+    }
+    void setChord (const int* iv, int n) { chordN = std::max (0, std::min (6, n)); for (int i = 0; i < chordN; ++i) chord[i] = iv[i]; }
+    float lfoHz (int i) const { return hz (i); }                       // cadence de l'arpegiateur = LFO 2
     void setHost (double bpmIn) { bpm = bpmIn > 20.0 ? (float) bpmIn : 120.f; }
     void setWheel (float w) { wheel = w; }
     void setBend (float semis) { bend = semis; }
     void setChanAT (float a) { chanAT = a; }
     void setPolyAT (int note, float a) { for (auto& v : voices) if (v.active && v.note == note) v.pat = a; }
 
+    // ---- touches : l'interpretation depend du mode d'affectation (POLY, MONO, UNISON, SHARE, CHORD MEMORY) et de HOLD
     void noteOn (int note, float vel)
     {
-        Voice* v = nullptr;
-        for (auto& c : voices) if (! c.active) { v = &c; break; }
-        if (v == nullptr)
-        {
-            float best = 1e9f;
-            for (auto& c : voices)
-            {
-                const float score = (c.aenv.st == sy::Env::Rel ? 0.f : 1000.f) + c.aenv.v * 100.f + (float) (counter - c.age) * -1e-6f;
-                if (score < best) { best = score; v = &c; }
-            }
-        }
-        const bool glide = P.glide > 0.001f && lastNote >= 0;
-        *v = Voice();
-        v->active = true; v->note = note; v->vel = vel; v->age = ++counter;
-        v->pitch = glide ? (float) lastNote : (float) note;
-        v->aenv.on(); v->fenv.on(); lastVel = vel; v->rndv = rnd(); lastRnd = v->rndv; lastKey = std::max (-1.f, std::min (1.f, ((float) note - 60.f) / 48.f));
-        for (int i = 0; i < kLfos; ++i) { v->lph[i] = 0.f; v->lfade[i] = 0.f; v->lsh[i] = rnd(); v->lcur[i] = v->lsh[i]; }
-        lastNote = note;
+        if (P.hold && physCount() == 0 && nKeys > 0) dropLatched();
+        int k = findKey (note);
+        if (k < 0 && nKeys < kKeys) k = nKeys++;
+        if (k >= 0) keys[k] = { note, vel, true, ++stamp };
+        if (P.assign == AsPoly) startVoice (note, vel, 0.f, 0.f, 1.f, -1, false);
+        else retarget();
     }
     void noteOff (int note)
     {
-        for (auto& v : voices) if (v.active && v.note == note && v.aenv.st != sy::Env::Rel) { v.aenv.off(); v.fenv.off(); }
+        const int k = findKey (note);
+        if (k < 0) { if (P.assign == AsPoly) releaseNote (note, false); return; }
+        if (P.hold) { keys[k].phys = false; return; }
+        for (int j = k; j + 1 < nKeys; ++j) keys[j] = keys[j + 1];
+        --nKeys;
+        if (P.assign == AsPoly) releaseNote (note, false); else retarget();
     }
-    void allNotesOff() { for (auto& v : voices) if (v.active) { v.aenv.off(); v.fenv.off(); } }
+    void allNotesOff() { nKeys = 0; for (auto& v : voices) if (v.active && v.gated) release (v); }
+    // notes venant de l'arpegiateur : une voix par appel, ou une pile de voix desaccordees (mode UNISON)
+    void noteOnRaw (int note, float vel) { startVoice (note, vel, 0.f, 0.f, 1.f, -1, true); }
+    void noteOnStack (int note, float vel)
+    {
+        for (int i = 0; i < kVoices; ++i)
+        {
+            const float sp = 2.f * (float) i / (float) (kVoices - 1) - 1.f;
+            startVoice (note, vel, sp * maxCents(), sp * 0.5f * std::min (1.f, P.uniDetune * 1.5f), 0.5f, -1, true);
+        }
+    }
+    void noteOffRaw (int note) { releaseNote (note, true); }
     const float* fxMod() const { return fxOut; }                  // modulations globales des effets (matrice : destinations FX/BBD)
     int activeVoices() const { int n = 0; for (auto& v : voices) n += v.active ? 1 : 0; return n; }
 
@@ -246,14 +262,126 @@ private:
     struct Voice
     {
         bool active = false; int note = 60; float vel = 1.f; uint64_t age = 0;
+        bool gated = false, raw = false; int slot = -1; float uniCents = 0.f, uniPan = 0.f, gainV = 1.f;
         sy::Env aenv, fenv; float pitch = 60.f, ph1 = 0.f, ph2 = 0.f, prev2 = 0.f;
         sy::Hp hp; sy::Lp lp; sy::Sem sem; sy::Ladder lad; float pat = 0.f, patS = 0.f, rndv = 0.f; float xPrev = 0.f; float lph[kLfos] {}, lfade[kLfos] {}, lsh[kLfos] {}, lcur[kLfos] {};
     };
+    static constexpr int kKeys = 16;
+    struct Key { int note; float vel; bool phys; uint64_t t; };
+    Key keys[kKeys];
+    int nKeys = 0, chordN = 4, chord[6] { 0, 4, 7, 11, 0, 0 };
+    uint64_t stamp = 0;
     Voice voices[kVoices];
     SynthParams P;
     float fs = 44100.f, bpm = 120.f, wheel = 0.f, bend = 0.f, gPhase[kLfos] {}, gSh[kLfos] {}, gCur[kLfos] {};
     uint64_t counter = 0; int lastNote = -1; uint32_t seed = 12345u;
     float lastVel = 0.8f, fxOut[kFxMod] {}, chanAT = 0.f, lastRnd = 0.f, lastKey = 0.f;
+
+    int findKey (int note) const { for (int i = 0; i < nKeys; ++i) if (keys[i].note == note) return i; return -1; }
+    int physCount() const { int c = 0; for (int i = 0; i < nKeys; ++i) c += keys[i].phys ? 1 : 0; return c; }
+    float maxCents() const { return 45.f * std::pow (std::max (0.f, std::min (1.f, P.uniDetune)), 1.2f); }
+    static void release (Voice& v) { v.aenv.off(); v.fenv.off(); v.gated = false; }
+    void releaseNote (int note, bool raw) { for (auto& v : voices) if (v.active && v.gated && v.note == note && v.raw == raw && v.slot < 0) release (v); }
+    void dropLatched()                                                      // touches verrouillees (HOLD) : on les lache
+    {
+        int w = 0;
+        for (int i = 0; i < nKeys; ++i)
+        {
+            if (keys[i].phys) keys[w++] = keys[i];
+            else if (P.assign == AsPoly) releaseNote (keys[i].note, false);
+        }
+        nKeys = w;
+        if (P.assign != AsPoly) retarget();
+    }
+    Voice* startVoice (int note, float vel, float cents, float pan, float gain, int slot, bool raw)
+    {
+        Voice* v = nullptr;
+        if (slot >= 0) v = &voices[slot];
+        else
+        {
+            for (auto& c : voices) if (! c.active) { v = &c; break; }
+            if (v == nullptr)
+            {
+                float best = 1e9f;
+                for (auto& c : voices)
+                {
+                    const float score = (c.gated ? 1000.f : 0.f) + c.aenv.v * 100.f + (float) (counter - c.age) * -1e-6f;
+                    if (score < best) { best = score; v = &c; }
+                }
+            }
+        }
+        const bool glide = P.glide > 0.001f && lastNote >= 0;
+        *v = Voice();
+        v->active = true; v->gated = true; v->raw = raw; v->slot = slot; v->note = note; v->vel = vel; v->age = ++counter;
+        v->uniCents = cents; v->uniPan = pan; v->gainV = gain;
+        v->pitch = glide ? (float) lastNote : (float) note;
+        v->aenv.on(); v->fenv.on(); lastVel = vel;
+        v->rndv = rnd(); lastRnd = v->rndv; lastKey = std::max (-1.f, std::min (1.f, ((float) note - 60.f) / 48.f));
+        for (int i = 0; i < kLfos; ++i) { v->lph[i] = 0.f; v->lfade[i] = 0.f; v->lsh[i] = rnd(); v->lcur[i] = v->lsh[i]; }
+        lastNote = note;
+        return v;
+    }
+    // MONO / UNISON / SHARE / CHORD : chaque voix a une note cible deduite des touches tenues
+    void retarget()
+    {
+        int tgt[kVoices]; float cents[kVoices] {}, pan[kVoices] {};
+        for (auto& t : tgt) t = -1;
+        float gain = 1.f;
+        int latest = -1; uint64_t lt = 0;
+        for (int i = 0; i < nKeys; ++i) if (keys[i].t >= lt) { lt = keys[i].t; latest = i; }
+        if (latest >= 0)
+        {
+            const int ln = keys[latest].note; const float mc = maxCents();
+            if (P.assign == AsMono) tgt[0] = ln;
+            else if (P.assign == AsUnison)
+            {
+                gain = 0.5f;
+                for (int i = 0; i < kVoices; ++i) { const float sp = 2.f * (float) i / (float) (kVoices - 1) - 1.f; tgt[i] = ln; cents[i] = sp * mc; pan[i] = sp * 0.5f * std::min (1.f, P.uniDetune * 1.5f); }
+            }
+            else if (P.assign == AsShare)
+            {
+                gain = 0.6f;
+                Key byTime[kKeys]; for (int i = 0; i < nKeys; ++i) byTime[i] = keys[i];
+                std::sort (byTime, byTime + nKeys, [] (const Key& a, const Key& b) { return a.t < b.t; });
+                const int k = nKeys;
+                for (int i = 0; i < kVoices; ++i)
+                {
+                    tgt[i] = byTime[i % k].note;
+                    const int group = (kVoices + k - 1 - (i % k)) / k;                  // nombre de voix sur cette note
+                    const int j = i / k;
+                    const float sp = group > 1 ? 2.f * (float) j / (float) (group - 1) - 1.f : 0.f;
+                    cents[i] = sp * mc * 0.6f; pan[i] = sp * 0.3f;
+                }
+            }
+            else if (P.assign == AsChord)
+            {
+                gain = 0.62f;
+                const int n = std::max (1, chordN);
+                for (int i = 0; i < n; ++i)
+                {
+                    tgt[i] = ln + (chordN > 0 ? chord[i] : 0);
+                    cents[i] = ((i & 1) ? 1.f : -1.f) * mc * 0.15f;
+                    pan[i] = n > 1 ? (2.f * (float) i / (float) (n - 1) - 1.f) * 0.35f : 0.f;
+                }
+            }
+        }
+        const bool legato = P.assign != AsShare;
+        for (int i = 0; i < kVoices; ++i)
+        {
+            auto& v = voices[i];
+            if (tgt[i] < 0) { if (v.active && v.gated && v.slot == i) release (v); continue; }
+            if (v.active && v.gated && v.slot == i)
+            {
+                v.uniCents = cents[i]; v.uniPan = pan[i]; v.gainV = gain;
+                if (v.note != tgt[i])
+                {
+                    if (legato) v.note = tgt[i];                                         // legato : pas de retrig, la voix glisse (portamento)
+                    else { startVoice (tgt[i], keys[latest].vel, cents[i], pan[i], gain, i, false); }
+                }
+            }
+            else startVoice (tgt[i], keys[latest].vel, cents[i], pan[i], gain, i, false);
+        }
+    }
 
     void computeFxMod()                                                    // sources globales : LFO libres, macros, molette, enveloppe de filtre (voix la plus forte), velocite
     {
@@ -330,8 +458,8 @@ private:
 
         const float glideC = P.glide > 0.001f ? 1.f - std::exp (-dtCtl / (P.glide * 0.6f + 0.002f)) : 1.f;
         v.pitch += (((float) v.note) - v.pitch) * glideC;
-        const float n1 = v.pitch + 12.f * (float) P.oct1 + bend + md[MdPitch] * 12.f;
-        const float n2 = v.pitch + 12.f * (float) P.oct2 + P.tune2 + P.fine2 * 0.01f + bend + md[MdPitch] * 12.f + md[MdPitch2] * 12.f;
+        const float n1 = v.pitch + 12.f * (float) P.oct1 + bend + md[MdPitch] * 12.f + v.uniCents * 0.01f;
+        const float n2 = v.pitch + 12.f * (float) P.oct2 + P.tune2 + P.fine2 * 0.01f + bend + md[MdPitch] * 12.f + md[MdPitch2] * 12.f + v.uniCents * 0.01f;
         const float f1 = 440.f * std::pow (2.f, (n1 - 69.f) / 12.f), f2 = 440.f * std::pow (2.f, (n2 - 69.f) / 12.f);
         const float pw1 = std::min (0.95f, std::max (0.05f, P.pw1 + md[MdPw1] * 0.45f));
         const float pw2 = std::min (0.95f, std::max (0.05f, P.pw2 + md[MdPw2] * 0.45f));
@@ -355,7 +483,7 @@ private:
         const float drive = 1.f + std::min (1.f, std::max (0.f, P.drive + md[MdDrive])) * 5.f;
 
         const float level = std::min (2.f, std::max (0.f, 1.f + md[MdLevel]));
-        const float pan = std::min (1.f, std::max (-1.f, md[MdPan]));
+        const float pan = std::min (1.f, std::max (-1.f, md[MdPan] + v.uniPan));
         const float gl = std::sqrt (0.5f * (1.f - pan)), gr = std::sqrt (0.5f * (1.f + pan));
         const float dt1 = f1 / fs, dt2 = f2 / fs;
 
@@ -379,7 +507,7 @@ private:
             else if (P.ftype == 2) lp = v.lad.run (dx * 1.2f, gL, kLad) * (1.f + 1.0f * res);
             else                   lp = v.lp.run (dx, gL, kL, res);
             const float a = v.aenv.tick (P.aA, P.aD, P.aS, P.aR, fs);
-            const float y = lp * a * level * (0.35f + 0.65f * v.vel);
+            const float y = lp * a * level * v.gainV * (0.35f + 0.65f * v.vel);
             L[i] += y * gl; R[i] += y * gr;
         }
         if (v.aenv.st == sy::Env::Idle) v.active = false;

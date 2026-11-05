@@ -1,120 +1,135 @@
-// Arpegiateur d'Orage : up / down / up-down / random, octaves, division, gate, ratchet, chance, hold. Aucune dependance JUCE.
-// Cale sur le tempo d'Ableton (position PPQ) quand l'hote joue, sinon tourne librement au tempo de l'hote.
+// Arpegiateur facon Korg Monopoly : ON / LATCH, UP / DOWN / UP-DOWN, portee 1 OCT / 2 OCT / FULL (4 octaves).
+// Les pas sont cadences par le LFO 2 (le "MG2" du Monopoly : 1 pas par cycle, note ouverte la moitie du cycle).
+// Le motif depend du mode d'affectation des touches : POLY arpege les notes tenues, MONO / UNISON une seule note a travers les octaves,
+// CHORD MEMORY les notes de l'accord memorise, SHARE le partage des 6 voix entre les touches (d'ou des motifs etranges : A B A B A B...).
+// Aucune dependance JUCE.
 #pragma once
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
-#include <vector>
 
 namespace orage
 {
-inline const char* const kArpDivNames[6] { "1/4", "1/8", "1/8T", "1/16", "1/16T", "1/32" };
-inline const float kArpDivBeats[6] { 1.f, 0.5f, 1.f / 3.f, 0.25f, 1.f / 6.f, 0.125f };
-
 struct ArpParams
 {
-    bool on = false, hold = false;
-    int mode = 0;           // 0 up, 1 down, 2 up-down, 3 random
-    int div = 3;            // index de kArpDivNames
-    int octaves = 1;        // 1..4
-    float gate = 0.6f;      // 0..1 (part du pas)
-    int ratchet = 1;        // 1..4 repetitions par pas
-    float chance = 1.f;     // probabilite qu'un pas soit joue
+    int on = 0;            // 0 off, 1 on, 2 latch
+    int dir = 0;           // 0 up, 1 down, 2 up-down
+    int range = 0;         // 0 : 1 octave, 1 : 2 octaves, 2 : full (4 octaves)
+    int assign = 0;        // mode d'affectation des touches (voir Synth : poly, mono, unison, share, chord)
+    bool hold = false;     // HOLD du synthe : meme effet que LATCH
 };
 
 class Arp
 {
 public:
-    struct Ev { int pos; bool on; int note; float vel; };
+    struct Ev { int pos; bool on; int note; float vel; bool stack; };
 
     void prepare (float sampleRate) { fs = sampleRate; reset(); }
-    void reset() { held.clear(); phys = 0; sounding = -1; gateLeft = 0; stepCount = 0; lastIdx = -1; freeBeat = 0.0; }
+    void reset() { nKeys = 0; sounding = -1; soundingStack = false; idx = 0; phase = 0.999999f; stamp = 0; }
     void setParams (const ArpParams& p) { P = p; }
+    void setChord (const int* iv, int n) { chordN = std::min (6, std::max (0, n)); for (int i = 0; i < chordN; ++i) chord[i] = iv[i]; }
+    void allOff() { nKeys = 0; }
 
     void noteOn (int note, float vel)
     {
-        if (P.hold && phys == 0) held.clear();
-        ++phys;
-        for (auto& h : held) if (h.note == note) { h.vel = vel; return; }
-        held.push_back ({ note, vel });
-        std::sort (held.begin(), held.end(), [] (const Key& a, const Key& b) { return a.note < b.note; });
+        const bool latch = P.on == 2 || P.hold;
+        if (latch && physCount() == 0 && nKeys > 0) nKeys = 0;           // nouvelle prise apres relachement complet : remplace les notes verrouillees
+        for (int i = 0; i < nKeys; ++i) if (keys[i].note == note) { keys[i].vel = vel; keys[i].phys = true; keys[i].t = ++stamp; return; }
+        if (nKeys == 0) { phase = 0.999999f; idx = 0; }                  // le premier pas part tout de suite
+        if (nKeys < kKeys) keys[nKeys++] = { note, vel, true, ++stamp };
     }
     void noteOff (int note)
     {
-        phys = std::max (0, phys - 1);
-        if (! P.hold) held.erase (std::remove_if (held.begin(), held.end(), [note] (const Key& k) { return k.note == note; }), held.end());
+        for (int i = 0; i < nKeys; ++i)
+            if (keys[i].note == note)
+            {
+                if (P.on == 2 || P.hold) keys[i].phys = false;
+                else { for (int j = i; j + 1 < nKeys; ++j) keys[j] = keys[j + 1]; --nKeys; }
+                return;
+            }
     }
-    void allOff() { held.clear(); phys = 0; }
-    int soundingNote() const { return sounding; }
 
-    // genere les evenements du bloc (positions en echantillons). Si l'arp est coupe, il faut quand meme l'appeler : il relache la note en cours.
-    int process (int n, double bpm, double ppqStart, bool hostPlaying, Ev* out, int maxEv)
+    // stepHz : cadence des pas (frequence du LFO 2) ; renvoie le nombre d'evenements ecrits
+    int process (int n, float stepHz, Ev* out, int maxOut)
     {
         int cnt = 0;
-        auto push = [&] (int pos, bool on, int note, float vel) { if (cnt < maxEv) out[cnt++] = { pos, on, note, vel }; };
-        if (! P.on || (held.empty() && ! P.hold) || (held.empty()))
-        {
-            if (sounding >= 0) { push (0, false, sounding, 0.f); sounding = -1; }
-            gateLeft = 0; lastIdx = -1; stepCount = 0;
-            if (! hostPlaying) freeBeat += (double) n * bpm / (60.0 * (double) fs);
-            return cnt;
-        }
-        const float stepBeats = kArpDivBeats[std::max (0, std::min (5, P.div))];
-        const int rat = std::max (1, std::min (4, P.ratchet));
-        const double sub = (double) stepBeats / (double) rat;
-        const double inc = bpm / (60.0 * (double) fs);
-        const int gateSamples = std::max (8, (int) (std::max (0.05f, P.gate) * sub / inc));
-        buildSeq();
+        auto off = [&] (int pos) { if (sounding >= 0 && cnt < maxOut) { out[cnt++] = { pos, false, sounding, 0.f, soundingStack }; } sounding = -1; };
+        if (P.on == 0) { off (0); return cnt; }
+        const float inc = std::max (0.f, stepHz) / fs;
         for (int i = 0; i < n; ++i)
         {
-            const double b = hostPlaying ? ppqStart + (double) i * inc : freeBeat + (double) i * inc;
-            const long long k = (long long) std::floor (b / sub + 1e-9);
-            if (k != lastIdx)
+            if (nKeys == 0) { off (i); phase = 0.999999f; idx = 0; continue; }
+            phase += inc;
+            if (phase >= 1.f)
             {
-                lastIdx = k;
-                const bool newStep = (((k % rat) + rat) % rat) == 0;
-                if (newStep) stepPlays = rnd01() < std::max (0.f, std::min (1.f, P.chance));
-                if (sounding >= 0) { push (i, false, sounding, 0.f); sounding = -1; }
-                if (stepPlays && ! seq.empty())
+                phase -= std::floor (phase);
+                off (i);
+                int seq[128]; const int len = buildSeq (seq);
+                if (len > 0 && cnt < maxOut)
                 {
-                    if (newStep) { curNote = pick(); ++stepCount; }
-                    push (i, true, curNote.note, curNote.vel);
-                    sounding = curNote.note; gateLeft = gateSamples;
+                    idx %= len;
+                    const int note = seq[idx++];
+                    const bool stack = P.assign == 2;
+                    out[cnt++] = { i, true, note, lastVel(), stack };
+                    sounding = note; soundingStack = stack;
                 }
             }
-            if (sounding >= 0 && gateLeft > 0 && --gateLeft == 0) { push (i, false, sounding, 0.f); sounding = -1; }
+            else if (sounding >= 0 && phase >= 0.5f) off (i);
         }
-        if (! hostPlaying) freeBeat += (double) n * inc;
         return cnt;
     }
 
 private:
-    struct Key { int note; float vel; };
+    static constexpr int kKeys = 16;
+    struct Key { int note; float vel; bool phys; uint64_t t; };
+    Key keys[kKeys];
+    int nKeys = 0, sounding = -1, idx = 0, chord[6] { 0, 4, 7, 11, 0, 0 }, chordN = 4;
+    bool soundingStack = false;
+    float fs = 44100.f, phase = 0.999999f;
+    uint64_t stamp = 0;
     ArpParams P;
-    float fs = 44100.f;
-    std::vector<Key> held, seq;
-    int phys = 0, sounding = -1, gateLeft = 0; long long stepCount = 0, lastIdx = -1;
-    double freeBeat = 0.0; bool stepPlays = true; Key curNote { 60, 0.8f };
-    uint32_t seed = 2463534242u;
 
-    float rnd01() { seed ^= seed << 13; seed ^= seed >> 17; seed ^= seed << 5; return (float) (seed & 0xFFFFFF) / 16777216.f; }
-    void buildSeq()
+    int physCount() const { int c = 0; for (int i = 0; i < nKeys; ++i) c += keys[i].phys ? 1 : 0; return c; }
+    float lastVel() const { float v = 0.8f; uint64_t t = 0; for (int i = 0; i < nKeys; ++i) if (keys[i].t >= t) { t = keys[i].t; v = keys[i].vel; } return v; }
+    int lastNote() const { int nt = 60; uint64_t t = 0; for (int i = 0; i < nKeys; ++i) if (keys[i].t >= t) { t = keys[i].t; nt = keys[i].note; } return nt; }
+
+    int buildSeq (int* seq) const
     {
-        seq.clear();
-        for (int o = 0; o < std::max (1, std::min (4, P.octaves)); ++o)
-            for (const auto& k : held) if (k.note + 12 * o <= 127) seq.push_back ({ k.note + 12 * o, k.vel });
-    }
-    Key pick()
-    {
-        const int L = (int) seq.size();
-        if (L == 1) return seq[0];
-        switch (P.mode)
+        int base[16], nb = 0;
+        switch (P.assign)
         {
-            case 1:  return seq[(size_t) (L - 1 - (int) (stepCount % L))];
-            case 2:  { const int per = 2 * L - 2, j = (int) (stepCount % per); return seq[(size_t) (j < L ? j : per - j)]; }
-            case 3:  return seq[(size_t) std::min (L - 1, (int) (rnd01() * (float) L))];
-            default: return seq[(size_t) (stepCount % L)];
+            case 1: case 2: base[nb++] = lastNote(); break;                                   // mono / unison : une seule note
+            case 4:                                                                           // chord memory
+                base[nb++] = lastNote();
+                for (int i = 0; i < chordN && nb < 12; ++i) base[nb++] = lastNote() + chord[i];
+                break;
+            case 3:                                                                           // share : 6 voix reparties dans l'ordre de jeu
+            {
+                Key byTime[kKeys]; for (int i = 0; i < nKeys; ++i) byTime[i] = keys[i];
+                std::sort (byTime, byTime + nKeys, [] (const Key& a, const Key& b) { return a.t < b.t; });
+                for (int v = 0; v < 6; ++v) base[nb++] = byTime[v % nKeys].note;
+                break;
+            }
+            default:                                                                          // poly : notes tenues, de bas en haut
+            {
+                for (int i = 0; i < nKeys; ++i) base[nb++] = keys[i].note;
+                std::sort (base, base + nb);
+                break;
+            }
         }
+        const int oct = P.range == 0 ? 1 : (P.range == 1 ? 2 : 4);
+        int up[64], nu = 0;
+        for (int o = 0; o < oct; ++o)
+            for (int i = 0; i < nb && nu < 64; ++i) if (base[i] + 12 * o <= 127) up[nu++] = base[i] + 12 * o;
+        int len = 0;
+        if (P.dir == 1)       { for (int i = nu - 1; i >= 0; --i) seq[len++] = up[i]; }
+        else if (P.dir == 2)
+        {
+            for (int i = 0; i < nu; ++i) seq[len++] = up[i];
+            for (int i = nu - 2; i >= 1; --i) seq[len++] = up[i];
+        }
+        else                  { for (int i = 0; i < nu; ++i) seq[len++] = up[i]; }
+        return len;
     }
 };
 } // namespace orage

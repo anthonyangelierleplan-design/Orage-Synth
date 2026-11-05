@@ -231,19 +231,25 @@ SynthPanel::SynthPanel (OrageAudioProcessor& p) : proc (p)
         };
     }
     {
-        auto* u = unit ("ARPEGGIATOR");
-        auto* on = toggle (*u, "s_arpOn", "ARP ON"); auto* hold = toggle (*u, "s_arpHold", "HOLD");
-        auto* div = combo (*u, "s_arpDiv");
-        auto* mode = selector (*u, "s_arpMode", juce::StringArray { "UP", "DOWN", "UP-DN", "RAND" });
-        auto* oct = selector (*u, "s_arpOct", juce::StringArray { "1 OCT", "2 OCT", "3 OCT", "4 OCT" });
-        auto* rat = selector (*u, "s_arpRatchet", juce::StringArray { "RATCH x1", "x2", "x3", "x4" });
-        auto* gate = knob (*u, "s_arpGate", "GATE"); auto* chance = knob (*u, "s_arpChance", "CHANCE");
+        auto* u = unit ("KEY ASSIGN");
+        auto* as = selector (*u, "s_assign", juce::StringArray { "POLY", "MONO", "UNISON", "SHARE", "CHORD" });
+        auto* hold = toggle (*u, "s_hold", "HOLD"); auto* learn = toggle (*u, "s_chordLearn", "LEARN CHORD");
+        auto* det = knob (*u, "s_uniDetune", "DETUNE");
         u->layoutFn = [=] (juce::Rectangle<int> r)
         {
-            const int lw = juce::jmin (270, r.getWidth() - 190);
-            on->setBounds (r.getX(), r.getY() + 2, 88, 30); hold->setBounds (r.getX() + 92, r.getY() + 2, 88, 30); div->setBounds (r.getX() + 186, r.getY() + 4, lw - 186, 26);
-            mode->setBounds (r.getX(), r.getY() + 38, lw, 40); oct->setBounds (r.getX(), r.getY() + 84, lw, 40); rat->setBounds (r.getX(), r.getY() + 130, lw, 40);
-            place (r, { gate, chance }, lw + 8, (r.getWidth() - lw - 8) / 2);
+            as->setBounds (r.getX(), r.getY(), r.getWidth(), 46);
+            hold->setBounds (r.getX(), r.getY() + 54, r.getWidth() / 2 - 4, 32); learn->setBounds (r.getX() + r.getWidth() / 2, r.getY() + 54, r.getWidth() / 2, 32);
+            det->setBounds (r.getX() + (r.getWidth() - 110) / 2, r.getY() + 92, 110, r.getHeight() - 92);
+        };
+    }
+    {
+        auto* u = unit ("ARPEGGIATOR  (clock = LFO 2)");
+        auto* on = selector (*u, "s_arpOn", juce::StringArray { "OFF", "ON", "LATCH" });
+        auto* mode = selector (*u, "s_arpMode", juce::StringArray { "UP", "DOWN", "UP-DN" });
+        auto* oct = selector (*u, "s_arpOct", juce::StringArray { "1 OCT", "2 OCT", "FULL" });
+        u->layoutFn = [=] (juce::Rectangle<int> r)
+        {
+            on->setBounds (r.getX(), r.getY(), r.getWidth(), 46); mode->setBounds (r.getX(), r.getY() + 54, r.getWidth(), 46); oct->setBounds (r.getX(), r.getY() + 108, r.getWidth(), 46);
         };
     }
     startTimerHz (10);
@@ -272,7 +278,7 @@ void SynthPanel::resized()
     };
     row (0, 212, { { 0, 290.f }, { 1, 450.f }, { 2, 372.f }, { 3, 300.f } });
     row (220, 212, { { 4, 190.f }, { 5, 510.f }, { 6, 360.f }, { 7, 360.f } });
-    row (440, 276, { { 8, 400.f }, { 9, 210.f }, { 10, 240.f }, { 11, 520.f } });
+    row (440, 276, { { 8, 380.f }, { 9, 190.f }, { 10, 220.f }, { 11, 330.f }, { 12, 300.f } });
 
     paintFacade (tex, W, getHeight(), false);
 }

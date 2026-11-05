@@ -215,6 +215,78 @@ struct Storm
     }
 };
 
+// Cable jack defaillant : de vraies alterations du signal (coupures, gresillements, micro-boucles, surtensions, inversions de phase, ecrasement),
+// jamais de bruit ajoute. Les evenements sont communs aux deux canaux. A 0 le signal passe a l'identique.
+struct BadCable
+{
+    enum { Drop, Chatter, Freeze, Surge, Flip, Crush, None };
+    static constexpr int kBuf = 512;
+    Rng rng; float fs = 44100.f;
+    int fz = 0, type = None, left = 0, flipLeft = 0, flipOn = 0, loopLen = 64, wr = 0, rd = 0, holdN = 1, holdC = 0;
+    float wait = 0.f, gain = 1.f, surge = 2.f, held[2] { 0, 0 }, ring[2][kBuf] {};
+    void prepare (float sr)
+    {
+        fs = sr; rng.seed (0xBADCAB1Eu); type = None; left = 0; wait = 0.5f * fs; wr = 0;
+        for (auto& r : ring) for (auto& v : r) v = 0.f;
+    }
+    float ms (float a, float b) { return (a + (b - a) * rng.uni()) * 0.001f * fs; }
+    void startEvent (float u)
+    {
+        const float r = rng.uni();
+        // les evenements doux dominent quand le bouton est bas ; les coupures longues et surtensions arrivent en haut
+        const float wDrop = 0.30f, wChat = 0.25f, wFreeze = 0.15f + 0.1f * u, wSurge = 0.05f + 0.25f * u, wFlip = 0.10f, wCrush = 0.08f + 0.1f * u;
+        const float tot = wDrop + wChat + wFreeze + wSurge + wFlip + wCrush;
+        float a = r * tot;
+        const float sev = 0.35f + 0.65f * u;
+        if ((a -= wDrop) < 0.f)        { type = Drop;    left = (int) ms (0.2f, 1.f + 5.f * sev); gain = rng.uni() < 0.5f ? 0.f : 0.12f; }
+        else if ((a -= wChat) < 0.f)   { type = Chatter; left = (int) ms (4.f, 8.f + 18.f * sev); flipLeft = 0; flipOn = 1; gain = 0.f; }
+        else if ((a -= wFreeze) < 0.f) { type = Freeze;  loopLen = (int) ms (0.3f, 0.8f + 1.7f * sev); loopLen = std::max (16, std::min (kBuf - 1, loopLen));
+                                         left = (int) ms (2.f, 4.f + 8.f * sev); fz = 0; }
+        else if ((a -= wSurge) < 0.f)  { type = Surge;   left = (int) ms (1.f, 2.f + 6.f * sev); surge = 1.6f + 2.6f * sev * (0.5f + 0.5f * rng.uni()); }
+        else if ((a -= wFlip) < 0.f)   { type = Flip;    left = (int) ms (0.2f, 0.8f + 2.2f * sev); }
+        else                           { type = Crush;   left = (int) ms (3.f, 5.f + 15.f * sev); holdN = 8 + (int) (56.f * rng.uni() * sev); holdC = 0; }
+    }
+    void process (float& l, float& r, int nc, float u)
+    {
+        float in[2] { l, r };
+        if (type != Freeze) { for (int c = 0; c < nc; ++c) ring[c][wr] = in[c]; wr = (wr + 1) % kBuf; }
+        if (u <= 0.0005f) return;
+        if (type == None)
+        {
+            wait -= 1.f;
+            if (wait <= 0.f)
+            {
+                startEvent (u);
+                const float rate = 0.05f + 30.f * std::pow (u, 2.2f);                 // evenements par seconde
+                wait = fs * (-std::log (std::max (1.0e-4f, rng.uni())) / rate) * (0.5f + rng.uni());
+            }
+            return;
+        }
+        float out[2] { in[0], in[1] };
+        switch (type)
+        {
+            case Drop:    for (int c = 0; c < nc; ++c) out[c] = in[c] * gain; break;
+            case Chatter:
+                if (--flipLeft <= 0) { flipOn ^= 1; flipLeft = (int) ms (0.05f, 0.6f); }
+                for (int c = 0; c < nc; ++c) out[c] = flipOn ? in[c] : in[c] * 0.04f;
+                break;
+            case Freeze:
+                for (int c = 0; c < nc; ++c) out[c] = ring[c][(wr - loopLen + fz + kBuf) % kBuf];
+                fz = (fz + 1) % loopLen;
+                break;
+            case Surge:   for (int c = 0; c < nc; ++c) out[c] = std::max (-1.2f, std::min (1.2f, in[c] * surge)); break;
+            case Flip:    for (int c = 0; c < nc; ++c) out[c] = -in[c]; break;
+            case Crush:
+                if (holdC == 0) for (int c = 0; c < nc; ++c) held[c] = in[c];
+                holdC = (holdC + 1) % holdN;
+                for (int c = 0; c < nc; ++c) out[c] = held[c];
+                break;
+        }
+        if (--left <= 0) type = None;
+        l = out[0]; if (nc > 1) r = out[1];
+    }
+};
+
 struct ChaosMod
 {
     Rng rng;
@@ -897,7 +969,7 @@ public:
     void prepare (float sampleRate)
     {
         fs = sampleRate; fsOS = fs * 4.f;
-        oct.prepare (fs); os.prepare (fs); storm.prepare (fsOS); comp.prepare (fs); gate.prepare (fs);
+        oct.prepare (fs); os.prepare (fs); storm.prepare (fsOS); cable.prepare (fs); comp.prepare (fs); gate.prepare (fs);
         destroyer.prepare (fs); spring.prepare (fs); bbd.prepare (fs); verb.prepare (fs);
         for (auto& e : extS) e = 0.f;
         hpC = onePoleCoef (60.f, fsOS);
@@ -1090,8 +1162,8 @@ private:
         dRail   = lerp (1.f, 0.10f, std::pow (eClip, 0.8f));
         dHard   = eClip * eClip;
         dSag    = (m == 1 ? 0.42f : m == 0 ? 0.22f : 0.12f) * (0.3f + 0.7f * ePower);
-        dStarve = 0.015f + 0.12f * eUnc;
-        dFold   = 0.4f + 0.6f * eUnc;
+        dStarve = 0.05f;
+        dFold   = 0.7f;
         dMakeup = std::pow (std::max (dRail, 0.1f), -0.7f) * trim[m];
         storm.setUnc (eUnc);
         if (gCur <= 0.f) gCur = dGain;
@@ -1150,11 +1222,11 @@ private:
                 const auto st = storm.tick (strikeRate);
                 lightPeak = std::max (lightPeak, st.light);
                 gCur += gainSm * (dGain - gCur);
-                const float gMod   = std::max (0.15f, 1.f + 0.75f * eUnc * st.u1);
-                const float bias   = 0.55f * eUnc * st.u2 + 1.2f * st.kick;                       // la polarisation saute au coup de foudre
-                const float railM  = (1.f - 0.55f * eUnc * (0.5f + 0.5f * st.u3)) * (1.f - 0.92f * st.collapse);   // le rail s'effondre
+                const float gMod   = 1.f;
+                const float bias   = 1.2f * st.kick;                       // la polarisation saute au coup de foudre
+                const float railM  = (1.f - 0.92f * st.collapse);   // le rail s'effondre
                 const float gain   = gCur * gMod * (1.f + 7.f * st.light);
-                const float strike = 0.5f * (1.f + 0.5f * eUnc * st.u3) * (1.f - 0.75f * st.latch);  // l'arc reste amorce
+                const float strike = 0.5f * (1.f - 0.75f * st.latch);  // l'arc reste amorce
                 const float starve = dStarve + 0.25f * st.latch;
                 const float fold   = dFold + 0.6f * st.latch;
 
@@ -1180,7 +1252,13 @@ private:
                     u4[c][k] = y * dMakeup + st.crackle * st.light * 0.12f * (0.25f + std::fabs (y));
                 }
             }
-            for (int c = 0; c < nc; ++c)
+            {
+                float yy[2] { 0, 0 };
+                for (int c = 0; c < nc; ++c) { float y = os.down (u4[c], c); dcLp[c] += dcC * (y - dcLp[c]); yy[c] = y - dcLp[c]; }
+                cable.process (yy[0], yy[1], nc, eUnc);
+                for (int c = 0; c < nc; ++c) { o.ch[c][i] = yy[c]; pk = std::max (pk, std::fabs (yy[c])); }
+            }
+            for (int c = 0; c < 0; ++c)
             {
                 float y = os.down (u4[c], c);
                 dcLp[c] += dcC * (y - dcLp[c]); y -= dcLp[c];
@@ -1304,7 +1382,7 @@ private:
     Params p;
     float fs = 44100.f, fsOS = 176400.f;
     Buf out[kNumNodes];
-    Octaver oct; Oversampler4 os; Storm storm; TubeComp comp; Gate gate; Destroyer destroyer; Spring spring; Bbd bbd; Reverb verb; ChaosMod chaos;
+    Octaver oct; Oversampler4 os; Storm storm; BadCable cable; TubeComp comp; Gate gate; Destroyer destroyer; Spring spring; Bbd bbd; Reverb verb; ChaosMod chaos;
     Biquad lowB, midB, hiB; Svf hpfSvf, lpfSvf;
     DistChannel dch[2];
     Lfo lfo1, lfo2; SampleHold sh; Rng shRng; float envV = 0.f;

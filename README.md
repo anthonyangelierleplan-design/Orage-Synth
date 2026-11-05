@@ -22,7 +22,9 @@ Deux plugins, même design (métal peint noir usé, lampes qui chauffent) :
 - **4 macros** et **matrice de modulation à 8 slots** (sources : LFO 1-4, macros 1-4, env filtre, vélocité, molette ; destinations : pitch, pitch VCO2, PWM 1/2, FM, ring, mix VCO2, HPF, LPF, reso, level, pan).
 - **Filtres MS20 retravaillés** : le HPF (cutoff plus haut, pic de résonance libre) gonfle les basses quand on monte la résonance vers 2 ; le LPF est plus sauvage (saturation asymétrique dans la boucle, la bande passante est ajoutée à la sortie : résonance criarde).
 - **Wavefolder** (repli sinus, FOLD + SYMMETRY) placé avant les filtres ; destination de la matrice.
-- **Arpégiateur** : UP / DOWN / UP-DN / RAND, division (1/4 à 1/32, avec triolets), 1 à 4 octaves, gate, ratchet x1-x4, chance, hold. Calé sur le tempo et la position d'Ableton.
+- **Key Assign** : POLY / MONO / UNISON / SHARE / CHORD MEMORY (LEARN CHORD), HOLD, DETUNE d'empilement.
+- **Arpégiateur façon Korg Monopoly** : OFF / ON / LATCH, UP / DOWN / UP-DN, 1 OCT / 2 OCT / FULL ; cadencé par le LFO 2 ; le motif dépend du mode Key Assign (SHARE = motifs étranges).
+- **Incertitude** (distorsion) : câble jack défaillant — coupures, grésillements, micro-boucles, surtensions, inversions de phase, écrasement ; fréquence et violence croissantes avec le bouton, aucun bruit ajouté.
 - **Matrice** dans un volet déroulant (bouton MATRIX) visible sur les deux onglets ; les destinations incluent maintenant les effets (FX DRIVE, CLIP, UNCERT., HPF, LPF, PEAK, DESTROY, D.RATE, SPRING, DRY/WET, CHAOS) et le delay BBD (TIME, FEEDBACK, MIX). Les sources LFO sont alors les LFO libres (non retriggés).
 - Molette de pitch (±2 demi-tons) et mod wheel (CC1).
 

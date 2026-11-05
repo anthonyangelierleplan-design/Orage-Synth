@@ -80,9 +80,10 @@ private:
     orage::Params readParams() const;
     orage::SynthParams readSynth();
     orage::ArpParams arpParams;
-    struct MidiEv { int pos; int type; int a; float v; };       // type : 0 note on, 1 note off, 2 all off, 3 bend, 4 molette, 5 aftertouch poly, 6 aftertouch canal
+    struct MidiEv { int pos; int type; int a; float v; };       // type : 0 note on, 1 note off, 2 all off, 3 bend, 4 molette, 5 aftertouch poly, 6 aftertouch canal, 7/8/9 notes brutes de l'arpegiateur (simple / pile unison / off)
     std::vector<MidiEv> evs;
-    bool lastArpOn = false;
+    int lastArpOn = 0, lastAssign = 0, chordN = 3, chordIv[6] { 4, 7, 11, 0, 0, 0 }, learnN = 0, learnNotes[6] {};
+    bool chordLearn = false, lastLearn = false;
     std::vector<std::atomic<float>*> rawSyn;
     juce::ValueTree captureState();
     void applyState (juce::ValueTree state);
