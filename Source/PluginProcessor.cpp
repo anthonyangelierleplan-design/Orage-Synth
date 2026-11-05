@@ -136,6 +136,7 @@ const std::vector<SynDef>& synDefs()
         F ("s_uniDetune", "Unison Detune", 0, 1, 0.3f);  B ("s_chordLearn", "Chord Learn", false);
         for (int i = 5; i <= kMacros; ++i) F ("s_m" + juce::String (i), "Macro " + juce::String (i), 0, 1, 0);
         F ("s_arpRate", "Arp Rate", 0, 1, 0.55f);  C ("s_arpSync", "Arp Sync", divs.joinIntoString ("|"), 0);
+        F ("s_arpShift", "Arp Shift", 0, 1, 0);  F ("s_arpCluster", "Arp Cluster", 0, 1, 0);
         return v;
     }();
     return defs;
@@ -627,9 +628,10 @@ orage::SynthParams OrageAudioProcessor::readSynth()
     arpParams.on = n(); arpParams.dir = n(); arpParams.range = n();
     s.ftype = n(); s.semMorph = f();
     s.assign = n(); s.hold = b() ? 1 : 0; s.uniDetune = f(); chordLearn = b();
-    arpParams.assign = s.assign; arpParams.hold = s.hold != 0; arpParams.skew = s.fm;
+    arpParams.assign = s.assign; arpParams.hold = s.hold != 0;
     for (int k = 4; k < kMacros; ++k) s.macro[k] = f();
     arpRateKnob = f(); arpSyncDiv = n();
+    arpParams.shift = f(); arpParams.cluster = f();
     jassert (i == rawSyn.size());
     return s;
 }
@@ -728,7 +730,7 @@ void OrageAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
                 case 8: synth.noteOnStack (e.a, e.v); break;
                 case 9: synth.noteOffRaw (e.a); break;
                 case 10: synth.noteOnSlot (e.a, e.v, e.b); break;
-                case 11: synth.noteOffSlot (e.b); break;
+                case 11: synth.noteOffSlot (e.b, e.a); break;
                 case 5: synth.setPolyAT (e.a, e.v); break;
                 case 6: synth.setChanAT (e.v); break;
                 default: synth.setWheel (e.v); break;
@@ -781,7 +783,9 @@ void OrageAudioProcessor::applyState (juce::ValueTree state)
     headerScope.store ((int) state.getProperty ("hdr", 0));
     {
         juce::StringArray t; t.addTokens (state.getProperty ("macroCC", "").toString(), ",", ""); t.removeEmptyStrings();
-        for (int k = 0; k < 8; ++k) macroCC[k].store (k < t.size() ? t[k].getIntValue() : 21 + k);
+        bool oldDefault = t.size() == 8;                              // anciennes valeurs par defaut (21..28) : on passe aux CC des macros de l'Hydrasynth
+        for (int k = 0; k < t.size() && k < 8; ++k) oldDefault = oldDefault && t[k].getIntValue() == 21 + k;
+        for (int k = 0; k < 8; ++k) macroCC[k].store (k < t.size() && ! oldDefault ? t[k].getIntValue() : 16 + k);
     }
     {
         const auto cs = state.getProperty ("chord", "").toString();

@@ -253,13 +253,16 @@ SynthPanel::SynthPanel (OrageAudioProcessor& p) : proc (p)
         auto* mode = selector (*u, "s_arpMode", juce::StringArray { "UP", "DOWN", "UP-DN" });
         auto* oct = selector (*u, "s_arpOct", juce::StringArray { "1 OCT", "2 OCT", "FULL" });
         auto* rate = knob (*u, "s_arpRate", "CLOCK"); auto* sync = combo (*u, "s_arpSync");
+        auto* shift = knob (*u, "s_arpShift", "SHIFT"); auto* clus = knob (*u, "s_arpCluster", "CLUSTER");     // decalages du mode POLY
         u->layoutFn = [=] (juce::Rectangle<int> r)
         {
-            const int lw = (int) (r.getWidth() * 0.58f);
+            const int lw = juce::jmin (196, (int) (r.getWidth() * 0.52f));
             on->setBounds (r.getX(), r.getY(), lw, 46); mode->setBounds (r.getX(), r.getY() + 54, lw, 46); oct->setBounds (r.getX(), r.getY() + 108, lw, 46);
-            const int rw = r.getWidth() - lw - 8;
-            sync->setBounds (r.getX() + lw + 8, r.getY() + 4, rw, 28);
-            rate->setBounds (r.getX() + lw + 8, r.getY() + 44, rw, juce::jmin (r.getHeight() - 44, rw + 22));
+            const int x2 = r.getX() + lw + 10, rw = r.getRight() - x2;
+            sync->setBounds (x2, r.getY() + 2, rw, 28);
+            rate->setBounds (x2 + (rw - juce::jmin (rw, 96)) / 2, r.getY() + 32, juce::jmin (rw, 96), 100);
+            shift->setBounds (x2, r.getY() + 134, rw / 2, r.getHeight() - 134);
+            clus->setBounds (x2 + rw / 2, r.getY() + 134, rw / 2, r.getHeight() - 134);
         };
     }
     startTimerHz (10);
@@ -292,11 +295,11 @@ void SynthPanel::mouseDown (const juce::MouseEvent& e)
         {
             juce::PopupMenu m;
             m.addItem (1, "MIDI learn : bouge un potard de ton clavier (CC actuel " + juce::String (proc.macroCC[k].load()) + ")");
-            m.addItem (2, "CC par defaut (" + juce::String (21 + (int) k) + ")");
+            m.addItem (2, "CC par defaut (" + juce::String (16 + (int) k) + ")");
             m.showMenuAsync (juce::PopupMenu::Options(), [this, k] (int r)
             {
                 if (r == 1) proc.learnMacro.store ((int) k);
-                else if (r == 2) { proc.macroCC[k].store (21 + (int) k); proc.learnMacro.store (-1); }
+                else if (r == 2) { proc.macroCC[k].store (16 + (int) k); proc.learnMacro.store (-1); }
             });
             return;
         }
@@ -323,7 +326,7 @@ void SynthPanel::resized()
     };
     row (0, 212, { { 0, 290.f }, { 1, 450.f }, { 2, 372.f }, { 3, 300.f } });
     row (220, 212, { { 4, 190.f }, { 5, 510.f }, { 6, 360.f }, { 7, 360.f } });
-    row (440, 276, { { 8, 340.f }, { 9, 170.f }, { 10, 340.f }, { 11, 320.f }, { 12, 280.f } });
+    row (440, 276, { { 8, 320.f }, { 9, 150.f }, { 10, 320.f }, { 11, 280.f }, { 12, 380.f } });
 
     paintFacade (tex, W, getHeight(), false);
 }

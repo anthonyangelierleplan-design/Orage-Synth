@@ -40,4 +40,4 @@ Rack réordonnable, **delay BBD** (TIME, FEEDBACK, TONE, WOBBLE, MIX, PING-PONG,
 ## Design
 Façade façon Korg MS20 : zones délimitées par des traits blancs sérigraphiés, potards numérotés 0-10, symboles de formes d'onde. Les fenêtres de confirmation (vider le rack, patchbay, reset, sauvegarde) sont intégrées au plugin. La fenêtre se redimensionne.
 
-- **8 macros** pilotables en MIDI CC (21 à 28 par défaut, clic droit = MIDI learn, ex. macros de l'Hydrasynth) ; chaque preset d'usine embarque une sélection de macros (lignes 5 à 12 de la matrice).
+- **8 macros** pilotables en MIDI CC (16 à 23 par défaut = macros 1 à 8 de l'Hydrasynth, clic droit = MIDI learn, ex. macros de l'Hydrasynth) ; chaque preset d'usine embarque une sélection de macros (lignes 5 à 12 de la matrice).
