@@ -23,7 +23,7 @@ Deux plugins, même design (métal peint noir usé, lampes qui chauffent) :
 - **Filtres MS20 retravaillés** : le HPF (cutoff plus haut, pic de résonance libre) gonfle les basses quand on monte la résonance vers 2 ; le LPF est plus sauvage (saturation asymétrique dans la boucle, la bande passante est ajoutée à la sortie : résonance criarde).
 - **Wavefolder** (repli sinus, FOLD + SYMMETRY) placé avant les filtres ; destination de la matrice.
 - **Key Assign** : POLY / MONO / UNISON / SHARE / CHORD MEMORY (LEARN CHORD), HOLD, DETUNE d'empilement.
-- **Arpégiateur façon Korg Monopoly** : OFF / ON / LATCH, UP / DOWN / UP-DN, 1 OCT / 2 OCT / FULL ; cadencé par le LFO 2 ; le motif dépend du mode Key Assign (SHARE = motifs étranges).
+- **Arpégiateur façon Korg Monopoly** : OFF / ON / LATCH, UP / DOWN / UP-DN, 1 OCT / 2 OCT / FULL ; horloge propre (CLOCK libre ou calée sur le tempo) ; le motif dépend du mode Key Assign (SHARE = motifs étranges).
 - **Incertitude** (distorsion) : câble jack défaillant — coupures, grésillements, micro-boucles, surtensions, inversions de phase, écrasement ; fréquence et violence croissantes avec le bouton, aucun bruit ajouté.
 - **Matrice** dans un volet déroulant (bouton MATRIX) visible sur les deux onglets ; les destinations incluent maintenant les effets (FX DRIVE, CLIP, UNCERT., HPF, LPF, PEAK, DESTROY, D.RATE, SPRING, DRY/WET, CHAOS) et le delay BBD (TIME, FEEDBACK, MIX). Les sources LFO sont alors les LFO libres (non retriggés).
 - Molette de pitch (±2 demi-tons) et mod wheel (CC1).
@@ -39,3 +39,5 @@ Rack réordonnable, **delay BBD** (TIME, FEEDBACK, TONE, WOBBLE, MIX, PING-PONG,
 
 ## Design
 Façade façon Korg MS20 : zones délimitées par des traits blancs sérigraphiés, potards numérotés 0-10, symboles de formes d'onde. Les fenêtres de confirmation (vider le rack, patchbay, reset, sauvegarde) sont intégrées au plugin. La fenêtre se redimensionne.
+
+- **8 macros** pilotables en MIDI CC (21 à 28 par défaut, clic droit = MIDI learn, ex. macros de l'Hydrasynth) ; chaque preset d'usine embarque une sélection de macros (lignes 5 à 12 de la matrice).

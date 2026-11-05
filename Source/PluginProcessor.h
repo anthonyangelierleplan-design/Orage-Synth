@@ -61,6 +61,7 @@ public:
 
     juce::AudioProcessorValueTreeState apvts;
     juce::MidiKeyboardState keyboardState;  // clavier a l'ecran (version instrument)
+    std::atomic<int> macroCC[8] { 21, 22, 23, 24, 25, 26, 27, 28 }, learnMacro { -1 };   // CC MIDI des macros (21..28 par defaut) et macro en apprentissage
     orage::Synth synth;                     // utilise seulement par la version instrument (ORAGE_SYNTH)
     orage::Arp arp;                         // arpegiateur (version instrument)
     orage::Engine engine;                   // rack + patchbay vivent ici ; l'editeur les lit et les modifie
@@ -84,6 +85,9 @@ private:
     std::vector<MidiEv> evs;
     int lastArpOn = 0, lastAssign = 0, chordN = 3, chordIv[6] { 4, 7, 11, 0, 0, 0 }, learnN = 0, learnNotes[6] {};
     bool chordLearn = false, lastLearn = false;
+    bool handleMacroCC (int cc, int value);
+    float arpStepHz (double bpm) const;
+    float arpRateKnob = 0.55f; int arpSyncDiv = 0;
     std::vector<std::atomic<float>*> rawSyn;
     juce::ValueTree captureState();
     void applyState (juce::ValueTree state);

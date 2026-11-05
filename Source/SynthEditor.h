@@ -40,6 +40,8 @@ public:
 
 private:
     void timerCallback() override;
+    void mouseDown (const juce::MouseEvent&) override;
+    std::vector<KnobUnit*> macroKnobs;
     KnobUnit* knob (juce::Component& parent, const char* id, const juce::String& text, const char* lo = "0", const char* hi = "10");
     ModuleUnit* unit (const juce::String& title);
 

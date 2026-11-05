@@ -7,15 +7,16 @@
 
 namespace orage
 {
-constexpr int kVoices = 6, kLfos = 4, kMacros = 4, kSlots = 12;
+constexpr int kVoices = 6, kLfos = 4, kMacros = 8, kSlots = 12;
 enum Assign { AsPoly, AsMono, AsUnison, AsShare, AsChord };
-enum ModSrc { MsNone, MsLfo1, MsLfo2, MsLfo3, MsLfo4, MsMac1, MsMac2, MsMac3, MsMac4, MsEnv, MsVel, MsWheel, MsAmpEnv, MsKey, MsRandom, MsChanAT, MsPolyAT, kNumModSrc };
+enum ModSrc { MsNone, MsLfo1, MsLfo2, MsLfo3, MsLfo4, MsMac1, MsMac2, MsMac3, MsMac4, MsEnv, MsVel, MsWheel, MsAmpEnv, MsKey, MsRandom, MsChanAT, MsPolyAT, MsMac5, MsMac6, MsMac7, MsMac8, kNumModSrc };
+inline int macroSrc (int i) { return i < 4 ? MsMac1 + i : MsMac5 + (i - 4); }
 enum ModDst { MdNone, MdPitch, MdPitch2, MdPw1, MdPw2, MdFm, MdRing, MdMix, MdHpf, MdLpf, MdReso, MdLevel, MdPan,
               MdFold, MdFxPower, MdFxClip, MdFxUnc, MdFxHpf, MdFxLpf, MdFxPeak, MdFxDestroy, MdFxRate, MdFxSpring, MdFxMix, MdFxChaos, MdBbdTime, MdBbdFb, MdBbdMix,
               MdRevMix, MdRevDecay, MdRevDamp,
               MdNoise, MdHpfReso, MdDrive, MdMorph, MdFltEnv, MdFoldSym, MdLvl1, kNumModDst };
 constexpr int kFxMod = 17;                // destinations FX : MdFxPower .. MdRevDamp (les 10 premieres = les entrees CV du moteur d'effets)
-inline const char* const kModSrcNames[kNumModSrc] { "-", "LFO 1", "LFO 2", "LFO 3", "LFO 4", "MACRO 1", "MACRO 2", "MACRO 3", "MACRO 4", "ENV FLT", "VELOCITY", "MOD WHEEL", "ENV AMP", "KEY TRACK", "RANDOM", "AFTERTOUCH", "POLY AT" };
+inline const char* const kModSrcNames[kNumModSrc] { "-", "LFO 1", "LFO 2", "LFO 3", "LFO 4", "MACRO 1", "MACRO 2", "MACRO 3", "MACRO 4", "ENV FLT", "VELOCITY", "MOD WHEEL", "ENV AMP", "KEY TRACK", "RANDOM", "AFTERTOUCH", "POLY AT", "MACRO 5", "MACRO 6", "MACRO 7", "MACRO 8" };
 inline const char* const kModDstNames[kNumModDst] { "-", "PITCH", "PITCH VCO2", "PWM VCO1", "PWM VCO2", "FM", "RING", "MIX VCO2", "HPF", "LPF", "RESO", "LEVEL", "PAN",
     "FOLD", "FX DRIVE", "FX CLIP", "FX UNCERT.", "FX HPF", "FX LPF", "FX PEAK", "FX DESTROY", "FX D.RATE", "FX SPRING", "FX DRY/WET", "FX CHAOS", "BBD TIME", "BBD FEEDBK", "BBD MIX",
     "REV MIX", "REV DECAY", "REV DAMP", "NOISE", "HPF RESO", "DRIVE", "SEM MORPH", "FLT ENV AMT", "FOLD SYM", "LEVEL VCO1" };
@@ -387,7 +388,7 @@ private:
     {
         float src[kNumModSrc] {};
         for (int i = 0; i < kLfos; ++i) src[MsLfo1 + i] = lfoWave (gPhase[i], P.lfo[i].wave, gCur[i]);
-        for (int i = 0; i < kMacros; ++i) src[MsMac1 + i] = P.macro[i];
+        for (int i = 0; i < kMacros; ++i) src[macroSrc (i)] = P.macro[i];
         float e = 0.f; for (auto& v : voices) if (v.active) e = std::max (e, v.fenv.v);
         src[MsEnv] = e; src[MsVel] = lastVel; src[MsWheel] = wheel;
         float ae = 0.f, pa = 0.f; for (auto& v : voices) if (v.active) { ae = std::max (ae, v.aenv.v); pa = std::max (pa, v.patS); }
@@ -446,7 +447,7 @@ private:
             }
             src[MsLfo1 + i] = lfoWave (ph, l.wave, sh) * fadeG;
         }
-        for (int i = 0; i < kMacros; ++i) src[MsMac1 + i] = P.macro[i];
+        for (int i = 0; i < kMacros; ++i) src[macroSrc (i)] = P.macro[i];
         const float fe = v.fenv.tick (P.fA, P.fD, P.fS, P.fR, fs / (float) kCtl);   // enveloppes cadencees au bloc
         src[MsEnv] = fe; src[MsVel] = v.vel; src[MsWheel] = wheel;
         src[MsAmpEnv] = v.aenv.v; src[MsKey] = std::max (-1.f, std::min (1.f, (v.pitch - 60.f) / 48.f)); src[MsRandom] = v.rndv;

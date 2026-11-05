@@ -221,13 +221,18 @@ SynthPanel::SynthPanel (OrageAudioProcessor& p) : proc (p)
         u->layoutFn = [=] (juce::Rectangle<int> r) { place (r, { a, b }, (r.getWidth() - 2 * 92) / 2, 92); };
     }
     {
-        auto* u = unit ("MACROS");
-        auto* a = knob (*u, "s_m1", "MACRO 1"); auto* b = knob (*u, "s_m2", "MACRO 2"); auto* c = knob (*u, "s_m3", "MACRO 3"); auto* d = knob (*u, "s_m4", "MACRO 4");
-        u->layoutFn = [=] (juce::Rectangle<int> r)
+        auto* u = unit ("MACROS  (CC MIDI : clic droit = learn)");
+        auto ks = std::make_shared<std::vector<KnobUnit*>>();
+        for (int i = 1; i <= kMacros; ++i)
         {
-            const int cw = r.getWidth() / 2, kh = juce::jmin (r.getHeight() / 2, cw + 22);
-            a->setBounds (r.getX(), r.getY(), cw, kh); b->setBounds (r.getX() + cw, r.getY(), cw, kh);
-            c->setBounds (r.getX(), r.getY() + kh, cw, kh); d->setBounds (r.getX() + cw, r.getY() + kh, cw, kh);
+            auto* k = knob (*u, ("s_m" + juce::String (i)).toRawUTF8(), "MACRO " + juce::String (i));
+            k->slider.addMouseListener (this, false);
+            ks->push_back (k); macroKnobs.push_back (k);
+        }
+        u->layoutFn = [ks] (juce::Rectangle<int> r)
+        {
+            const int cw = r.getWidth() / 4, kh = juce::jmin (r.getHeight() / 2, cw + 22);
+            for (int i = 0; i < 8; ++i) (*ks)[(size_t) i]->setBounds (r.getX() + (i % 4) * cw, r.getY() + (i / 4) * kh, cw, kh);
         };
     }
     {
@@ -243,19 +248,59 @@ SynthPanel::SynthPanel (OrageAudioProcessor& p) : proc (p)
         };
     }
     {
-        auto* u = unit ("ARPEGGIATOR  (clock = LFO 2)");
+        auto* u = unit ("ARPEGGIATOR");
         auto* on = selector (*u, "s_arpOn", juce::StringArray { "OFF", "ON", "LATCH" });
         auto* mode = selector (*u, "s_arpMode", juce::StringArray { "UP", "DOWN", "UP-DN" });
         auto* oct = selector (*u, "s_arpOct", juce::StringArray { "1 OCT", "2 OCT", "FULL" });
+        auto* rate = knob (*u, "s_arpRate", "CLOCK"); auto* sync = combo (*u, "s_arpSync");
         u->layoutFn = [=] (juce::Rectangle<int> r)
         {
-            on->setBounds (r.getX(), r.getY(), r.getWidth(), 46); mode->setBounds (r.getX(), r.getY() + 54, r.getWidth(), 46); oct->setBounds (r.getX(), r.getY() + 108, r.getWidth(), 46);
+            const int lw = (int) (r.getWidth() * 0.58f);
+            on->setBounds (r.getX(), r.getY(), lw, 46); mode->setBounds (r.getX(), r.getY() + 54, lw, 46); oct->setBounds (r.getX(), r.getY() + 108, lw, 46);
+            const int rw = r.getWidth() - lw - 8;
+            sync->setBounds (r.getX() + lw + 8, r.getY() + 4, rw, 28);
+            rate->setBounds (r.getX() + lw + 8, r.getY() + 44, rw, juce::jmin (r.getHeight() - 44, rw + 22));
         };
     }
     startTimerHz (10);
 }
 
-void SynthPanel::timerCallback() { for (auto* v : lfoViews) v->repaint(); }
+void SynthPanel::timerCallback()
+{
+    for (auto* v : lfoViews) v->repaint();
+    // le nom de chaque macro = destination de la premiere ligne de matrice qu'elle pilote
+    for (size_t k = 0; k < macroKnobs.size(); ++k)
+    {
+        juce::String name = "MACRO " + juce::String ((int) k + 1);
+        if ((int) k == proc.learnMacro.load()) name = "LEARN CC...";
+        else
+            for (int sl = 1; sl <= kSlots; ++sl)
+            {
+                auto* sp = proc.apvts.getRawParameterValue ("s_slot" + juce::String (sl) + "Src");
+                auto* dp = proc.apvts.getRawParameterValue ("s_slot" + juce::String (sl) + "Dst");
+                if (sp != nullptr && dp != nullptr && (int) sp->load() == macroSrc ((int) k) && (int) dp->load() > 0) { name = juce::String (kModDstNames[(int) dp->load()]); break; }
+            }
+        if (macroKnobs[k]->text != name) { macroKnobs[k]->text = name; macroKnobs[k]->repaint(); }
+    }
+}
+
+void SynthPanel::mouseDown (const juce::MouseEvent& e)
+{
+    if (! e.mods.isPopupMenu()) return;
+    for (size_t k = 0; k < macroKnobs.size(); ++k)
+        if (e.eventComponent == &macroKnobs[k]->slider)
+        {
+            juce::PopupMenu m;
+            m.addItem (1, "MIDI learn : bouge un potard de ton clavier (CC actuel " + juce::String (proc.macroCC[k].load()) + ")");
+            m.addItem (2, "CC par defaut (" + juce::String (21 + (int) k) + ")");
+            m.showMenuAsync (juce::PopupMenu::Options(), [this, k] (int r)
+            {
+                if (r == 1) proc.learnMacro.store ((int) k);
+                else if (r == 2) { proc.macroCC[k].store (21 + (int) k); proc.learnMacro.store (-1); }
+            });
+            return;
+        }
+}
 
 void SynthPanel::paint (juce::Graphics& g) { g.drawImageAt (tex, 0, 0); }
 void SynthPanel::rebuild() { paintFacade (tex, getWidth(), getHeight(), false); repaint(); for (auto& u : units) u->repaint(); }
@@ -278,7 +323,7 @@ void SynthPanel::resized()
     };
     row (0, 212, { { 0, 290.f }, { 1, 450.f }, { 2, 372.f }, { 3, 300.f } });
     row (220, 212, { { 4, 190.f }, { 5, 510.f }, { 6, 360.f }, { 7, 360.f } });
-    row (440, 276, { { 8, 380.f }, { 9, 190.f }, { 10, 220.f }, { 11, 330.f }, { 12, 300.f } });
+    row (440, 276, { { 8, 340.f }, { 9, 170.f }, { 10, 340.f }, { 11, 320.f }, { 12, 280.f } });
 
     paintFacade (tex, W, getHeight(), false);
 }
@@ -298,7 +343,7 @@ void fillGrouped (juce::ComboBox& cb, const std::vector<Fam>& fams, const char* 
 }
 const std::vector<Fam>& srcFamilies()
 {
-    static const std::vector<Fam> f { { "LFO", { MsLfo1, MsLfo2, MsLfo3, MsLfo4 } }, { "MACROS", { MsMac1, MsMac2, MsMac3, MsMac4 } },
+    static const std::vector<Fam> f { { "LFO", { MsLfo1, MsLfo2, MsLfo3, MsLfo4 } }, { "MACROS", { MsMac1, MsMac2, MsMac3, MsMac4, MsMac5, MsMac6, MsMac7, MsMac8 } },
                                       { "ENVELOPES", { MsEnv, MsAmpEnv } }, { "PERFORMANCE", { MsVel, MsWheel, MsKey, MsChanAT, MsPolyAT } }, { "RANDOM", { MsRandom } } };
     return f;
 }
