@@ -376,8 +376,8 @@ MatrixDrawer::MatrixDrawer (juce::AudioProcessorValueTreeState& apvts)
         r->amt.setScrollWheelEnabled (false);
         r->amt.setDoubleClickReturnValue (true, 0.0);
         addAndMakeVisible (r->src); addAndMakeVisible (r->dst); addAndMakeVisible (r->amt);
-        comboAtt.push_back (std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (apvts, pre + "Src", r->src));
-        comboAtt.push_back (std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (apvts, pre + "Dst", r->dst));
+        comboAtt.push_back (std::make_unique<IdComboAttachment> (*apvts.getParameter (pre + "Src"), r->src));
+        comboAtt.push_back (std::make_unique<IdComboAttachment> (*apvts.getParameter (pre + "Dst"), r->dst));
         sliderAtt.push_back (std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (apvts, pre + "Amt", r->amt));
         rows.push_back (std::move (r));
     }

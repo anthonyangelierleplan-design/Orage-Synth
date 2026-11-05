@@ -15,6 +15,19 @@ private:
     juce::String wave, slew;
 };
 
+// Liaison menu <-> parametre "choice" par identifiant d'element (et non par position) : les menus de la matrice sont ranges par familles
+struct IdComboAttachment
+{
+    IdComboAttachment (juce::RangedAudioParameter& p, juce::ComboBox& b)
+        : box (b), att (p, [this] (float v) { box.setSelectedId (juce::roundToInt (v) + 1, juce::dontSendNotification); })
+    {
+        box.onChange = [this] { if (box.getSelectedId() > 0) att.setValueAsCompleteGesture ((float) (box.getSelectedId() - 1)); };
+        att.sendInitialUpdate();
+    }
+    juce::ComboBox& box;
+    juce::ParameterAttachment att;
+};
+
 // Volet de la matrice de modulation : un menu deroulant au-dessus des deux onglets (SYNTH et EFFECTS)
 class MatrixDrawer : public juce::Component
 {
@@ -25,7 +38,7 @@ public:
 private:
     struct Row { juce::ComboBox src, dst; DetentSlider amt { juce::Slider::LinearHorizontal, juce::Slider::NoTextBox }; };
     std::vector<std::unique_ptr<Row>> rows;
-    std::vector<std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment>> comboAtt;
+    std::vector<std::unique_ptr<IdComboAttachment>> comboAtt;
     std::vector<std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>> sliderAtt;
 };
 
