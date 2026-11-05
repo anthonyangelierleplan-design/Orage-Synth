@@ -145,8 +145,13 @@ SynthPanel::SynthPanel (OrageAudioProcessor& p) : proc (p)
     {
         auto* u = unit ("VC LOWPASS FILTER");
         auto* a = knob (*u, "s_lpf", "CUTOFF"); auto* b = knob (*u, "s_lpfRes", "PEAK"); auto* c = knob (*u, "s_fltEnv", "EG AMOUNT");
-        auto* d = knob (*u, "s_key", "KEY TRACK"); auto* e = knob (*u, "s_drive", "DRIVE");
-        u->layoutFn = [=] (juce::Rectangle<int> r) { place (r, { a, b, c, d, e }, 0, 88); };
+        auto* d = knob (*u, "s_key", "KEY TRACK"); auto* e = knob (*u, "s_drive", "DRIVE"); auto* mo = knob (*u, "s_semMorph", "SEM MORPH");
+        auto* ft = selector (*u, "s_ftype", juce::StringArray { "MS-20", "SEM", "LADDER" });
+        u->layoutFn = [=] (juce::Rectangle<int> r)
+        {
+            ft->setBounds (r.getX(), r.getY() + 2, juce::jmin (330, r.getWidth()), 34);
+            place (r.withTrimmedTop (38), { a, b, c, d, e, mo }, 0, juce::jmin (88, r.getWidth() / 6));
+        };
     }
     {
         auto* u = unit ("ENVELOPE GENERATOR 1  (FILTER)");
@@ -247,6 +252,7 @@ SynthPanel::SynthPanel (OrageAudioProcessor& p) : proc (p)
 void SynthPanel::timerCallback() { for (auto* v : lfoViews) v->repaint(); }
 
 void SynthPanel::paint (juce::Graphics& g) { g.drawImageAt (tex, 0, 0); }
+void SynthPanel::rebuild() { paintFacade (tex, getWidth(), getHeight(), false); repaint(); for (auto& u : units) u->repaint(); }
 
 void SynthPanel::resized()
 {
@@ -265,27 +271,46 @@ void SynthPanel::resized()
         }
     };
     row (0, 212, { { 0, 290.f }, { 1, 450.f }, { 2, 372.f }, { 3, 300.f } });
-    row (220, 212, { { 4, 200.f }, { 5, 470.f }, { 6, 372.f }, { 7, 372.f } });
+    row (220, 212, { { 4, 190.f }, { 5, 510.f }, { 6, 360.f }, { 7, 360.f } });
     row (440, 276, { { 8, 400.f }, { 9, 210.f }, { 10, 240.f }, { 11, 520.f } });
 
-    tex = juce::Image (juce::Image::RGB, juce::jmax (1, W), juce::jmax (1, getHeight()), false);
-    juce::Graphics g (tex);
-    g.fillAll (juce::Colour (0xff131314));
-    juce::Random rr (555);
-    for (int i = 0; i < 260; ++i)
-    {
-        const float x = rr.nextFloat() * (float) W, y = rr.nextFloat() * (float) getHeight(), a = (rr.nextFloat() - 0.5f) * 0.8f, len = 10.f + rr.nextFloat() * 120.f;
-        g.setColour (juce::Colour::fromRGBA (205, 205, 210, (juce::uint8) (6 + rr.nextInt (22))));
-        g.drawLine (x, y, x + len * std::cos (a), y + len * std::sin (a), 0.6f);
-    }
-    for (int i = 0; i < 4000; ++i)
-    {
-        g.setColour (juce::Colour (0xff0e0e0f));
-        g.fillRect (rr.nextInt (W), rr.nextInt (juce::jmax (1, getHeight())), 1 + rr.nextInt (2), 1 + rr.nextInt (2));
-    }
+    paintFacade (tex, W, getHeight(), false);
 }
 
 // ---------------------------------------------------------------- volet de la matrice
+namespace
+{
+struct Fam { const char* title; std::vector<int> items; };
+void fillGrouped (juce::ComboBox& cb, const std::vector<Fam>& fams, const char* const* names)
+{
+    cb.addItem ("-", 1);
+    for (const auto& f : fams)
+    {
+        cb.addSectionHeading (f.title);
+        for (int i : f.items) cb.addItem (names[i], i + 1);                       // id = index du parametre + 1
+    }
+}
+const std::vector<Fam>& srcFamilies()
+{
+    static const std::vector<Fam> f { { "LFO", { MsLfo1, MsLfo2, MsLfo3, MsLfo4 } }, { "MACROS", { MsMac1, MsMac2, MsMac3, MsMac4 } },
+                                      { "ENVELOPES", { MsEnv, MsAmpEnv } }, { "PERFORMANCE", { MsVel, MsWheel, MsKey, MsChanAT, MsPolyAT } }, { "RANDOM", { MsRandom } } };
+    return f;
+}
+const std::vector<Fam>& dstFamilies()
+{
+    static const std::vector<Fam> f {
+        { "PITCH", { MdPitch, MdPitch2 } },
+        { "OSCILLATORS", { MdPw1, MdPw2, MdFm, MdRing, MdMix, MdLvl1, MdNoise } },
+        { "FILTERS", { MdHpf, MdHpfReso, MdLpf, MdReso, MdMorph, MdFltEnv, MdDrive } },
+        { "WAVEFOLDER", { MdFold, MdFoldSym } },
+        { "AMP / SPACE", { MdLevel, MdPan } },
+        { "FX RACK", { MdFxPower, MdFxClip, MdFxUnc, MdFxHpf, MdFxLpf, MdFxPeak, MdFxDestroy, MdFxRate, MdFxSpring, MdFxMix } },
+        { "BBD DELAY", { MdBbdTime, MdBbdFb, MdBbdMix } },
+        { "REVERB", { MdRevMix, MdRevDecay, MdRevDamp } } };
+    return f;
+}
+}
+
 MatrixDrawer::MatrixDrawer (juce::AudioProcessorValueTreeState& apvts)
 {
     for (int i = 1; i <= kSlots; ++i)
@@ -293,15 +318,12 @@ MatrixDrawer::MatrixDrawer (juce::AudioProcessorValueTreeState& apvts)
         const juce::String pre ("s_slot" + juce::String (i));
         auto r = std::make_unique<Row>();
         for (auto* cb : { &r->src, &r->dst }) cb->setScrollWheelEnabled (false);
-        if (auto* ch = dynamic_cast<juce::AudioParameterChoice*> (apvts.getParameter (pre + "Src"))) r->src.addItemList (ch->choices, 1);
-        if (auto* ch = dynamic_cast<juce::AudioParameterChoice*> (apvts.getParameter (pre + "Dst"))) r->dst.addItemList (ch->choices, 1);
+        fillGrouped (r->src, srcFamilies(), kModSrcNames);
+        fillGrouped (r->dst, dstFamilies(), kModDstNames);
         r->amt.detent = 0.0; r->amt.showMark = true;
         r->amt.setPopupDisplayEnabled (true, true, nullptr);
         r->amt.setScrollWheelEnabled (false);
         r->amt.setDoubleClickReturnValue (true, 0.0);
-        r->amt.setColour (juce::Slider::thumbColourId, juce::Colour (0xffe9e5d8));
-        r->amt.setColour (juce::Slider::trackColourId, juce::Colour (0xffc8281c));
-        r->amt.setColour (juce::Slider::backgroundColourId, juce::Colour (0xff0b0b0c));
         addAndMakeVisible (r->src); addAndMakeVisible (r->dst); addAndMakeVisible (r->amt);
         comboAtt.push_back (std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (apvts, pre + "Src", r->src));
         comboAtt.push_back (std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (apvts, pre + "Dst", r->dst));
@@ -312,16 +334,24 @@ MatrixDrawer::MatrixDrawer (juce::AudioProcessorValueTreeState& apvts)
 
 void MatrixDrawer::paint (juce::Graphics& g)
 {
+    const auto& th = look::T();
     const auto b = getLocalBounds().toFloat();
-    g.setColour (juce::Colour (0xff0d0d0e));
-    g.fillRoundedRectangle (b, 6.f);
-    g.setColour (juce::Colour (0xffe9e5d8).withAlpha (0.75f));
-    g.drawRoundedRectangle (b.reduced (1.f), 6.f, 1.5f);
-    g.setColour (juce::Colour (0xffe9e5d8).withAlpha (0.95f));
+    g.setColour (juce::Colours::black.withAlpha (0.5f));
+    g.fillRoundedRectangle (b.translated (0.f, 3.f), 7.f);
+    g.setGradientFill (juce::ColourGradient (juce::Colour (th.plateTop), 0.f, 0.f, juce::Colour (th.plateBot), 0.f, b.getBottom(), false));
+    g.fillRoundedRectangle (b, 7.f);
+    g.setColour (juce::Colour (th.trim).withAlpha (0.7f));
+    g.drawRoundedRectangle (b.reduced (1.f), 7.f, 1.3f);
+    g.setColour (look::print.withAlpha (0.95f));
     g.setFont (bold (13.f));
-    g.drawText ("MODULATION MATRIX   source > destination > amount   (also reaches the effects and the BBD delay)", 14, 6, getWidth() - 28, 18, juce::Justification::centredLeft, false);
-    g.setColour (juce::Colour (0xffe9e5d8).withAlpha (0.35f));
+    g.drawText ("MODULATION MATRIX   (reaches the filters, FX rack, BBD and reverb)", 14, 6, getWidth() - 28, 18, juce::Justification::centredLeft, false);
+    g.setColour (juce::Colour (th.trim).withAlpha (0.45f));
     g.fillRect (14, 28, getWidth() - 28, 1);
+    g.setColour (look::print.withAlpha (0.6f));
+    g.setFont (bold (9.f));
+    g.drawText ("SOURCE", 14, 30, 150, 8, juce::Justification::centredLeft, false);
+    g.drawText ("DESTINATION", 172, 30, 176, 8, juce::Justification::centredLeft, false);
+    g.drawText ("AMOUNT", 358, 30, 100, 8, juce::Justification::centredLeft, false);
 }
 
 void MatrixDrawer::resized()
@@ -329,7 +359,7 @@ void MatrixDrawer::resized()
     const int rowH = 32;
     for (size_t i = 0; i < rows.size(); ++i)
     {
-        const int y = 38 + (int) i * rowH;
+        const int y = 42 + (int) i * rowH;
         rows[i]->src.setBounds (14, y, 150, 26);
         rows[i]->dst.setBounds (172, y, 176, 26);
         rows[i]->amt.setBounds (358, y, getWidth() - 358 - 16, 26);
@@ -352,6 +382,7 @@ SynthEditor::SynthEditor (OrageAudioProcessor& p)
     setLookAndFeel (&laf);
     addAndMakeVisible (content);
     content.addAndMakeVisible (fx);
+    fx.onThemeChanged = [this] { if (synthPanel != nullptr) synthPanel->rebuild(); repaint(); };
     fx.dialogHost = &content;
 #if ORAGE_SYNTH
     synthPanel = std::make_unique<SynthPanel> (p);
@@ -393,7 +424,7 @@ void SynthEditor::showTab (int t)
     fx.repaint();
 }
 
-void SynthEditor::paint (juce::Graphics& g) { g.fillAll (juce::Colour (0xff0b0b0c)); }
+void SynthEditor::paint (juce::Graphics& g) { g.fillAll (juce::Colour (look::T().panelBot)); }
 
 void SynthEditor::resized()
 {
@@ -407,7 +438,7 @@ void SynthEditor::resized()
     matrixBtn.setBounds (322, 3, 150, 24);
     fx.setBounds ((designWidth() - 1440) / 2, 30, 1440, kFxH);
     synthPanel->setBounds (0, 30 + kHeaderH + 4, designWidth(), kFxH - kHeaderH - 4);
-    matrix->setBounds (322, 32, 640, 38 + kSlots * 32 + 10);
+    matrix->setBounds (322, 32, 640, 42 + kSlots * 32 + 10);
     matrix->toFront (false);
 #else
     fx.setBounds (0, 0, 1440, kFxH);

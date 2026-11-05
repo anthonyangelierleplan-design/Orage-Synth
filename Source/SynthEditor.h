@@ -36,6 +36,7 @@ public:
     ~SynthPanel() override { stopTimer(); }
     void paint (juce::Graphics&) override;
     void resized() override;
+    void rebuild();                                 // changement de theme
 
 private:
     void timerCallback() override;

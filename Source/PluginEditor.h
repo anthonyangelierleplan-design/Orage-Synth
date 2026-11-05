@@ -6,10 +6,28 @@
 
 namespace look
 {
-inline const juce::Colour paint  { 0xff111112 };       // peinture noire
-inline const juce::Colour print  { 0xffe9e5d8 };       // serigraphie blanc casse
-inline const juce::Colour cvRing { 0xffe0662a };       // anneau orange des prises CV
+// Themes "luxe" : meme disposition, finitions differentes (metal brosse, reliefs, LED)
+struct Theme
+{
+    const char* name;
+    juce::uint32 panelTop, panelBot, plateTop, plateBot;      // facade et plaques de modules
+    juce::uint32 metalHi, metalMid, metalLo;                   // rampe du metal (potards, touches)
+    juce::uint32 trim, pointer, led, scope, print;             // filets, repere de potard, LED, ecran, serigraphie
+};
+inline const Theme kThemes[3] {
+    { "CHAMPAGNE", 0xff1f1c19, 0xff100f0d, 0xff1a1816, 0xff0e0d0c, 0xfff3e2b4, 0xffc9a45c, 0xff4a3a1c, 0xffd4b26a, 0xfffff0c8, 0xffff9a3a, 0xffffb84a, 0xffeee6d2 },
+    { "ARGENT",    0xff1b1d21, 0xff0e0f11, 0xff17191c, 0xff0b0c0e, 0xfff4f6fa, 0xffb2b9c4, 0xff3a3f48, 0xffc3c9d3, 0xffffffff, 0xff7fd4ff, 0xff7fe0ff, 0xffe8ecf2 },
+    { "CUIVRE",    0xff161112, 0xff0a0808, 0xff130f10, 0xff080606, 0xfff2b89a, 0xffb8693f, 0xff3d1c0e, 0xffc97a4e, 0xffffd2b0, 0xffff6a3a, 0xffff7a4a, 0xffefe3d8 }
+};
+inline int themeIdx = 0;
+inline const Theme& T() { return kThemes[themeIdx < 0 || themeIdx > 2 ? 0 : themeIdx]; }
+inline juce::Colour paint  { 0xff111112 };       // fond des plaques (suit le theme)
+inline juce::Colour print  { 0xffe9e5d8 };       // serigraphie (suit le theme)
+inline const juce::Colour cvRing { 0xffe0662a }; // anneau orange des prises CV
+inline void applyTheme (int i) { themeIdx = juce::jlimit (0, 2, i); paint = juce::Colour (T().plateBot); print = juce::Colour (T().print); }
 }
+
+void paintFacade (juce::Image& img, int W, int H, bool frame);     // fond de facade selon le theme
 
 constexpr int kHeaderH = 84;      // hauteur de l'en-tete (une seule lampe)
 constexpr int kFxH = 820;         // hauteur de conception de l'editeur d'effets
@@ -24,6 +42,12 @@ class OrageLookAndFeel : public juce::LookAndFeel_V4
 {
 public:
     OrageLookAndFeel();
+    ~OrageLookAndFeel() override;
+    void refresh();                               // reprend les couleurs du theme courant
+    static void refreshAll();                     // ... pour toutes les fenetres ouvertes
+    void drawButtonBackground (juce::Graphics&, juce::Button&, const juce::Colour&, bool over, bool down) override;
+    void drawButtonText (juce::Graphics&, juce::TextButton&, bool over, bool down) override;
+    void drawComboBox (juce::Graphics&, int w, int h, bool down, int bx, int by, int bw, int bh, juce::ComboBox&) override;
     void drawRotarySlider (juce::Graphics&, int x, int y, int w, int h, float pos,
                            float startAngle, float endAngle, juce::Slider&) override;
 };
@@ -286,6 +310,7 @@ public:
 
     void paint (juce::Graphics&) override;
     void resized() override;
+    void mouseUp (const juce::MouseEvent&) override;
 
     // appels du rack
     void rackChangedByUser (const std::vector<int>& newOrder);
@@ -298,7 +323,9 @@ public:
 private:
     void timerCallback() override;
     void buildUnits();
-    void rollTheDice();
+    void rebuildFacade();
+    void cycleTheme();
+    void drawScope (juce::Graphics&, juce::Rectangle<float> screen);
     void presetMenu();
     void afterPreset();
     void saveDialog();
@@ -348,7 +375,12 @@ private:
 
     FootSwitch foot;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> footAtt;
-    juce::TextButton dice { "ROULETTE" }, clearRackBtn, clearPatchBtn, resetBtn;
+    juce::TextButton clearRackBtn, clearPatchBtn, resetBtn, themeBtn { "LOOK" };
+    float scopeGain = 1.f;
+public:
+    std::function<void()> onThemeChanged;                        // pour que la fenetre parente repeigne ses propres fonds
+private:
+    static juce::Rectangle<float> lampWindow() { return { 470.f, 6.f, 220.f, 72.f }; }
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OrageAudioProcessorEditor)
 };

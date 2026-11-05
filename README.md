@@ -1,4 +1,13 @@
-# Orage v7 — Foudre Audio
+# Orage v8 — Foudre Audio
+
+## Nouveautés v8
+- **Design** : trois thèmes (CHAMPAGNE par défaut, ARGENT, CUIVRE), bouton LOOK dans l'en-tête ; potards et touches métalliques en relief, plus aucune usure ; Roulette et Chaos retirés.
+- **Oscilloscope** : un clic sur la lampe du haut bascule entre la lampe (chauffe) et l'oscilloscope (sortie finale).
+- **Réverb plaque** (Dattorro) avec SIZE, DECAY, PRE-DELAY, DAMPING, MOTION, WIDTH, LOW CUT, **SHIMMER** (+1 octave) et **FREEZE** ; module du rack, cibles de la matrice (MIX, DECAY, DAMP).
+- **Filtre passe-bas** au choix : MS-20, SEM (12 dB, morph LP/notch/HP) ou Ladder (24 dB).
+- **Matrice** : 12 slots, menus rangés par familles ; nouvelles sources (ENV AMP, KEY TRACK, RANDOM, AFTERTOUCH, POLY AT) et destinations (NOISE, HPF RESO, DRIVE, SEM MORPH, FLT ENV AMT, FOLD SYM, LEVEL VCO1, réverb).
+- **Presets** : ~40 presets d'usine classés par catégorie (Pad, Bass, Lead, Pluck/Keys, Arp/Seq, FX/Texture, Rack FX) ; sauvegarde utilisateur avec catégorie.
+- Les modules FX démarrent à zéro (neutres) quand on les ajoute ; les presets d'usine gardent leur son.
 
 Deux plugins, même design (métal peint noir usé, lampes qui chauffent) :
 

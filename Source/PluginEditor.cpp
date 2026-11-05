@@ -16,40 +16,176 @@ juce::Colour heatColour (float t)
     return c.interpolatedWith (d, (t - 0.75f) / 0.25f);
 }
 
-// ecaillures de peinture : une tuile transparente repetee par-dessus les panneaux
-const juce::Image& speckTile()
-{
-    static const juce::Image img = []
-    {
-        juce::Image i (juce::Image::ARGB, 256, 256, true);
-        juce::Graphics g (i);
-        juce::Random rr (99);
-        for (int k = 0; k < 820; ++k)
-        {
-            g.setColour (look::paint.withAlpha (0.92f));
-            g.fillRect (rr.nextInt (256), rr.nextInt (256), 1 + rr.nextInt (2), 1 + rr.nextInt (2));
-        }
-        return i;
-    }();
-    return img;
-}
+// (l'usure a ete retiree : plus d'ecaillures)
+void drawSpecks (juce::Graphics&, juce::Rectangle<int>) {}
 
-void drawSpecks (juce::Graphics& g, juce::Rectangle<int> r)
-{
-    juce::Graphics::ScopedSaveState ss (g);
-    g.reduceClipRegion (r);
-    const auto& t = speckTile();
-    for (int y = r.getY(); y < r.getBottom(); y += 256)
-        for (int x = r.getX(); x < r.getRight(); x += 256)
-            g.drawImageAt (t, x, y);
-}
+juce::Colour C (juce::uint32 c) { return juce::Colour (c); }
 
 void drawPlate (juce::Graphics& g, juce::Rectangle<float> b)
 {
-    g.setColour (juce::Colour (0xff0b0b0c).withAlpha (0.45f));                  // panneau noir, zone sérigraphiée
-    g.fillRect (b.reduced (1.f));
-    g.setColour (look::print.withAlpha (0.72f));
-    g.drawRect (b.reduced (1.f), 1.4f);
+    const auto& th = look::T();
+    const auto r = b.reduced (1.f);
+    g.setGradientFill (juce::ColourGradient (C (th.plateTop).withAlpha (0.86f), r.getX(), r.getY(), C (th.plateBot).withAlpha (0.92f), r.getX(), r.getBottom(), false));
+    g.fillRoundedRectangle (r, 5.f);
+    g.setColour (juce::Colours::white.withAlpha (0.05f));                         // filet de lumiere en haut
+    g.drawHorizontalLine ((int) r.getY() + 1, r.getX() + 6.f, r.getRight() - 6.f);
+    g.setColour (C (th.trim).withAlpha (0.42f));
+    g.drawRoundedRectangle (r, 5.f, 1.1f);
+    g.setColour (juce::Colours::black.withAlpha (0.5f));
+    g.drawRoundedRectangle (r.expanded (1.f), 6.f, 1.f);
+}
+
+// pierre lumineuse (LED) en relief
+void drawJewel (juce::Graphics& g, juce::Rectangle<float> r, bool on, juce::Colour ledCol)
+{
+    if (on)
+    {
+        g.setGradientFill (juce::ColourGradient (ledCol.withAlpha (0.55f), r.getCentreX(), r.getCentreY(), ledCol.withAlpha (0.f), r.getCentreX(), r.getY() - r.getHeight() * 0.9f, true));
+        g.fillEllipse (r.expanded (r.getWidth() * 1.1f));
+    }
+    g.setGradientFill (juce::ColourGradient (on ? ledCol.brighter (0.7f) : juce::Colour (0xff4a3a34), r.getX() + r.getWidth() * 0.3f, r.getY() + r.getHeight() * 0.25f,
+                                             on ? ledCol.darker (0.6f) : juce::Colour (0xff0d0908), r.getRight(), r.getBottom(), true));
+    g.fillEllipse (r);
+    g.setColour (juce::Colours::black.withAlpha (0.7f));
+    g.drawEllipse (r, 1.f);
+    g.setColour (juce::Colours::white.withAlpha (on ? 0.75f : 0.22f));                // reflet
+    g.fillEllipse (r.getX() + r.getWidth() * 0.22f, r.getY() + r.getHeight() * 0.14f, r.getWidth() * 0.34f, r.getHeight() * 0.26f);
+}
+
+// touche metallique : en relief au repos, enfoncee quand elle est active
+void drawKey (juce::Graphics& g, juce::Rectangle<float> r, bool pressed, bool hover = false)
+{
+    const auto& th = look::T();
+    const juce::Colour mid = C (th.metalMid), lo = C (th.metalLo), hi = C (th.metalHi);
+    if (! pressed)
+    {
+        g.setColour (juce::Colours::black.withAlpha (0.5f));
+        g.fillRoundedRectangle (r.translated (0.f, 1.6f), 4.f);
+        juce::ColourGradient gr (mid.withMultipliedBrightness (hover ? 0.62f : 0.55f), r.getX(), r.getY(), lo.withMultipliedBrightness (0.95f), r.getX(), r.getBottom(), false);
+        gr.addColour (0.5, mid.withMultipliedBrightness (0.40f));
+        g.setGradientFill (gr);
+        g.fillRoundedRectangle (r, 4.f);
+        g.setGradientFill (juce::ColourGradient (juce::Colours::white.withAlpha (0.13f), r.getX(), r.getY(), juce::Colours::white.withAlpha (0.f), r.getX(), r.getCentreY(), false));
+        g.fillRoundedRectangle (r.reduced (1.f, 1.f).withHeight (r.getHeight() * 0.5f), 3.f);
+        g.setColour (hi.withAlpha (0.55f));                                          // arete haute
+        g.drawHorizontalLine ((int) (r.getY() + 1.f), r.getX() + 4.f, r.getRight() - 4.f);
+        g.setColour (juce::Colours::black.withAlpha (0.55f));                       // arete basse
+        g.drawHorizontalLine ((int) (r.getBottom() - 1.f), r.getX() + 3.f, r.getRight() - 3.f);
+        g.setColour (C (th.trim).withAlpha (0.38f));
+        g.drawRoundedRectangle (r, 4.f, 1.f);
+    }
+    else
+    {
+        g.setGradientFill (juce::ColourGradient (juce::Colour (0xff060505), r.getX(), r.getY(), lo.withMultipliedBrightness (0.75f), r.getX(), r.getBottom(), false));
+        g.fillRoundedRectangle (r.translated (0.f, 0.6f), 4.f);
+        g.setGradientFill (juce::ColourGradient (juce::Colours::black.withAlpha (0.55f), r.getX(), r.getY(), juce::Colours::black.withAlpha (0.f), r.getX(), r.getY() + 7.f, false));
+        g.fillRoundedRectangle (r.translated (0.f, 0.6f), 4.f);                      // ombre interieure
+        g.setColour (C (th.trim).withAlpha (0.75f));
+        g.drawRoundedRectangle (r.translated (0.f, 0.6f), 4.f, 1.1f);
+    }
+}
+
+// corps metallique d'un potard (lumiere en haut a gauche) ; angle < 0 : sans repere
+void drawKnobBody (juce::Graphics& g, juce::Point<float> c, float kr, float angle, float alpha, bool pointer = true)
+{
+    const auto& th = look::T();
+    const juce::Colour hi = C (th.metalHi), mid = C (th.metalMid), lo = C (th.metalLo);
+    for (int i = 0; i < 5; ++i)                                                       // ombre portee douce
+    {
+        const float e = (float) i * 1.1f;
+        g.setColour (juce::Colours::black.withAlpha (0.15f * alpha));
+        g.fillEllipse (c.x - kr - e + 1.f, c.y - kr - e + 3.f + (float) i * 0.5f, (kr + e) * 2.f, (kr + e) * 2.f);
+    }
+    juce::ColourGradient bez (hi, c.x - kr * 0.8f, c.y - kr * 0.9f, lo.darker (0.5f), c.x + kr * 0.8f, c.y + kr * 0.9f, false);   // couronne chromee
+    bez.addColour (0.28, mid); bez.addColour (0.52, lo.brighter (0.2f)); bez.addColour (0.78, mid.darker (0.15f));
+    g.setGradientFill (bez);
+    g.fillEllipse (c.x - kr, c.y - kr, kr * 2.f, kr * 2.f);
+    for (int i = 0; i < 56; ++i)                                                      // moletage
+    {
+        const float a = (float) i / 56.f * juce::MathConstants<float>::twoPi, s = std::sin (a), co = std::cos (a);
+        g.setColour (juce::Colours::black.withAlpha (0.30f * alpha));
+        g.drawLine (c.x + kr * 0.91f * s, c.y - kr * 0.91f * co, c.x + kr * 0.995f * s, c.y - kr * 0.995f * co, 0.9f);
+    }
+    const float cr = kr * 0.8f;
+    g.setColour (juce::Colours::black.withAlpha (0.7f * alpha));                      // gorge
+    g.drawEllipse (c.x - kr * 0.86f, c.y - kr * 0.86f, kr * 1.72f, kr * 1.72f, 1.3f);
+    juce::ColourGradient cap (hi.interpolatedWith (mid, 0.3f), c.x - cr * 0.7f, c.y - cr * 0.85f, lo.brighter (0.15f), c.x + cr * 0.8f, c.y + cr * 0.95f, false);
+    cap.addColour (0.42, mid.interpolatedWith (hi, 0.15f)); cap.addColour (0.75, mid.darker (0.3f));
+    g.setGradientFill (cap);
+    g.fillEllipse (c.x - cr, c.y - cr, cr * 2.f, cr * 2.f);
+    {
+        juce::Graphics::ScopedSaveState ss (g);
+        juce::Path clip; clip.addEllipse (c.x - cr, c.y - cr, cr * 2.f, cr * 2.f);
+        g.reduceClipRegion (clip);
+        for (int i = 1; i < 8; ++i)                                                   // brossage circulaire
+        {
+            const float r2 = cr * (float) i / 8.f;
+            g.setColour ((i % 2 ? juce::Colours::white : juce::Colours::black).withAlpha (0.045f));
+            g.drawEllipse (c.x - r2, c.y - r2, r2 * 2.f, r2 * 2.f, 0.8f);
+        }
+        for (float a0 : { -1.15f, 1.99f })                                            // reflets anisotropes fixes (comme un metal brosse)
+        {
+            juce::Path w; w.addPieSegment (c.x - cr, c.y - cr, cr * 2.f, cr * 2.f, a0, a0 + 0.55f, 0.f);
+            g.setGradientFill (juce::ColourGradient (juce::Colours::white.withAlpha (0.02f), c.x, c.y, juce::Colours::white.withAlpha (0.30f * alpha), c.x + cr, c.y, true));
+            g.fillPath (w);
+        }
+    }
+    juce::Path rimHi, rimLo;
+    rimHi.addCentredArc (c.x, c.y, cr - 0.5f, cr - 0.5f, 0.f, -2.5f, 0.35f, true);
+    rimLo.addCentredArc (c.x, c.y, cr - 0.5f, cr - 0.5f, 0.f, 0.65f, 3.7f, true);
+    g.setColour (juce::Colours::white.withAlpha (0.55f * alpha)); g.strokePath (rimHi, juce::PathStrokeType (1.2f));
+    g.setColour (juce::Colours::black.withAlpha (0.55f * alpha)); g.strokePath (rimLo, juce::PathStrokeType (1.2f));
+    if (pointer)
+    {
+        const auto xf = juce::AffineTransform::rotation (angle).translated (c.x, c.y);
+        juce::Path p; p.addRoundedRectangle (-1.5f, -cr * 0.93f, 3.f, cr * 0.62f, 1.4f);
+        g.setColour (juce::Colours::black.withAlpha (0.55f * alpha));
+        g.fillPath (p, xf.translated (0.8f, 1.2f));
+        g.setColour (C (th.pointer).withAlpha (alpha));
+        g.fillPath (p, xf);
+        juce::Path hl; hl.addRoundedRectangle (-0.5f, -cr * 0.91f, 1.f, cr * 0.5f, 0.5f);
+        g.setColour (juce::Colours::white.withAlpha (0.55f * alpha));
+        g.fillPath (hl, xf);
+    }
+}
+
+// facade : degrade, brossage fin, vignette, filet d'en-tete ; cadre et vis polies si frame
+void paintFacadeImpl (juce::Image& img, int W, int H, bool frame)
+{
+    const auto& th = look::T();
+    img = juce::Image (juce::Image::RGB, juce::jmax (1, W), juce::jmax (1, H), false);
+    juce::Graphics g (img);
+    g.setGradientFill (juce::ColourGradient (C (th.panelTop), 0.f, 0.f, C (th.panelBot), 0.f, (float) H, false));
+    g.fillAll();
+    juce::Random rr (4242);
+    for (int y = 0; y < H; y += 2)                                                    // brossage horizontal tres fin
+    {
+        g.setColour (juce::Colours::white.withAlpha (0.006f + 0.012f * rr.nextFloat()));
+        g.drawHorizontalLine (y, 0.f, (float) W);
+    }
+    g.setGradientFill (juce::ColourGradient (juce::Colours::transparentBlack, (float) W * 0.5f, (float) H * 0.45f, juce::Colours::black.withAlpha (0.38f), 0.f, 0.f, true));
+    g.fillAll();
+    if (frame)
+    {
+        g.setGradientFill (juce::ColourGradient (juce::Colours::white.withAlpha (0.05f), 0.f, 0.f, juce::Colours::transparentWhite, 0.f, (float) kHeaderH, false));
+        g.fillRect (0, 0, W, kHeaderH);
+        g.setColour (C (th.trim).withAlpha (0.5f));
+        g.fillRect (12, kHeaderH - 1, W - 24, 1);
+        g.setColour (juce::Colours::black.withAlpha (0.6f));
+        g.fillRect (12, kHeaderH, W - 24, 1);
+        g.setColour (C (th.trim).withAlpha (0.55f));
+        g.drawRect (0, 0, W, H, 2);
+        g.setColour (juce::Colours::black.withAlpha (0.6f));
+        g.drawRect (2, 2, W - 4, H - 4, 1);
+        const juce::Point<float> screws[] = { { 16.f, 16.f }, { (float) W - 16.f, 16.f }, { 16.f, (float) H - 16.f }, { (float) W - 16.f, (float) H - 16.f } };
+        for (auto p : screws)
+        {
+            g.setColour (juce::Colours::black.withAlpha (0.5f)); g.fillEllipse (p.x - 5.5f, p.y - 4.f, 11.f, 11.f);
+            g.setGradientFill (juce::ColourGradient (C (th.metalHi), p.x - 4.f, p.y - 4.f, C (th.metalLo), p.x + 4.f, p.y + 4.f, false));
+            g.fillEllipse (p.x - 5.f, p.y - 5.f, 10.f, 10.f);
+            g.setColour (juce::Colours::black.withAlpha (0.65f)); g.drawLine (p.x - 3.4f, p.y + 1.f, p.x + 3.4f, p.y - 1.f, 1.3f);
+        }
+    }
 }
 
 // pictogrammes d'ondes (selecteurs de forme d'onde, facon MS20)
@@ -78,9 +214,13 @@ bool drawGlyph (juce::Graphics& g, const juce::String& name, juce::Rectangle<flo
     return true;
 }
 
+juce::File themeFile() { return juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory).getChildFile ("Foudre Audio").getChildFile ("theme.txt"); }
+int loadThemePref() { const auto f = themeFile(); return f.existsAsFile() ? f.loadFileAsString().trim().getIntValue() : 0; }
+void saveThemePref (int i) { const auto f = themeFile(); f.getParentDirectory().createDirectory(); f.replaceWithText (juce::String (i)); }
+
 const char* nodeName (int n)
 {
-    static const char* names[kNumNodes] { "INPUT", "OCTAVER", "DISTORSION", "COLOR", "FILTER", "DESTROY", "COMP", "SPRING", "GATE", "BBD DELAY", "OUTPUT" };
+    static const char* names[kNumNodes] { "INPUT", "OCTAVER", "DISTORSION", "COLOR", "FILTER", "DESTROY", "COMP", "SPRING", "GATE", "BBD DELAY", "REVERB", "OUTPUT" };
     return names[juce::jlimit (0, (int) kNumNodes - 1, n)];
 }
 
@@ -110,29 +250,70 @@ void drawCable (juce::Graphics& g, juce::Point<float> a, juce::Point<float> b, j
 }
 } // namespace
 
+void paintFacade (juce::Image& img, int W, int H, bool frame) { paintFacadeImpl (img, W, H, frame); }
+
 // ================================================================ look & feel
-OrageLookAndFeel::OrageLookAndFeel()
+namespace { std::vector<OrageLookAndFeel*>& lafList() { static std::vector<OrageLookAndFeel*> v; return v; } }
+
+OrageLookAndFeel::OrageLookAndFeel() { lafList().push_back (this); refresh(); }
+OrageLookAndFeel::~OrageLookAndFeel() { auto& v = lafList(); v.erase (std::remove (v.begin(), v.end(), this), v.end()); }
+void OrageLookAndFeel::refreshAll() { for (auto* l : lafList()) l->refresh(); }
+
+void OrageLookAndFeel::refresh()
 {
-    setColour (juce::ComboBox::backgroundColourId, juce::Colour (0xff0b0b0c));
+    const auto& th = look::T();
+    const juce::Colour trim (th.trim), dark (0xff0b0b0c);
+    setColour (juce::ComboBox::backgroundColourId, dark);
     setColour (juce::ComboBox::textColourId, look::print);
-    setColour (juce::ComboBox::outlineColourId, juce::Colour (0xff6a6a70));
-    setColour (juce::ComboBox::arrowColourId, look::print);
-    setColour (juce::PopupMenu::backgroundColourId, juce::Colour (0xff141415));
+    setColour (juce::ComboBox::outlineColourId, trim.withAlpha (0.55f));
+    setColour (juce::ComboBox::arrowColourId, trim);
+    setColour (juce::PopupMenu::backgroundColourId, juce::Colour (0xff121213));
     setColour (juce::PopupMenu::textColourId, look::print);
-    setColour (juce::PopupMenu::headerTextColourId, look::cvRing);
-    setColour (juce::PopupMenu::highlightedBackgroundColourId, juce::Colour (0xff6a2412));
+    setColour (juce::PopupMenu::headerTextColourId, trim);
+    setColour (juce::PopupMenu::highlightedBackgroundColourId, juce::Colour (th.metalMid).withMultipliedBrightness (0.5f));
     setColour (juce::PopupMenu::highlightedTextColourId, juce::Colours::white);
     setColour (juce::TextButton::buttonColourId, juce::Colour (0xff232326));
-    setColour (juce::TextButton::buttonOnColourId, juce::Colour (0xff6a2412));
+    setColour (juce::TextButton::buttonOnColourId, juce::Colour (th.metalMid).withMultipliedBrightness (0.5f));
     setColour (juce::TextButton::textColourOffId, look::print);
     setColour (juce::TextButton::textColourOnId, juce::Colours::white);
-    setColour (juce::ScrollBar::thumbColourId, juce::Colour (0xff6a6a70));
+    setColour (juce::ScrollBar::thumbColourId, trim.withAlpha (0.55f));
     setColour (juce::AlertWindow::backgroundColourId, juce::Colour (0xff141415));
     setColour (juce::AlertWindow::textColourId, look::print);
-    setColour (juce::AlertWindow::outlineColourId, juce::Colour (0xff6a6a70));
-    setColour (juce::TextEditor::backgroundColourId, juce::Colour (0xff0b0b0c));
+    setColour (juce::AlertWindow::outlineColourId, trim.withAlpha (0.6f));
+    setColour (juce::TextEditor::backgroundColourId, dark);
     setColour (juce::TextEditor::textColourId, look::print);
-    setColour (juce::TextEditor::outlineColourId, juce::Colour (0xff6a6a70));
+    setColour (juce::TextEditor::outlineColourId, trim.withAlpha (0.6f));
+    setColour (juce::Slider::thumbColourId, juce::Colour (th.metalHi));
+    setColour (juce::Slider::trackColourId, juce::Colour (th.metalMid).withMultipliedBrightness (0.8f));
+    setColour (juce::Slider::backgroundColourId, dark);
+}
+
+void OrageLookAndFeel::drawButtonBackground (juce::Graphics& g, juce::Button& b, const juce::Colour&, bool over, bool down)
+{
+    drawKey (g, b.getLocalBounds().toFloat().reduced (1.5f), down || b.getToggleState(), over);
+}
+
+void OrageLookAndFeel::drawButtonText (juce::Graphics& g, juce::TextButton& b, bool, bool down)
+{
+    g.setFont (font (juce::jmin (12.f, (float) b.getHeight() * 0.5f + 2.f)));
+    g.setColour ((b.getToggleState() || down) ? juce::Colours::white : look::print.withAlpha (0.95f));
+    g.drawText (b.getButtonText(), b.getLocalBounds().translated (0, down ? 1 : 0), juce::Justification::centred, false);
+}
+
+void OrageLookAndFeel::drawComboBox (juce::Graphics& g, int w, int h, bool, int, int, int, int, juce::ComboBox& box)
+{
+    const auto r = juce::Rectangle<float> (0.f, 0.f, (float) w, (float) h).reduced (1.f);
+    g.setGradientFill (juce::ColourGradient (juce::Colour (0xff050505), r.getX(), r.getY(), juce::Colour (0xff151516), r.getX(), r.getBottom(), false));
+    g.fillRoundedRectangle (r, 4.f);
+    g.setColour (juce::Colour (look::T().trim).withAlpha (box.isEnabled() ? 0.6f : 0.3f));
+    g.drawRoundedRectangle (r, 4.f, 1.1f);
+    g.setColour (juce::Colours::white.withAlpha (0.06f));
+    g.drawHorizontalLine ((int) r.getY() + 1, r.getX() + 4.f, r.getRight() - 4.f);
+    juce::Path chev;
+    const float cx = (float) w - 14.f, cy = (float) h * 0.5f;
+    chev.startNewSubPath (cx - 4.f, cy - 2.f); chev.lineTo (cx, cy + 2.5f); chev.lineTo (cx + 4.f, cy - 2.f);
+    g.setColour (juce::Colour (look::T().trim));
+    g.strokePath (chev, juce::PathStrokeType (1.8f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 }
 
 void OrageLookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, int w, int h, float pos,
@@ -140,58 +321,9 @@ void OrageLookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, int w,
 {
     const auto c = juce::Rectangle<float> ((float) x, (float) y, (float) w, (float) h).getCentre();
     const bool numbered = (bool) s.getProperties()["numbered"];
-    const float r = (float) juce::jmin (w, h) * 0.5f, kr = r * (numbered ? 0.58f : 0.66f), tr = kr * 0.86f;
+    const float r = (float) juce::jmin (w, h) * 0.5f, kr = r * (numbered ? 0.58f : 0.66f);
     const float angle = startAngle + pos * (endAngle - startAngle);
-    juce::Random rr ((int) s.getProperties()["seed"]);
-    const float alpha = s.isEnabled() ? 1.f : 0.5f;
-
-    g.setColour (juce::Colours::black.withAlpha (0.6f * alpha));
-    g.fillEllipse (c.x - kr + 2.f, c.y - kr + 5.f, kr * 2.f, kr * 2.f);
-    g.setGradientFill (juce::ColourGradient (juce::Colour (0xff39393c), c.x - kr * 0.6f, c.y - kr * 0.7f,
-                                             juce::Colour (0xff060607), c.x + kr * 0.7f, c.y + kr * 0.8f, true));
-    g.fillEllipse (c.x - kr, c.y - kr, kr * 2.f, kr * 2.f);
-    g.setColour (juce::Colour (0xff77777c).withAlpha (0.55f));
-    g.drawEllipse (c.x - kr + 0.5f, c.y - kr + 0.5f, kr * 2.f - 1.f, kr * 2.f - 1.f, 1.2f);
-    g.setGradientFill (juce::ColourGradient (juce::Colour (0xff2c2c2f), c.x - tr * 0.5f, c.y - tr * 0.6f,
-                                             juce::Colour (0xff0b0b0c), c.x + tr * 0.7f, c.y + tr * 0.8f, true));
-    g.fillEllipse (c.x - tr, c.y - tr, tr * 2.f, tr * 2.f);
-    for (int i = 1; i < 5; ++i)
-    {
-        const float rr2 = tr * (float) i / 5.f;
-        g.setColour (juce::Colours::white.withAlpha (0.035f));
-        g.drawEllipse (c.x - rr2, c.y - rr2, rr2 * 2.f, rr2 * 2.f, 0.7f);
-    }
-    {
-        juce::Graphics::ScopedSaveState ss (g);
-        juce::Path clip; clip.addEllipse (c.x - tr, c.y - tr, tr * 2.f, tr * 2.f);
-        g.reduceClipRegion (clip);
-        for (int k = 0; k < 9; ++k)
-        {
-            const float ax = c.x + (rr.nextFloat() - 0.5f) * tr * 2.f, ay = c.y + (rr.nextFloat() - 0.5f) * tr * 2.f;
-            const float a = rr.nextFloat() * juce::MathConstants<float>::twoPi, len = 4.f + rr.nextFloat() * tr * 0.9f;
-            g.setColour (juce::Colour::fromRGBA (200, 200, 205, (juce::uint8) (14 + rr.nextInt (40))));
-            g.drawLine (ax, ay, ax + len * std::cos (a), ay + len * std::sin (a), 0.5f + rr.nextFloat() * 0.5f);
-        }
-        for (int k = 0; k < 40; ++k)
-        {
-            g.setColour (juce::Colour::fromRGBA (150, 150, 150, (juce::uint8) (20 + rr.nextInt (40))));
-            g.fillRect (c.x + (rr.nextFloat() - 0.5f) * tr * 2.f, c.y + (rr.nextFloat() - 0.5f) * tr * 2.f, 1.f, 1.f);
-        }
-    }
-    for (int k = 0; k < 16; ++k)
-    {
-        const float a = rr.nextFloat() * juce::MathConstants<float>::twoPi;
-        g.setColour (juce::Colour::fromRGBA (160, 160, 165, (juce::uint8) (40 + rr.nextInt (60))));
-        g.fillRect (c.x + kr * 0.97f * std::sin (a), c.y - kr * 0.97f * std::cos (a), 1.6f, 1.6f);
-    }
-    juce::Path p;
-    p.addRoundedRectangle (-1.7f, -tr * 0.98f, 3.4f, tr * 0.64f, 1.2f);
-    const auto xf = juce::AffineTransform::rotation (angle).translated (c.x, c.y);
-    g.setColour (juce::Colour (0xfff0ece0).withAlpha (0.9f * alpha));
-    g.fillPath (p, xf);
-    g.setColour (juce::Colour (0xff121213).withAlpha (0.85f));
-    juce::Path nick; nick.addRectangle (-2.2f, -tr * (0.55f + 0.3f * rr.nextFloat()), 4.4f, 1.4f);
-    g.fillPath (nick, xf);
+    drawKnobBody (g, c, kr, angle, s.isEnabled() ? 1.f : 0.5f);
 }
 
 // ================================================================ potard
@@ -277,16 +409,9 @@ void SegmentSelector::paint (juce::Graphics& g)
     {
         auto r = juce::Rectangle<float> (w * (float) i, 0.f, w, (float) getHeight()).reduced (2.f);
         const bool on = (i == selected);
-        g.setGradientFill (juce::ColourGradient (on ? juce::Colour (0xff0d0d0e) : juce::Colour (0xff2b2b2e), r.getX(), r.getY(),
-                                                 on ? juce::Colour (0xff1c1c1e) : juce::Colour (0xff111112), r.getX(), r.getBottom(), false));
-        g.fillRoundedRectangle (r, 3.f);
-        g.setColour (juce::Colour (0xff8a8a90).withAlpha (0.6f));
-        g.drawRoundedRectangle (r, 3.f, 1.f);
-        const auto led = juce::Rectangle<float> (6.f, 6.f).withCentre ({ r.getCentreX(), r.getY() + 6.f });
-        if (on) { g.setColour (juce::Colour (0xffff7a1a).withAlpha (0.35f)); g.fillEllipse (led.expanded (3.f)); }
-        g.setColour (on ? juce::Colour (0xffff9a3a) : juce::Colour (0xff3a1408));
-        g.fillEllipse (led);
-        g.setColour (on ? look::print : look::print.withAlpha (0.6f));
+        drawKey (g, r, on);
+        drawJewel (g, juce::Rectangle<float> (6.f, 6.f).withCentre ({ r.getCentreX(), r.getY() + 6.5f }), on, juce::Colour (look::T().led));
+        g.setColour (on ? look::print : look::print.withAlpha (0.72f));
         const auto glyphArea = r.withTrimmedTop (13.f).withTrimmedBottom (r.getHeight() > 36.f ? 11.f : 0.f).reduced (7.f, 2.f);
         if (r.getHeight() > 36.f && drawGlyph (g, labels[i], glyphArea))
         {
@@ -307,44 +432,28 @@ void SegmentSelector::mouseDown (const juce::MouseEvent& e)
     attachment.setValueAsCompleteGesture ((float) juce::jlimit (0, n - 1, (int) (e.position.x / ((float) getWidth() / (float) n))));
 }
 
-void LedToggle::paintButton (juce::Graphics& g, bool, bool down)
+void LedToggle::paintButton (juce::Graphics& g, bool over, bool down)
 {
     auto r = getLocalBounds().toFloat().reduced (2.f);
     const bool on = getToggleState();
-    g.setGradientFill (juce::ColourGradient (juce::Colour (0xff2b2b2e), r.getX(), r.getY(), juce::Colour (0xff111112), r.getX(), r.getBottom(), false));
-    g.fillRoundedRectangle (down ? r.reduced (0.6f) : r, 3.f);
-    g.setColour (juce::Colour (0xff8a8a90).withAlpha (0.6f));
-    g.drawRoundedRectangle (r, 3.f, 1.f);
-    const auto led = juce::Rectangle<float> (7.f, 7.f).withCentre ({ r.getX() + 11.f, r.getCentreY() });
-    if (on) { g.setColour (juce::Colour (0xffff7a1a).withAlpha (0.35f)); g.fillEllipse (led.expanded (3.f)); }
-    g.setColour (on ? juce::Colour (0xffff9a3a) : juce::Colour (0xff3a1408));
-    g.fillEllipse (led);
-    g.setColour (on ? look::print : look::print.withAlpha (0.6f));
+    drawKey (g, r, on || down, over);
+    drawJewel (g, juce::Rectangle<float> (7.f, 7.f).withCentre ({ r.getX() + 12.f, r.getCentreY() }), on, juce::Colour (look::T().led));
+    g.setColour (on ? look::print : look::print.withAlpha (0.72f));
     g.setFont (font (10.f));
-    g.drawText (getButtonText(), r.withTrimmedLeft (22.f), juce::Justification::centredLeft, false);
+    g.drawText (getButtonText(), r.withTrimmedLeft (24.f), juce::Justification::centredLeft, false);
 }
 
 void FootSwitch::paintButton (juce::Graphics& g, bool, bool down)
 {
     auto b = getLocalBounds().toFloat();
     const bool on = getToggleState();
-    const auto led = juce::Rectangle<float> (b.getCentreX() - 6.f, b.getY() + 2.f, 12.f, 12.f);
-    if (on) { g.setColour (juce::Colour (0xffff2a1a).withAlpha (0.3f)); g.fillEllipse (led.expanded (6.f)); }
-    g.setColour (on ? juce::Colour (0xffff3b2a) : juce::Colour (0xff3a0c08));
-    g.fillEllipse (led);
-    g.setColour (look::print.withAlpha (0.6f));
-    g.drawEllipse (led, 1.f);
-    const float d = juce::jmin (b.getWidth() - 8.f, b.getHeight() - 22.f) * (down ? 0.93f : 1.f);
-    auto s = juce::Rectangle<float> (d, d).withCentre ({ b.getCentreX(), b.getY() + 20.f + (b.getHeight() - 20.f) * 0.5f });
-    g.setColour (juce::Colours::black.withAlpha (0.6f));
-    g.fillEllipse (s.translated (2.f, 4.f));
-    g.setGradientFill (juce::ColourGradient (juce::Colour (0xffd9d9dc), s.getX(), s.getY(), juce::Colour (0xff4b4b51), s.getRight(), s.getBottom(), true));
-    g.fillEllipse (s);
-    g.setColour (juce::Colour (0xff202022));
-    g.drawEllipse (s.reduced (d * 0.2f), 2.f);
-    g.setColour (juce::Colour (0xff111111));
+    drawJewel (g, juce::Rectangle<float> (12.f, 12.f).withCentre ({ b.getCentreX(), b.getY() + 8.f }), on, juce::Colour (0xffff3b2a));
+    const float d = juce::jmin (b.getWidth() - 8.f, b.getHeight() - 22.f) * (down ? 0.95f : 1.f);
+    const juce::Point<float> c (b.getCentreX(), b.getY() + 20.f + (b.getHeight() - 20.f) * 0.5f);
+    drawKnobBody (g, c, d * 0.5f, 0.f, 1.f, false);
+    g.setColour (juce::Colour (0xff1a1816));
     g.setFont (font (11.f));
-    g.drawText ("ON", s, juce::Justification::centred, false);
+    g.drawText ("ON", juce::Rectangle<float> (d, d).withCentre (c), juce::Justification::centred, false);
 }
 
 // ================================================================ vumeter a aiguille (patine, papier jauni)
@@ -658,7 +767,7 @@ void PatchPanel::layoutJacks()
         if (audioIn[n] != nullptr)  { audioIn[n]->setVisible (true);  audioIn[n]->setCentrePosition (inX, y); }
         if (audioOut[n] != nullptr) { audioOut[n]->setVisible (true); audioOut[n]->setCentrePosition (outX, y); }
     }
-    const int ySrc = y0 + 11 * pitch + 40;                                                   // sorties de modulation
+    const int ySrc = y0 + 12 * pitch + 40;                                                   // sorties de modulation
     static const char* srcNames[kNumSrc] { "LFO 1", "LFO 2", "S&H", "ENV" };
     for (int s = 0; s < kNumSrc; ++s)
     {
@@ -697,7 +806,7 @@ void PatchPanel::paint (juce::Graphics& g)
     g.drawText ("IN", 196 - 20, 36, 40, 11, juce::Justification::centred, false);
     g.drawText ("OUT", 252 - 20, 36, 40, 11, juce::Justification::centred, false);
     g.drawText ("AUDIO", 12, 36, 100, 11, juce::Justification::centredLeft, false);
-    const int ySrc = y0 + 11 * pitch + 40;
+    const int ySrc = y0 + 12 * pitch + 40;
     head ("MODULATION OUT", ySrc - 46);
     head ("CV IN", ySrc + 44);
     g.setColour (look::print.withAlpha (0.55f));
@@ -987,7 +1096,11 @@ OrageAudioProcessorEditor::OrageAudioProcessorEditor (OrageAudioProcessor& p, ju
     : AudioProcessorEditor (&p), proc (p), titleText (std::move (title)), subText (std::move (subtitle)), patchBay (p)
 {
     setLookAndFeel (&laf);
+    look::applyTheme (loadThemePref());
+    OrageLookAndFeel::refreshAll();
 
+    addAndMakeVisible (themeBtn);
+    themeBtn.onClick = [this] { cycleTheme(); };
     addAndMakeVisible (prevBtn); addAndMakeVisible (nameBtn); addAndMakeVisible (nextBtn); addAndMakeVisible (saveBtn);
     prevBtn.onClick = [this] { stepPreset (-1); };
     nextBtn.onClick = [this] { stepPreset (1); };
@@ -1180,6 +1293,19 @@ void OrageAudioProcessorEditor::buildUnits()
         };
     }
 
+    {   // PLATE REVERB
+        auto* u = newUnit (NVerb, "PLATE REVERB + SHIMMER", kModH, false);
+        auto* a = mk (*u, "revMix", "MIX"); auto* b = mk (*u, "revSize", "SIZE"); auto* c = mk (*u, "revDecay", "DECAY");
+        auto* d = mk (*u, "revPre", "PRE-DELAY"); auto* e = mk (*u, "revDamp", "DAMPING"); auto* f = mk (*u, "revMod", "MOTION");
+        auto* g2 = mk (*u, "revWidth", "WIDTH"); auto* sh = mk (*u, "revShimmer", "SHIMMER"); auto* lc = mk (*u, "revLowCut", "LOW CUT");
+        auto* frz = addToggle (*u, "revFreeze", "FREEZE");
+        u->layoutFn = [=] (juce::Rectangle<int> r)
+        {
+            place (r, { a, b, c, d, e, f, g2, sh, lc }, 0, 76);
+            frz->setBounds (r.getX() + 9 * 76 + 14, r.getCentreY() - 17, 110, 34);
+        };
+    }
+
     // ---------------- bandeau de modulation (fixe) : sources CV a droite de chaque module
     auto strip = [&] (const char* title, const char* prefix, int srcIdx, bool hasSync)
     {
@@ -1209,7 +1335,7 @@ void OrageAudioProcessorEditor::buildUnits()
     }
 
     // ---------------- panneau lateral : tuiles de modules + master + remises a zero + entree/sortie
-    static const int tileNodes[] = { NOct, NDist, NColor, NFilter, NDestroy, NComp, NSpring, NBbd, NGate };
+    static const int tileNodes[] = { NOct, NDist, NColor, NFilter, NDestroy, NComp, NSpring, NBbd, NVerb, NGate };
     for (int n : tileNodes)
     {
         auto b = std::make_unique<juce::TextButton> (nodeName (n));
@@ -1218,8 +1344,8 @@ void OrageAudioProcessorEditor::buildUnits()
         side.addAndMakeVisible (*b);
         tiles.push_back (std::move (b));
     }
-    side.subtitles.push_back ({ "MASTER", 254 });
-    side.subtitles.push_back ({ "RESET", 512 });
+    side.subtitles.push_back ({ "MASTER", 286 });
+    side.subtitles.push_back ({ "RESET", 516 });
     for (int n = 0; n < kNumNodes; ++n)                                                   // toutes les prises vivent dans le panneau patchbay
     {
         if (n != NOut) patchPanel.audioOut[n] = patchBay.makeJack (patchPanel, JackKind::AudioOut, n);
@@ -1229,13 +1355,8 @@ void OrageAudioProcessorEditor::buildUnits()
     for (int d = 0; d < kNumCv; ++d)  patchPanel.cvIn[d]  = patchBay.makeJack (patchPanel, JackKind::CvIn, d);
     mk (side, "mix", "DRY / WET", "DRY", "WET", CvMix);
     mk (side, "output", "OUTPUT", "-", "+");
-    mk (side, "chaos", "CHAOS");
     side.addAndMakeVisible (foot);
     footAtt = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (proc.apvts, "on", foot);
-
-    side.addAndMakeVisible (dice);
-    dice.setColour (juce::TextButton::buttonColourId, juce::Colour (0xff3a0d08));
-    dice.onClick = [this] { rollTheDice(); };
 
     clearRackBtn.setButtonText ("VIDER LE RACK");
     clearPatchBtn.setButtonText ("VIDER LE PATCHBAY");
@@ -1295,15 +1416,37 @@ void OrageAudioProcessorEditor::stepPreset (int dir)
 void OrageAudioProcessorEditor::presetMenu()
 {
     juce::PopupMenu m;
+    const auto cats = OrageAudioProcessor::getCategories();
+    const int nf = OrageAudioProcessor::getNumFactoryPresets();
     m.addSectionHeader ("FACTORY");
-    for (int i = 0; i < OrageAudioProcessor::getNumFactoryPresets(); ++i)
-        m.addItem (100 + i, OrageAudioProcessor::getFactoryPresetName (i), true, OrageAudioProcessor::getFactoryPresetName (i) == proc.presetName);
+    m.addItem (100, "Init", true, proc.presetName == "Init");
+    for (const auto& c : cats)
+    {
+        juce::PopupMenu sub;
+        int cnt = 0;
+        for (int i = 1; i < nf; ++i)
+            if (OrageAudioProcessor::getFactoryPresetCategory (i) == c)
+            {
+                const auto nm = OrageAudioProcessor::getFactoryPresetName (i);
+                sub.addItem (100 + i, nm, true, nm == proc.presetName); ++cnt;
+            }
+        if (cnt > 0) m.addSubMenu (c.toUpperCase() + "  (" + juce::String (cnt) + ")", sub, true, nullptr, proc.presetCategory == c);
+    }
     const auto user = proc.getUserPresetNames();
     if (user.size() > 0)
     {
         m.addSeparator();
         m.addSectionHeader ("USER");
-        for (int i = 0; i < user.size(); ++i) m.addItem (1000 + i, user[i], true, user[i] == proc.presetName);
+        juce::StringArray ucats;
+        for (const auto& u : user) { const auto c = proc.getUserPresetCategory (u); if (! ucats.contains (c)) ucats.add (c); }
+        ucats.sort (true);
+        for (const auto& c : ucats)
+        {
+            juce::PopupMenu sub;
+            for (int i = 0; i < user.size(); ++i)
+                if (proc.getUserPresetCategory (user[i]) == c) sub.addItem (1000 + i, user[i], true, user[i] == proc.presetName);
+            m.addSubMenu ((c.isEmpty() ? juce::String ("SANS CATEGORIE") : c.toUpperCase()), sub);
+        }
     }
     m.addSeparator();
     m.addItem (1, "Save as...");
@@ -1322,7 +1465,7 @@ void OrageAudioProcessorEditor::presetMenu()
         if (id >= 1000)      { pr.loadUserPreset (user[id - 1000]); safe->afterPreset(); }
         else if (id >= 100)  { pr.loadFactoryPreset (id - 100); safe->afterPreset(); }
         else if (id == 1)    safe->saveDialog();
-        else if (id == 2)    { pr.saveUserPreset (pr.presetName); safe->afterPreset(); }
+        else if (id == 2)    { pr.saveUserPreset (pr.presetName, pr.presetCategory); safe->afterPreset(); }
         else if (id == 3)
         {
             const auto name = pr.presetName;
@@ -1354,9 +1497,21 @@ void OrageAudioProcessorEditor::showDialog (const juce::String& title, const juc
 void OrageAudioProcessorEditor::saveDialog()
 {
     juce::Component::SafePointer<OrageAudioProcessorEditor> safe (this);
-    showDialog ("SAUVEGARDER LE PRESET", "Nom du preset :", true, proc.presetName, "SAUVEGARDER", [safe] (bool ok, const juce::String& text)
+    juce::PopupMenu m;
+    m.addSectionHeader ("CATEGORIE DU PRESET");
+    const auto cats = OrageAudioProcessor::getCategories();
+    for (int i = 0; i < cats.size(); ++i) m.addItem (10 + i, cats[i], true, proc.presetCategory == cats[i]);
+    m.addSeparator();
+    m.addItem (9, "Sans categorie");
+    m.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (&nameBtn), [safe, cats] (int id)
     {
-        if (ok && safe != nullptr) { safe->proc.saveUserPreset (text); safe->afterPreset(); }
+        if (safe == nullptr || id == 0) return;
+        const juce::String cat = id >= 10 ? cats[id - 10] : juce::String();
+        safe->showDialog ("SAUVEGARDER LE PRESET", "Nom du preset" + (cat.isEmpty() ? juce::String() : " (" + cat + ")") + " :", true, safe->proc.presetName, "SAUVEGARDER",
+                          [safe, cat] (bool ok, const juce::String& text)
+        {
+            if (ok && safe != nullptr) { safe->proc.saveUserPreset (text, cat); safe->afterPreset(); }
+        });
     });
 }
 
@@ -1365,30 +1520,6 @@ void OrageAudioProcessorEditor::confirm (const juce::String& title, const juce::
     showDialog (title, message, false, {}, "OK", [action] (bool ok, const juce::String&) { if (ok) action(); });
 }
 
-void OrageAudioProcessorEditor::rollTheDice()
-{
-    auto& r = juce::Random::getSystemRandom();
-    auto set = [this] (const char* id, float real)
-    {
-        if (auto* prm = proc.apvts.getParameter (id))
-        {
-            prm->beginChangeGesture();
-            prm->setValueNotifyingHost (prm->convertTo0to1 (real));
-            prm->endChangeGesture();
-        }
-    };
-    const auto maybe = [&r] (float chance, float maxVal) { return r.nextFloat() < chance ? maxVal * r.nextFloat() : 0.f; };
-    set ("unc", 0.2f + 0.8f * r.nextFloat());
-    set ("clip", 0.9f * r.nextFloat());
-    set ("material", (float) r.nextInt (3));
-    set ("lightning", maybe (0.8f, 0.9f));
-    set ("chaos", maybe (0.7f, 0.8f));
-    set ("destroy", maybe (0.6f, 0.8f));
-    set ("dRate", r.nextFloat());
-    proc.engine.setCvCable (r.nextInt (kNumSrc), r.nextInt (CvMix + 1), true);
-}
-
-// ---------------------------------------------------------------- horloge de l'interface
 void OrageAudioProcessorEditor::timerCallback()
 {
     heatShown += 0.2f * (proc.engine.heat.load() - heatShown);
@@ -1433,6 +1564,7 @@ void OrageAudioProcessorEditor::resized()
     nextBtn.setBounds (W - 140, 36, 30, 28);
     saveBtn.setBounds (W - 104, 36, 70, 28);
     cablesBtn.setBounds (W - 540, 38, 108, 24);
+    themeBtn.setBounds (W - 640, 38, 100, 24);
 
     // ---- colonnes : panneau lateral | rack | (bandeau de modulation en bas)
     const int vpW = W - 170 - 310;
@@ -1460,81 +1592,56 @@ void OrageAudioProcessorEditor::resized()
 
     // ---- panneau lateral
     for (size_t i = 0; i < tiles.size(); ++i) tiles[i]->setBounds (8, 32 + (int) i * 25, 124, 22);
-    knobById.at ("mix")->setBounds (4, 274, 66, 94);
-    knobById.at ("output")->setBounds (70, 274, 66, 94);
-    knobById.at ("chaos")->setBounds (4, 372, 66, 94);
-    foot.setBounds (74, 374, 58, 90);
-    dice.setBounds (8, 472, 124, 26);
-    clearRackBtn.setBounds (8, 536, 124, 26);
-    clearPatchBtn.setBounds (8, 568, 124, 26);
-    resetBtn.setBounds (8, 600, 124, 26);
+    knobById.at ("mix")->setBounds (4, 308, 66, 94);
+    knobById.at ("output")->setBounds (70, 308, 66, 94);
+    foot.setBounds (41, 414, 58, 90);
+    clearRackBtn.setBounds (8, 544, 124, 28);
+    clearPatchBtn.setBounds (8, 578, 124, 28);
+    resetBtn.setBounds (8, 612, 124, 28);
 
-    // ---- texture de la facade (metal peint en noir, use) + serigraphies de l'en-tete
-    panelTex = juce::Image (juce::Image::RGB, W, H, false);
-    juce::Random rr (4242);
-    {
-        juce::Image::BitmapData bd (panelTex, juce::Image::BitmapData::writeOnly);
-        for (int y = 0; y < H; ++y)
-        {
-            const int streak = rr.nextInt (3);
-            for (int x = 0; x < W; ++x)
-            {
-                const int v = 14 + rr.nextInt (6) + streak;
-                bd.setPixelColour (x, y, juce::Colour::fromRGB ((juce::uint8) v, (juce::uint8) v, (juce::uint8) (v + 1)));
-            }
-        }
-    }
+    rebuildFacade();
+}
+
+void OrageAudioProcessorEditor::rebuildFacade()
+{
+    const int W = getWidth(), H = getHeight();
+    const auto& th = look::T();
+    paintFacade (panelTex, W, H, true);
     juce::Graphics g (panelTex);
-    g.setGradientFill (juce::ColourGradient (juce::Colours::white.withAlpha (0.05f), 0.f, 0.f, juce::Colours::transparentWhite, 0.f, (float) H * 0.5f, false));
-    g.fillRect (0, 0, W, H);
-    for (int i = 0; i < 9; ++i)
-    {
-        g.setColour (juce::Colours::white.withAlpha (0.018f));
-        g.fillEllipse (rr.nextFloat() * (float) W, rr.nextFloat() * (float) H, 40.f + rr.nextFloat() * 60.f, 30.f + rr.nextFloat() * 40.f);
-    }
-    for (int i = 0; i < 320; ++i)
-    {
-        const float x = rr.nextFloat() * (float) W, y = rr.nextFloat() * (float) H;
-        const float a = (rr.nextFloat() - 0.5f) * (rr.nextInt (4) == 0 ? 3.1f : 0.7f), len = 12.f + rr.nextFloat() * 130.f;
-        g.setColour (juce::Colour::fromRGBA (205, 205, 210, (juce::uint8) (8 + rr.nextInt (28))));
-        g.drawLine (x, y, x + len * std::cos (a), y + len * std::sin (a), 0.5f + rr.nextFloat() * 0.7f);
-    }
-    g.setColour (juce::Colour (0xff5a5b60));
-    g.drawRect (0, 0, W, H, 5);
-    g.setColour (juce::Colour (0xff1b1b1d));
-    g.drawRect (5, 5, W - 10, H - 10, 1);
-
-    g.setColour (look::print.withAlpha (0.93f));
+    g.setColour (look::print.withAlpha (0.95f));
     g.setFont (font (46.f));
     g.drawText (titleText, 30, 2, 340, 52, juce::Justification::centredLeft, false);
-    g.setColour (juce::Colour (0xffc8281c));
-    g.fillRect (32, 54, 180, 4);
-    g.setColour (look::print.withAlpha (0.85f));
+    g.setGradientFill (juce::ColourGradient (juce::Colour (th.trim), 32.f, 0.f, juce::Colour (th.trim).withAlpha (0.f), 212.f, 0.f, false));
+    g.fillRect (32, 55, 180, 2);
+    g.setColour (look::print.withAlpha (0.8f));
     g.setFont (font (10.5f));
-    g.drawText (subText, 32, 60, 380, 13, juce::Justification::centredLeft, false);
+    g.drawText (subText, 32, 60, 420, 13, juce::Justification::centredLeft, false);
     g.setFont (font (9.f, false));
+    g.setColour (juce::Colour (th.trim).withAlpha (0.9f));
     g.drawText ("FOUDRE AUDIO  -  PATCH IT. BREAK IT.", 32, 71, 360, 11, juce::Justification::centredLeft, false);
+    g.setColour (look::print.withAlpha (0.8f));
     g.setFont (font (9.5f));
     g.drawText ("PRESET", W - 400, 20, 80, 13, juce::Justification::centredLeft, false);
+    repaint();
+}
 
-    const juce::Point<float> screws[] = { { 16.f, 16.f }, { (float) W - 16.f, 16.f }, { 16.f, (float) H - 16.f }, { (float) W - 16.f, (float) H - 16.f } };
-    for (auto p : screws)
+void OrageAudioProcessorEditor::cycleTheme()
+{
+    look::applyTheme (look::themeIdx + 1 > 2 ? 0 : look::themeIdx + 1);
+    saveThemePref (look::themeIdx);
+    OrageLookAndFeel::refreshAll();
+    themeBtn.setButtonText (look::T().name);
+    if (auto* top = getTopLevelComponent()) top->repaint();
+    rebuildFacade();
+    if (onThemeChanged) onThemeChanged();
+}
+
+void OrageAudioProcessorEditor::mouseUp (const juce::MouseEvent& e)
+{
+    if (lampWindow().contains (e.position) && ! e.mouseWasDraggedSinceMouseDown())
     {
-        g.setColour (juce::Colour (0xff8a8a90)); g.fillEllipse (p.x - 5.f, p.y - 5.f, 10.f, 10.f);
-        g.setColour (juce::Colour (0xff2a2a2d)); g.drawLine (p.x - 3.5f, p.y - 1.f, p.x + 3.5f, p.y + 1.5f, 1.4f);
-    }
-    for (int i = 0; i < 12000; ++i)                                                       // la peinture saute
-    {
-        g.setColour (juce::Colour (0xff121213).withAlpha (0.92f));
-        g.fillRect (rr.nextInt (W), rr.nextInt (H), 1 + rr.nextInt (2), 1 + rr.nextInt (2));
-    }
-    for (int i = 0; i < 240; ++i)                                                         // l'acier apparait
-    {
-        const bool edge = rr.nextInt (2) == 0;
-        const int x = edge ? (rr.nextBool() ? rr.nextInt (14) : W - 1 - rr.nextInt (14)) : rr.nextInt (W);
-        const int y = edge ? rr.nextInt (H) : (rr.nextBool() ? rr.nextInt (14) : H - 1 - rr.nextInt (14));
-        g.setColour (juce::Colour (0xffb5b5ba).withAlpha (0.25f + 0.4f * rr.nextFloat()));
-        g.fillRect (x, y, 1 + rr.nextInt (3), 1);
+        proc.headerScope.store (proc.headerScope.load() == 0 ? 1 : 0);
+        repaint (headerArea);
     }
 }
 
@@ -1589,27 +1696,91 @@ void OrageAudioProcessorEditor::drawTube (juce::Graphics& g, juce::Rectangle<flo
     g.fillRoundedRectangle (base.expanded (3.f, 0.f), 3.f);
 }
 
+void OrageAudioProcessorEditor::drawScope (juce::Graphics& g, juce::Rectangle<float> scr)
+{
+    const auto& th = look::T();
+    const juce::Colour ph (th.scope);
+    g.setGradientFill (juce::ColourGradient (ph.withAlpha (0.10f), scr.getCentreX(), scr.getCentreY(), juce::Colour (0xff020303), scr.getX(), scr.getY(), true));
+    g.fillRect (scr);
+    g.setColour (ph.withAlpha (0.10f));
+    for (int i = 1; i < 4; ++i) g.drawHorizontalLine ((int) (scr.getY() + scr.getHeight() * (float) i / 4.f), scr.getX(), scr.getRight());
+    for (int i = 1; i < 8; ++i) g.drawVerticalLine ((int) (scr.getX() + scr.getWidth() * (float) i / 8.f), scr.getY(), scr.getBottom());
+    g.setColour (ph.withAlpha (0.2f));
+    g.drawHorizontalLine ((int) scr.getCentreY(), scr.getX(), scr.getRight());
+
+    static float buf[4096];
+    proc.copyScope (buf, 4096);
+    // declenchement : passage par zero montant ; l'affichage couvre ~2,5 periodes
+    int first = -1, last = -1, count = 0;
+    for (int i = 40; i < 4096 - 8; ++i)
+        if (buf[i - 1] < -0.004f && buf[i] >= 0.f) { if (first < 0) first = i; last = i; ++count; }
+    int span = 1024, start = 4096 - 1024;
+    if (count >= 2)
+    {
+        const float period = (float) (last - first) / (float) (count - 1);
+        span = juce::jlimit (96, 2000, juce::roundToInt (period * 2.5f));
+        start = first;
+        for (int i = last; i >= first; --i) if (buf[i - 1] < -0.004f && buf[i] >= 0.f && i + span < 4096) { start = i; break; }
+    }
+    float pk = 0.f;
+    for (int i = 0; i < span; ++i) pk = juce::jmax (pk, std::abs (buf[start + i]));
+    const float target = pk > 0.003f ? juce::jmin (6.f, 0.85f / pk) : 1.f;
+    scopeGain += (target - scopeGain) * 0.15f;
+    juce::Path p;
+    const int nx = (int) scr.getWidth();
+    for (int x = 0; x <= nx; ++x)
+    {
+        const float pos = (float) x / (float) nx * (float) (span - 1);
+        const int i0 = (int) pos; const float fr = pos - (float) i0;
+        const float v = buf[start + i0] + (buf[start + juce::jmin (i0 + 1, span - 1)] - buf[start + i0]) * fr;
+        const float py = scr.getCentreY() - juce::jlimit (-1.f, 1.f, v * scopeGain) * scr.getHeight() * 0.44f;
+        if (x == 0) p.startNewSubPath (scr.getX(), py); else p.lineTo (scr.getX() + (float) x, py);
+    }
+    g.setColour (ph.withAlpha (0.16f)); g.strokePath (p, juce::PathStrokeType (5.f, juce::PathStrokeType::curved));
+    g.setColour (ph.withAlpha (0.35f)); g.strokePath (p, juce::PathStrokeType (2.6f, juce::PathStrokeType::curved));
+    g.setColour (ph.brighter (0.5f));   g.strokePath (p, juce::PathStrokeType (1.2f, juce::PathStrokeType::curved));
+    g.setColour (ph.withAlpha (0.6f));
+    g.setFont (font (8.5f));
+    g.drawText ("OSC", scr.withTrimmedLeft (5.f).withHeight (12.f).translated (0.f, scr.getHeight() - 13.f), juce::Justification::centredLeft, false);
+    g.setGradientFill (juce::ColourGradient (juce::Colours::white.withAlpha (0.07f), scr.getX(), scr.getY(), juce::Colours::transparentWhite, scr.getX(), scr.getCentreY(), false));
+    g.fillRect (scr);                                                                  // reflet sur le verre
+}
+
 void OrageAudioProcessorEditor::paint (juce::Graphics& g)
 {
+    const auto& th = look::T();
     g.drawImageAt (panelTex, 0, 0);
 
-    const juce::Rectangle<float> win (640.f, 6.f, 150.f, 72.f);                      // une seule lampe : elle chauffe avec la distorsion
+    const auto win = lampWindow();                       // une seule fenetre : lampe (chauffe avec la distorsion) ou oscilloscope (clic)
+    g.setColour (juce::Colours::black.withAlpha (0.55f));
+    g.fillRoundedRectangle (win.expanded (3.f).translated (0.f, 2.f), 9.f);
+    g.setGradientFill (juce::ColourGradient (juce::Colour (th.metalHi), win.getX(), win.getY(), juce::Colour (th.metalLo), win.getRight(), win.getBottom(), false));
+    g.fillRoundedRectangle (win.expanded (3.f), 8.f);                                 // lunette metallique
     g.setColour (juce::Colour (0xff040404));
     g.fillRoundedRectangle (win, 6.f);
-    g.setColour (juce::Colour (0xff8d8d92).withAlpha (0.8f));
-    g.drawRoundedRectangle (win, 6.f, 2.f);
-    g.setColour (juce::Colours::black.withAlpha (0.5f));
-    g.drawRoundedRectangle (win.reduced (3.f), 5.f, 2.f);
-
-    const float h = heatShown;
+    const bool scope = proc.headerScope.load() == 1;
+    if (scope)
     {
+        juce::Graphics::ScopedSaveState ss (g);
+        juce::Path clip; clip.addRoundedRectangle (win.reduced (2.f), 5.f);
+        g.reduceClipRegion (clip);
+        drawScope (g, win.reduced (2.f));
+    }
+    else
+    {
+        const float h = heatShown;
         juce::Graphics::ScopedSaveState ss (g);
         g.reduceClipRegion (win.reduced (3.f).toNearestInt());
         drawTube (g, { win.getCentreX() - 22.f, win.getBottom() - 6.f - 60.f, 44.f, 60.f }, juce::jlimit (0.f, 1.f, h), arcShown);
         if (arcShown > 0.35f)
-            drawBolt (g, { win.getX() + 14.f + rnd.nextFloat() * 20.f, win.getY() + 14.f }, { win.getRight() - 14.f - rnd.nextFloat() * 20.f, win.getY() + 18.f });
+            drawBolt (g, { win.getX() + 60.f + rnd.nextFloat() * 20.f, win.getY() + 14.f }, { win.getRight() - 60.f - rnd.nextFloat() * 20.f, win.getY() + 18.f });
     }
-    g.setColour (look::print.withAlpha (0.9f));
+    g.setColour (juce::Colours::black.withAlpha (0.6f));
+    g.drawRoundedRectangle (win.reduced (0.5f), 6.f, 1.5f);
+    g.setColour (look::print.withAlpha (0.85f));
     g.setFont (font (10.f));
-    g.drawText ("HEAT", (int) win.getRight() + 8, (int) win.getCentreY() - 7, 40, 14, juce::Justification::centredLeft, false);
+    g.drawText (scope ? "SCOPE" : "HEAT", (int) win.getRight() + 10, (int) win.getCentreY() - 14, 60, 14, juce::Justification::centredLeft, false);
+    g.setColour (juce::Colour (th.trim).withAlpha (0.8f));
+    g.setFont (font (8.5f, false));
+    g.drawText ("click to switch", (int) win.getRight() + 10, (int) win.getCentreY(), 74, 12, juce::Justification::centredLeft, false);
 }

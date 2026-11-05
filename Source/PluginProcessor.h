@@ -47,7 +47,10 @@ public:
     void loadFactoryPreset (int index);
     juce::File getPresetDir() const;
     juce::StringArray getUserPresetNames() const;
-    bool saveUserPreset (const juce::String& name);
+    static juce::String getFactoryPresetCategory (int index);
+    static juce::StringArray getCategories();
+    juce::String getUserPresetCategory (const juce::String& name) const;
+    bool saveUserPreset (const juce::String& name, const juce::String& category);
     bool loadUserPreset (const juce::String& name);
     bool deleteUserPreset (const juce::String& name);
     void resetModules();        // remet tous les reglages par defaut (rack et patchbay intacts)
@@ -61,14 +64,23 @@ public:
     orage::Synth synth;                     // utilise seulement par la version instrument (ORAGE_SYNTH)
     orage::Arp arp;                         // arpegiateur (version instrument)
     orage::Engine engine;                   // rack + patchbay vivent ici ; l'editeur les lit et les modifie
-    juce::String presetName { "Init" };
+    juce::String presetName { "Init" }, presetCategory;
+
+    // oscilloscope de l'en-tete : tampon circulaire alimente par la sortie finale (lecture sans verrou par l'interface)
+    static constexpr int kScope = 8192;
+    std::atomic<int> headerScope { 0 };                // 0 : lampe, 1 : oscilloscope (clic sur la lampe)
+    void copyScope (float* dst, int n) const
+    {
+        const int w = scopeW.load (std::memory_order_acquire);
+        for (int i = 0; i < n; ++i) dst[i] = scopeBuf[(w - n + i) & (kScope - 1)];
+    }
 
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createLayout();
     orage::Params readParams() const;
     orage::SynthParams readSynth();
     orage::ArpParams arpParams;
-    struct MidiEv { int pos; int type; int a; float v; };       // type : 0 note on, 1 note off, 2 all off, 3 bend, 4 molette
+    struct MidiEv { int pos; int type; int a; float v; };       // type : 0 note on, 1 note off, 2 all off, 3 bend, 4 molette, 5 aftertouch poly, 6 aftertouch canal
     std::vector<MidiEv> evs;
     bool lastArpOn = false;
     std::vector<std::atomic<float>*> rawSyn;
@@ -76,6 +88,8 @@ private:
     void applyState (juce::ValueTree state);
 
     std::vector<std::atomic<float>*> raw;
+    float scopeBuf[kScope] {};
+    std::atomic<int> scopeW { 0 };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OrageAudioProcessor)
 };

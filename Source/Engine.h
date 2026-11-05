@@ -14,11 +14,11 @@ constexpr float kPi = 3.14159265358979f;
 constexpr int kSub = 32;                      // taille du bloc de controle (modulations)
 
 // ------------------------------------------------------------------ topologie du patch
-enum Node { NIn, NOct, NDist, NColor, NFilter, NDestroy, NComp, NSpring, NGate, NBbd, NOut, kNumNodes };
+enum Node { NIn, NOct, NDist, NColor, NFilter, NDestroy, NComp, NSpring, NGate, NBbd, NVerb, NOut, kNumNodes };
 enum Src  { SrcLfo1, SrcLfo2, SrcSh, SrcEnv, kNumSrc };
 enum Cv   { CvDrive, CvClip, CvUnc, CvHpf, CvLpf, CvPeak, CvDestroy, CvDRate, CvSpring, CvMix, CvShIn, CvShClk, kNumCv };
 
-constexpr int kMaxRack = 9;                   // nombre de modules audio posables sur le rack
+constexpr int kMaxRack = 10;                   // nombre de modules audio posables sur le rack
 
 // durees des divisions de la synchro (en noires) ; 0 = libre
 inline float divBeats (int idx)
@@ -121,6 +121,7 @@ struct Params
     float compThresh = 0.35f, compAtt = 0.2f;
     float gateThresh = 0.f, gateRel = 0.4f, gateRange = 0.8f;
     float bbdTime = 0.4f, bbdFb = 0.4f, bbdTone = 0.5f, bbdMod = 0.3f, bbdMix = 0.f;  bool bbdPing = true;  int bbdSync = 0;
+    float revMix = 0.f, revSize = 0.5f, revDecay = 0.6f, revPre = 0.1f, revDamp = 0.4f, revMod = 0.3f, revWidth = 1.f, revShimmer = 0.f, revLowCut = 0.1f;  bool revFreeze = false;
 };
 
 // ------------------------------------------------------------------ octaver (bascule /2 + redresseur)
@@ -661,13 +662,135 @@ struct Bbd
     }
 };
 
+// ------------------------------------------------------------------ reverb plaque (Dattorro) + shimmer + freeze
+struct Reverb
+{
+    struct Dl
+    {
+        std::vector<float> b; int w = 0, mask = 0;
+        void init (int n) { int sz = 16; while (sz < n + 8) sz <<= 1; b.assign ((size_t) sz, 0.f); mask = sz - 1; w = 0; }
+        void push (float x) { b[(size_t) w] = x; w = (w + 1) & mask; }
+        float tap (int d) const { return b[(size_t) ((w - d) & mask)]; }
+        float tapF (float d) const
+        {
+            const int i = (int) d; const float fr = d - (float) i;
+            const float a = b[(size_t) ((w - i) & mask)], c = b[(size_t) ((w - i - 1) & mask)];
+            return a + (c - a) * fr;
+        }
+    };
+    float fs = 44100.f, r = 1.f;
+    Dl pre, in1, in2, in3, in4, mAL, dL1, aL2, dL2, mAR, dR1, aR2, dR2, shBuf;
+    float bwLp = 0.f, hpS = 0.f, dampL = 0.f, dampR = 0.f, outL = 0.f, outR = 0.f, shLp = 0.f;
+    float lfoPh = 0.f, sizeS = 1.f, freezeS = 0.f, shPh = 0.f, shAmt = 0.f, tankL = 0.f, tankR = 0.f, dcL = 0.f, dcR = 0.f;
+    void prepare (float sampleRate)
+    {
+        fs = sampleRate; r = fs / 29761.f;
+        auto mx = [this] (int n) { return (int) ((float) n * r * 1.7f) + 64; };
+        pre.init ((int) (0.25f * fs));
+        in1.init (mx (142)); in2.init (mx (107)); in3.init (mx (379)); in4.init (mx (277));
+        mAL.init (mx (672 + 40)); dL1.init (mx (4453)); aL2.init (mx (1800)); dL2.init (mx (3720));
+        mAR.init (mx (908 + 40)); dR1.init (mx (4217)); aR2.init (mx (2656)); dR2.init (mx (3163));
+        shBuf.init (8192);
+        bwLp = hpS = dampL = dampR = outL = outR = shLp = 0.f; lfoPh = 0.f; sizeS = 1.f; freezeS = 0.f; shPh = 0.f; shAmt = 0.f;
+        tankL = tankR = dcL = dcR = 0.f;
+    }
+    static float ap (Dl& d, float len, float g, float x)           // allpass de Schroeder (longueur fractionnaire)
+    {
+        const float z = d.tapF (len);
+        const float v = x - g * z;
+        d.push (v);
+        return z + g * v;
+    }
+    // mix 0..1 ; size 0..1 ; decay 0..1 ; pre 0..1 ; damp 0..1 ; mod 0..1 ; width 0..1 ; shim 0..1 ; lowcut 0..1
+    void process (const float* inL, const float* inR, float* oL, float* oR, int n, int nc,
+                  float mix, float size, float decay, float preT, float damp, float mod, float width, float shim, float lowcut, bool freeze)
+    {
+        const float sizeT = 0.55f + 1.0f * size;                                // echelle des retards 0.55 .. 1.55
+        const float rt = 0.45f * std::pow (80.f, decay) * (1.f + 0.6f * decay);                          // RT60 0.3 .. 24 s
+        const float loopSec = 2.f * (10645.f / 29761.f) * sizeT;
+        const float gDecay = std::min (0.9985f, std::pow (10.f, -1.5f * loopSec / rt));
+        const float dampHz = 16000.f * std::pow (1.f - damp, 2.2f) + 1200.f;
+        const float aDamp = onePoleCoef (dampHz, fs), aBw = onePoleCoef (13000.f, fs);
+        const float aHp = onePoleCoef (20.f * std::pow (25.f, lowcut), fs);
+        const float aShLp = onePoleCoef (6500.f, fs);
+        const float preS = std::min (0.2f, 0.0f + 0.2f * preT * preT) * fs;
+        const float dif1 = 0.75f, dif2 = 0.625f, dd1 = 0.7f, dd2 = std::max (0.25f, std::min (0.5f, gDecay + 0.15f));
+        const float dryA = std::cos (mix * 0.5f * kPi), wetA = std::sin (mix * 0.5f * kPi);
+        const float excur = (1.f + 14.f * mod) * r;
+        const float lfoInc = 0.8f / fs;
+        const float inject = shim * 0.9f * std::sqrt (std::max (0.f, 1.f - gDecay * gDecay));      // gain de boucle < 1 quelle que soit la duree
+        const float W = 2048.f * std::max (1.f, fs / 44100.f);
+        for (int i = 0; i < n; ++i)
+        {
+            sizeS += (sizeT - sizeS) * 0.0003f;
+            freezeS += ((freeze ? 1.f : 0.f) - freezeS) * 0.002f;
+            shAmt += (inject - shAmt) * 0.002f;
+            const float gT = gDecay + (0.99985f - gDecay) * freezeS;
+            const float aDm = aDamp + (onePoleCoef (16000.f, fs) - aDamp) * freezeS;
+            const float x = 0.5f * (inL[i] + (nc > 1 ? inR[i] : inL[i]));
+            // ---- shimmer : pitch +12 st (deux tetes a fenetre de Hann) sur la queue de la reverb
+            float shifted = 0.f;
+            if (shAmt > 1e-4f)
+            {
+                shBuf.push (tankL + tankR);
+                shPh -= 1.f / W; if (shPh < 0.f) shPh += 1.f;
+                const float p2 = shPh >= 0.5f ? shPh - 0.5f : shPh + 0.5f;
+                const float w1 = std::sin (kPi * shPh), w2 = std::sin (kPi * p2);
+                shifted = shBuf.tapF (W * shPh + 1.f) * w1 * w1 + shBuf.tapF (W * p2 + 1.f) * w2 * w2;
+                shLp += aShLp * (shifted - shLp); shifted = shLp;
+            }
+            else shBuf.push (0.f);
+            // ---- entree
+            pre.push ((x * (1.f - freezeS)) + std::tanh (shifted) * shAmt * (1.f - freezeS));
+            float v = pre.tapF (std::max (1.f, preS));
+            hpS += aHp * (v - hpS); v -= hpS;
+            bwLp += aBw * (v - bwLp); v = bwLp;
+            v = ap (in1, 142.f * r, dif1, v);
+            v = ap (in2, 107.f * r, dif1, v);
+            v = ap (in3, 379.f * r, dif2, v);
+            v = ap (in4, 277.f * r, dif2, v);
+            // ---- reservoir en 8
+            lfoPh += lfoInc; if (lfoPh >= 1.f) lfoPh -= 1.f;
+            const float mL = std::sin (6.2831853f * lfoPh), mR = std::sin (6.2831853f * lfoPh + 1.5707963f);
+            const float sc = sizeS * r;
+            const float lIn = v + gT * tankR, rIn = v + gT * tankL;
+            float a = ap (mAL, 672.f * sc + excur * mL, -dd1, lIn);
+            dL1.push (a);
+            float t = dL1.tapF (4453.f * sc);
+            dampL += aDm * (t - dampL); t = dampL * gT;
+            t = ap (aL2, 1800.f * sc, dd2, t);
+            dL2.push (t);
+            const float nL = dL2.tapF (3720.f * sc);
+            a = ap (mAR, 908.f * sc + excur * mR, -dd1, rIn);
+            dR1.push (a);
+            t = dR1.tapF (4217.f * sc);
+            dampR += aDm * (t - dampR); t = dampR * gT;
+            t = ap (aR2, 2656.f * sc, dd2, t);
+            dR2.push (t);
+            const float nR = dR2.tapF (3163.f * sc);
+            tankL = nL; tankR = nR;
+            const float yl = dR1.tapF (266.f * sc) + dR1.tapF (2974.f * sc) - aR2.tapF (1913.f * sc) + dR2.tapF (1996.f * sc)
+                           - dL1.tapF (1990.f * sc) - aL2.tapF (187.f * sc) - dL2.tapF (1066.f * sc);
+            const float yr = dL1.tapF (353.f * sc) + dL1.tapF (3627.f * sc) - aL2.tapF (1228.f * sc) + dL2.tapF (2673.f * sc)
+                           - dR1.tapF (2111.f * sc) + dR2.tapF (335.f * sc) - aR2.tapF (121.f * sc);
+            // largeur (mid/side)
+            const float m = 0.5f * (yl + yr), sd = 0.5f * (yl - yr) * (width * 1.5f);
+            float wl = (m + sd) * 0.5f, wr = (m - sd) * 0.5f;
+            dcL += 0.0005f * (wl - dcL); wl -= dcL; dcR += 0.0005f * (wr - dcR); wr -= dcR;
+            const float l0 = inL[i], r0 = nc > 1 ? inR[i] : inL[i];
+            oL[i] = l0 * dryA + wl * wetA * 1.0f;
+            if (nc > 1) oR[i] = r0 * dryA + wr * wetA * 1.0f;
+        }
+    }
+};
+
 class Engine
 {
 public:
     std::atomic<float> heat { 0.f }, arc { 0.f };
     std::atomic<float> compGr { 0.f }, gateLed { 1.f };            // vumeter du comp (dB de reduction) et voyant du gate
     std::atomic<float> modLed[kNumSrc];
-    static constexpr int kExt = 14;                              // 10 entrees CV + chaos + BBD temps / feedback / mix
+    static constexpr int kExt = 17;                              // 10 entrees CV + chaos + BBD temps / feedback / mix + reverb mix / decay / damp
     std::atomic<uint32_t> audioIn[kNumNodes], cvIn[kNumCv];     // le patch : masques de bits des sources branchees
 
     std::atomic<int> rackSlot[kMaxRack];                         // ordre des modules sur le rack (-1 = vide)
@@ -681,7 +804,7 @@ public:
     }
 
     // ---- rack
-    void setDefaultRack() { setRack ({ NGate, NOct, NDist, NColor, NFilter, NDestroy, NComp, NBbd, NSpring }); }
+    void setDefaultRack() { setRack ({ NGate, NOct, NDist, NColor, NFilter, NDestroy, NComp, NBbd, NSpring, NVerb }); }
     void setRack (const std::vector<int>& order)
     {
         int k = 0;
@@ -745,7 +868,7 @@ public:
     void clearPatch() { for (auto& a : audioIn) a.store (0); for (auto& c : cvIn) c.store (0); }
     std::string serializePatch() const
     {
-        std::string s = "v2:";
+        std::string s = "v3:";
         for (auto& a : audioIn) s += std::to_string (a.load()) + ",";
         for (auto& c : cvIn)    s += std::to_string (c.load()) + ",";
         return s;
@@ -753,9 +876,9 @@ public:
     void loadPatch (const std::string& s)
     {
         clearPatch();
-        const bool v2 = s.compare (0, 3, "v2:") == 0;                      // ancien format (avant le delay BBD) : 10 noeuds, la sortie etait le noeud 9
-        const char* p = s.c_str() + (v2 ? 3 : 0);
-        const int nNodes = v2 ? (int) kNumNodes : 10;
+        const bool v3 = s.compare (0, 3, "v3:") == 0, v2 = s.compare (0, 3, "v2:") == 0;   // v2 : avant la reverb (11 noeuds) ; v1 : avant le BBD (10 noeuds)
+        const char* p = s.c_str() + ((v3 || v2) ? 3 : 0);
+        const int nNodes = v3 ? (int) kNumNodes : (v2 ? 11 : 10);
         for (int i = 0; i < nNodes + kNumCv; ++i)
         {
             char* end = nullptr;
@@ -764,8 +887,8 @@ public:
             p = (*end == ',') ? end + 1 : end;
             if (i < nNodes)
             {
-                const int dst = (! v2 && i == 9) ? (int) NOut : i;           // ancien NOut (9) -> nouveau
-                audioIn[dst].store ((uint32_t) v & 0x3FFu);
+                const int dst = (! v3 && i == nNodes - 1) ? (int) NOut : i;       // ancien NOut (dernier noeud) -> nouveau
+                audioIn[dst].store ((uint32_t) v & 0x7FFu);
             }
             else cvIn[i - nNodes].store ((uint32_t) v & 0xFu);
         }
@@ -775,7 +898,7 @@ public:
     {
         fs = sampleRate; fsOS = fs * 4.f;
         oct.prepare (fs); os.prepare (fs); storm.prepare (fsOS); comp.prepare (fs); gate.prepare (fs);
-        destroyer.prepare (fs); spring.prepare (fs); bbd.prepare (fs);
+        destroyer.prepare (fs); spring.prepare (fs); bbd.prepare (fs); verb.prepare (fs);
         for (auto& e : extS) e = 0.f;
         hpC = onePoleCoef (60.f, fsOS);
         sagA = timeCoef (0.03f, fsOS); sagR = timeCoef (0.25f, fsOS);
@@ -876,6 +999,7 @@ private:
                 case NDestroy: destroyer.process (in, out[nd], n, nc, eDestroy, eDRateHz, eGrainMs, destroyMask(), eSyncBeats, curPpqStart, curPpqInc); break;
                 case NGate:    modGate (in, out[nd], n, nc); break;
                 case NBbd:     modBbd (in, out[nd], n, nc); break;
+                case NVerb:    modVerb (in, out[nd], n, nc); break;
                 case NComp:    modComp (in, out[nd], n, nc); break;
                 case NSpring:  modSpring (in, out[nd], n, nc); break;
                 default:       modOut (in, io, n, nc); break;
@@ -1136,6 +1260,14 @@ private:
         bbd.process (inL, inR, o.ch[0], nc > 1 ? o.ch[1] : dummyR, n, nc, std::min (1.9f, t), fb, p.bbdTone, p.bbdMod, p.bbdPing, mix);
     }
 
+    void modVerb (const Buf& in, Buf& o, int n, int nc)
+    {
+        const float mix = clamp01 (p.revMix + 0.6f * extS[14]), dec = clamp01 (p.revDecay + 0.6f * extS[15]), dmp = clamp01 (p.revDamp + 0.6f * extS[16]);
+        const float* inL = in.ch[0]; const float* inR = in.ch[nc > 1 ? 1 : 0];
+        float dummyR[kSub];
+        verb.process (inL, inR, o.ch[0], nc > 1 ? o.ch[1] : dummyR, n, nc, mix, p.revSize, dec, p.revPre, dmp, p.revMod, p.revWidth, p.revShimmer, p.revLowCut, p.revFreeze);
+    }
+
     void modOut (const Buf& wetIn, float** io, int n, int nc)
     {
         const Buf& dry = out[NIn];
@@ -1172,7 +1304,7 @@ private:
     Params p;
     float fs = 44100.f, fsOS = 176400.f;
     Buf out[kNumNodes];
-    Octaver oct; Oversampler4 os; Storm storm; TubeComp comp; Gate gate; Destroyer destroyer; Spring spring; Bbd bbd; ChaosMod chaos;
+    Octaver oct; Oversampler4 os; Storm storm; TubeComp comp; Gate gate; Destroyer destroyer; Spring spring; Bbd bbd; Reverb verb; ChaosMod chaos;
     Biquad lowB, midB, hiB; Svf hpfSvf, lpfSvf;
     DistChannel dch[2];
     Lfo lfo1, lfo2; SampleHold sh; Rng shRng; float envV = 0.f;
