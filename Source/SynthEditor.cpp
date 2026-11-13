@@ -46,6 +46,7 @@ const std::vector<Fam>& dstFamilies()
         { "AMP / SPACE", { MdLevel, MdPan } },
         { "FX RACK", { MdFxPower, MdFxClip, MdFxUnc, MdFxHpf, MdFxLpf, MdFxPeak, MdFxDestroy, MdFxRate, MdFxSpring, MdFxMix } },
         { "BBD DELAY", { MdBbdTime, MdBbdFb, MdBbdMix } },
+        { "STUTTER", { MdStutOn, MdStutMode, MdStutDiv, MdStutFeel, MdStutLen, MdStutDecay, MdStutPitch, MdStutMix } },
         { "REVERB", { MdRevMix, MdRevDecay, MdRevDamp } } };
     return f;
 }
@@ -615,7 +616,7 @@ void SynthPanel::timerCallback()
     for (size_t k = 0; k < macroKnobs.size(); ++k)
     {
         juce::String name = "MACRO " + juce::String ((int) k + 1);
-        if ((int) k == proc.learnMacro.load()) name = "LEARN CC...";
+        if (proc.isLearning ("s_m" + juce::String ((int) k + 1))) name = "LEARN CC...";
         else
             for (int sl = 1; sl <= kSlots; ++sl)
             {
@@ -627,23 +628,7 @@ void SynthPanel::timerCallback()
     }
 }
 
-void SynthPanel::mouseDown (const juce::MouseEvent& e)
-{
-    if (! e.mods.isPopupMenu()) return;
-    for (size_t k = 0; k < macroKnobs.size(); ++k)
-        if (e.eventComponent == &macroKnobs[k]->slider)
-        {
-            juce::PopupMenu m;
-            m.addItem (1, "MIDI learn : bouge un potard de ton clavier (CC actuel " + juce::String (proc.macroCC[k].load()) + ")");
-            m.addItem (2, "CC par defaut (" + juce::String (21 + (int) k) + ")");
-            m.showMenuAsync (juce::PopupMenu::Options(), [this, k] (int r)
-            {
-                if (r == 1) proc.learnMacro.store ((int) k);
-                else if (r == 2) { proc.macroCC[k].store (21 + (int) k); proc.learnMacro.store (-1); }
-            });
-            return;
-        }
-}
+void SynthPanel::mouseDown (const juce::MouseEvent&) {}          // le menu MIDI (clic droit) est porte par chaque potard
 
 void SynthPanel::paint (juce::Graphics& g) { g.drawImageAt (tex, 0, 0); }
 void SynthPanel::rebuild() { paintFacade (tex, getWidth(), getHeight(), false); repaint(); for (auto& u : units) u->repaint(); }

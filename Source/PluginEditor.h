@@ -21,6 +21,7 @@ inline const Theme kThemes[4] {
     { "ORIGINAL",  0xff161617, 0xff0e0e0f, 0xff111112, 0xff0a0a0b, 0xff8a8a90, 0xff3a3a3e, 0xff101011, 0xff8a8a90, 0xfff0ece0, 0xffff7a1a, 0xffff9a3a, 0xffe9e5d8 }
 };
 inline int themeIdx = 0;
+inline bool showMidi = false;                    // bouton MIDI de l'en-tete : affiche les etiquettes CC sur les potards assignes
 inline const Theme& T() { return kThemes[themeIdx < 0 || themeIdx > 3 ? 0 : themeIdx]; }
 inline juce::Colour paint  { 0xff111112 };       // fond des plaques (suit le theme)
 inline juce::Colour print  { 0xffe9e5d8 };       // serigraphie (suit le theme)
@@ -75,9 +76,11 @@ public:
     }
 };
 
-class KnobUnit : public juce::Component
+class KnobUnit : public juce::Component, private juce::Timer
 {
 public:
+    ~KnobUnit() override { stopTimer(); }
+    void mouseDown (const juce::MouseEvent&) override;           // clic droit : menu MIDI (assigner / supprimer)
     KnobUnit (juce::AudioProcessorValueTreeState&, const juce::String& id, const juce::String& text,
               const juce::String& lo, const juce::String& hi, int cvIdx = -1);
     void paint (juce::Graphics&) override;
@@ -89,7 +92,11 @@ public:
     int cvIndex;                                     // destination CV associee (ou -1)
     bool cvActive = false;
 private:
+    void timerCallback() override;
     juce::AudioProcessorValueTreeState::SliderAttachment attachment;
+    OrageAudioProcessor* proc = nullptr;
+    juce::String paramId;
+    int mapIdx = -1, shownCc = -1; bool shownLearn = false, shownShow = false;
 };
 
 // ---------------------------------------------------------------- boutons-poussoirs (parametre "choice")
@@ -364,7 +371,7 @@ private:
     PatchPanel patchPanel { *this };
     std::unique_ptr<OrageDialog> dialog;
     Jack *jackIn = nullptr, *jackOut = nullptr, *jackMix = nullptr;
-    LedToggle cablesBtn;
+    LedToggle cablesBtn, midiBtn;
 
     std::vector<std::unique_ptr<KnobUnit>> knobs;
     std::map<std::string, KnobUnit*> knobById;

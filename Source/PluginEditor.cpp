@@ -223,9 +223,10 @@ juce::File themeFile() { return juce::File::getSpecialLocation (juce::File::user
 int loadThemePref() { const auto f = themeFile(); return f.existsAsFile() ? f.loadFileAsString().trim().getIntValue() : 0; }
 void saveThemePref (int i) { const auto f = themeFile(); f.getParentDirectory().createDirectory(); f.replaceWithText (juce::String (i)); }
 
+const int kTileNodes[] = { orage::NOct, orage::NDist, orage::NColor, orage::NFilter, orage::NDestroy, orage::NComp, orage::NSpring, orage::NStut, orage::NBbd, orage::NVerb, orage::NGate };
 const char* nodeName (int n)
 {
-    static const char* names[kNumNodes] { "INPUT", "OCTAVER", "DISTORSION", "COLOR", "FILTER", "DESTROY", "COMP", "SPRING", "GATE", "BBD DELAY", "REVERB", "OUTPUT" };
+    static const char* names[kNumNodes] { "INPUT", "OCTAVER", "DISTORSION", "COLOR", "FILTER", "DESTROY", "COMP", "SPRING", "GATE", "BBD DELAY", "REVERB", "STUTTER", "OUTPUT" };
     return names[juce::jlimit (0, (int) kNumNodes - 1, n)];
 }
 
@@ -361,6 +362,7 @@ void baGlyph (juce::Graphics& g, int id, juce::Rectangle<float> r, juce::Colour 
     case 7: p.startNewSubPath (x, cy); for (int i = 0; i <= 80; ++i) { const float t = (float) i / 80.f; p.lineTo (x + w * t + w * .1f * std::cos (t * 6.2832f * 4.f) - w * .1f, cy + h * .38f * std::sin (t * 6.2832f * 4.f)); } break;
     case 8: for (int i = 0; i < 4; ++i) { const float hh = h * .45f * std::pow (.72f, (float) i), xx = x + w * ((float) i + .5f) / 4.f; p.startNewSubPath (xx, cy - hh); p.lineTo (xx, cy + hh); } break;
     case 9: p.addRectangle (x + w * .05f, y + h * .12f, w * .9f, h * .76f); p.addEllipse (x + w * .5f - w * .14f, cy - h * .14f, w * .28f, h * .28f); p.addEllipse (x + w * .5f - w * .3f, cy - h * .3f, w * .6f, h * .6f); break;
+    case 10: for (int i = 0; i < 4; ++i) { const float xx = x + w * ((float) i + .5f) / 4.f, hh = h * (i == 0 ? .5f : .34f); p.addRectangle (xx - w * .07f, cy - hh, w * .14f, hh * 2.f); } break;
     default: p.startNewSubPath (x + w * .62f, y); p.lineTo (x + w * .2f, y + h * .56f); p.lineTo (x + w * .5f, y + h * .56f); p.lineTo (x + w * .36f, y + h); p.lineTo (x + w * .82f, y + h * .4f); p.lineTo (x + w * .54f, y + h * .4f); p.closeSubPath(); break;
     }
     g.strokePath (p, juce::PathStrokeType (sw, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
@@ -376,8 +378,8 @@ void baCrest (juce::Graphics& g, juce::Rectangle<float> r, juce::Colour fill, in
 }
 int baIndex (const juce::String& t)
 {
-    static const char* keys[10] { "NOISE GATE", "OCTAVER", "DISTORSION", "COLOR", "FILTER", "DESTROY", "TUBE COMP", "SPRING", "BBD", "PLATE" };
-    for (int i = 0; i < 10; ++i) if (t.startsWithIgnoreCase (keys[i])) return i;
+    static const char* keys[11] { "NOISE GATE", "OCTAVER", "DISTORSION", "COLOR", "FILTER", "DESTROY", "TUBE COMP", "SPRING", "BBD", "PLATE", "STUTTER" };
+    for (int i = 0; i < 11; ++i) if (t.startsWithIgnoreCase (keys[i])) return i;
     return -1;
 }
 struct BaTone { juce::uint32 tint; float mix, sat, bright; juce::uint32 cream; };
@@ -387,7 +389,7 @@ BaTone baTone()
                                { 0xffc97a4e, 0.32f, 0.86f, 1.00f, 0xfff3e0d2 }, { 0xff8a8a90, 0.50f, 0.52f, 0.86f, 0xffe4e0d4 } };
     return t[juce::jlimit (0, 3, look::themeIdx)];
 }
-const juce::uint32 kBaBody[11] { 0xff2c3036, 0xff1d8f8c, 0xffc7432e, 0xffb98a22, 0xff3b78ad, 0xffa8132a, 0xff3a9a72, 0xffbd5876, 0xff6a4d98, 0xff1c6670, 0xff2f3a48 };
+const juce::uint32 kBaBody[11] { 0xff2c3036, 0xff1d8f8c, 0xffc7432e, 0xffb98a22, 0xff3b78ad, 0xffa8132a, 0xff3a9a72, 0xffbd5876, 0xff6a4d98, 0xff1c6670, 0xff7b8a2e };
 } // namespace
 
 void paintFacade (juce::Image& img, int W, int H, bool frame) { paintFacadeImpl (img, W, H, frame); }
@@ -484,6 +486,49 @@ KnobUnit::KnobUnit (juce::AudioProcessorValueTreeState& apvts, const juce::Strin
     if (slider.getMinimum() == 0.0 && slider.getMaximum() == 1.0)
         slider.textFromValueFunction = [] (double v) { return juce::String (v * 10.0, 1); };
     addAndMakeVisible (slider);
+#if ORAGE_SYNTH
+    paramId = id;
+    proc = dynamic_cast<OrageAudioProcessor*> (&apvts.processor);
+    if (proc != nullptr) { mapIdx = proc->mapIndex (id); slider.addMouseListener (this, false); startTimerHz (6); }
+#endif
+}
+
+void KnobUnit::timerCallback()
+{
+#if ORAGE_SYNTH
+    if (proc == nullptr) return;
+    proc->flushMidiMapIfDirty();
+    const int cc = proc->ccAt (mapIdx); const bool lr = proc->learningAt (mapIdx);
+    if (cc != shownCc || lr != shownLearn || look::showMidi != shownShow) { shownCc = cc; shownLearn = lr; shownShow = look::showMidi; repaint(); }
+#endif
+}
+
+void KnobUnit::mouseDown (const juce::MouseEvent& e)
+{
+#if ORAGE_SYNTH
+    if (! e.mods.isPopupMenu() || proc == nullptr || mapIdx < 0) return;
+    const int cc = proc->ccAt (mapIdx), dflt = proc->defaultCcOf (paramId), mode = proc->takeoverMode.load();
+    const bool learning = proc->learningAt (mapIdx);
+    juce::PopupMenu m;
+    m.addItem (1, learning ? "Annuler l'apprentissage MIDI" : juce::String (cc >= 0 ? "R\xc3\xa9" "assigner MIDI" : "Assigner MIDI") + " (bouge un potard du clavier)" + (cc >= 0 ? "  [CC " + juce::String (cc) + "]" : juce::String()));
+    m.addItem (2, juce::String ("Supprimer l'assignation MIDI") + (cc >= 0 ? "  [CC " + juce::String (cc) + "]" : juce::String()), cc >= 0);
+    if (dflt >= 0) m.addItem (3, "Remettre le CC d'origine (" + juce::String (dflt) + ")", cc != dflt);
+    m.addSeparator();
+    m.addSectionHeader (juce::String::fromUTF8 ("Reprise de valeur (tous les potards)"));
+    m.addItem (11, juce::String::fromUTF8 ("SCALE : rejoint le potard sans saut (conseill\xc3\xa9)"), true, mode == 0);
+    m.addItem (12, juce::String::fromUTF8 ("PICKUP : attend que le potard croise la valeur"), true, mode == 1);
+    m.addItem (13, juce::String::fromUTF8 ("DIRECT : saute \xc3\xa0 la position du potard"), true, mode == 2);
+    auto* pr = proc; const auto id = paramId;
+    m.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (this), [pr, id, learning] (int r)
+    {
+        if (r == 1) { if (learning) pr->cancelMidiLearn(); else pr->startMidiLearn (id); }
+        else if (r == 2) pr->clearMidiAssign (id);
+        else if (r == 3) pr->defaultMidiAssign (id);
+        else if (r >= 11 && r <= 13) { pr->takeoverMode.store (r - 11); pr->markMidiMapDirty(); }
+    });
+#else
+    juce::ignoreUnused (e);
+#endif
 }
 
 void KnobUnit::resized() { slider.setBounds (getLocalBounds().withTrimmedBottom (16)); }
@@ -526,6 +571,18 @@ void KnobUnit::paint (juce::Graphics& g)
     g.setFont (font (getWidth() < 80 ? 11.f : 12.f));
     g.setColour (look::print.withAlpha (0.95f * alpha));
     g.drawText (text, -4, getHeight() - 15, getWidth() + 8, 14, juce::Justification::centred, false);
+#if ORAGE_SYNTH
+    if (shownLearn || (look::showMidi && shownCc >= 0))                                              // assignation MIDI : petite etiquette orange dans le coin
+    {
+        const auto tag = shownLearn ? juce::String ("LEARN") : "CC" + juce::String (shownCc);
+        g.setFont (font (8.5f));
+        const int tw = (int) font (8.5f).getStringWidth (tag) + 8, tx = getWidth() - tw - 1;
+        g.setColour (juce::Colour (0xffe0662a).withAlpha (shownLearn ? 0.95f : 0.8f));
+        g.fillRoundedRectangle ((float) tx, 1.f, (float) tw, 10.f, 3.f);
+        g.setColour (juce::Colours::black.withAlpha (0.85f));
+        g.drawText (tag, tx, 1, tw, 10, juce::Justification::centred, false);
+    }
+#endif
     if (cvActive)                                                            // un cable CV est branche sur ce reglage
     {
         g.setColour (look::cvRing.withAlpha (0.3f)); g.fillEllipse ((float) getWidth() - 17.f, 0.f, 15.f, 15.f);
@@ -871,7 +928,7 @@ namespace
 {
 const char* cvName (int d)
 {
-    static const char* n[orage::kNumCv] { "DRIVE", "CLIP", "UNCERT.", "HPF", "LPF", "PEAK", "DESTROY", "D.RATE", "SPRING", "MIX", "S&H IN", "S&H CLK" };
+    static const char* n[orage::kNumCv] { "DRIVE", "CLIP", "UNCERT.", "HPF", "LPF", "PEAK", "DESTROY", "D.RATE", "SPRING", "MIX", "S&H IN", "S&H CLK", "STUT GO", "STUT LEN", "STUT DEC", "STUT PIT", "STUT MIX" };
     return n[juce::jlimit (0, (int) orage::kNumCv - 1, d)];
 }
 int cvOwner (int d)                                         // module qui porte la destination (-1 = toujours disponible)
@@ -882,6 +939,7 @@ int cvOwner (int d)                                         // module qui porte 
         case CvHpf: case CvLpf: case CvPeak:   return NFilter;
         case CvDestroy: case CvDRate:          return NDestroy;
         case CvSpring:                         return NSpring;
+        case CvStutOn: case CvStutLen: case CvStutDecay: case CvStutPitch: case CvStutMix: return NStut;
         default:                               return -1;
     }
 }
@@ -899,7 +957,7 @@ void PatchPanel::layoutJacks()
         if (audioOut[n] != nullptr) audioOut[n]->setVisible (false);
         if (audioIn[n] != nullptr)  audioIn[n]->setVisible (false);
     }
-    const int x0 = 12, y0 = 58, pitch = 30, inX = 196, outX = 252;
+    const int x0 = 12, y0 = 58, pitch = 26, inX = 196, outX = 252;
     for (size_t i = 0; i < seq.size(); ++i)
     {
         const int n = seq[i], y = y0 + (int) i * pitch;
@@ -907,7 +965,7 @@ void PatchPanel::layoutJacks()
         if (audioIn[n] != nullptr)  { audioIn[n]->setVisible (true);  audioIn[n]->setCentrePosition (inX, y); }
         if (audioOut[n] != nullptr) { audioOut[n]->setVisible (true); audioOut[n]->setCentrePosition (outX, y); }
     }
-    const int ySrc = y0 + 12 * pitch + 40;                                                   // sorties de modulation
+    const int ySrc = y0 + 13 * pitch + 36;                                                   // sorties de modulation
     static const char* srcNames[kNumSrc] { "LFO 1", "LFO 2", "S&H", "ENV" };
     for (int s = 0; s < kNumSrc; ++s)
     {
@@ -915,15 +973,15 @@ void PatchPanel::layoutJacks()
         cvOut[s]->setCentrePosition (cx, ySrc);
         labels.push_back ({ srcNames[s], { cx - 35, ySrc + 20, 70, 12 }, false, true });
     }
-    const int yCv = ySrc + 88;                                                               // entrees CV
+    const int yCv = ySrc + 78;                                                               // entrees CV
     for (int d = 0; d < kNumCv; ++d)
     {
-        const int cx = 12 + 36 + (d % 4) * 70, cy = yCv + (d / 4) * 56;
+        const int cx = 12 + 28 + (d % 5) * 56, cy = yCv + (d / 5) * 50;
         const int ow = cvOwner (d);
         const bool avail = ow < 0 || e.inRack (ow);
         cvIn[d]->setVisible (avail);
         cvIn[d]->setCentrePosition (cx, cy);
-        labels.push_back ({ cvName (d), { cx - 35, cy + 20, 70, 12 }, ! avail, true });
+        labels.push_back ({ cvName (d), { cx - 28, cy + 20, 56, 12 }, ! avail, true });
     }
     repaint();
 }
@@ -940,15 +998,15 @@ void PatchPanel::paint (juce::Graphics& g)
         g.fillRect (12, y + 19, getWidth() - 24, 1);
     };
     head ("PATCHBAY", 5);
-    const int y0 = 58, pitch = 30;
+    const int y0 = 58, pitch = 26;
     g.setColour (look::print.withAlpha (0.7f));
     g.setFont (font (9.f));
     g.drawText ("IN", 196 - 20, 36, 40, 11, juce::Justification::centred, false);
     g.drawText ("OUT", 252 - 20, 36, 40, 11, juce::Justification::centred, false);
     g.drawText ("AUDIO", 12, 36, 100, 11, juce::Justification::centredLeft, false);
-    const int ySrc = y0 + 12 * pitch + 40;
+    const int ySrc = y0 + 13 * pitch + 36;
     head ("MODULATION OUT", ySrc - 46);
-    head ("CV IN", ySrc + 44);
+    head ("CV IN", ySrc + 40);
     g.setColour (look::print.withAlpha (0.55f));
     g.setFont (font (8.5f, false));
     g.drawFittedText (fr ("Glisser d'une sortie vers une entr\xc3\xa9" "e.  Double-clic sur une prise : d\xc3\xa9" "brancher."),
@@ -1331,6 +1389,21 @@ OrageAudioProcessorEditor::OrageAudioProcessorEditor (OrageAudioProcessor& p, ju
     cablesBtn.setButtonText ("CABLES");
     cablesBtn.setToggleState (true, juce::dontSendNotification);
     cablesBtn.onClick = [this] { patchBay.cablesVisible = cablesBtn.getToggleState(); patchBay.repaint(); };
+#if ORAGE_SYNTH
+    addAndMakeVisible (midiBtn);                                    // montre / cache les etiquettes CC des potards assignes
+    midiBtn.setButtonText ("MIDI");
+    {
+        const auto f = juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory).getChildFile ("Foudre Audio").getChildFile ("midishow.txt");
+        look::showMidi = f.existsAsFile() && f.loadFileAsString().trim().getIntValue() != 0;
+    }
+    midiBtn.setToggleState (look::showMidi, juce::dontSendNotification);
+    midiBtn.onClick = [this]
+    {
+        look::showMidi = midiBtn.getToggleState();
+        const auto f = juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory).getChildFile ("Foudre Audio").getChildFile ("midishow.txt");
+        f.getParentDirectory().createDirectory(); f.replaceWithText (look::showMidi ? "1" : "0");
+    };
+#endif
     addAndMakeVisible (patchBay);
 
     setSize (1440, kFxH);
@@ -1494,6 +1567,24 @@ void OrageAudioProcessorEditor::buildUnits()
         u->layoutFn = [=] (juce::Rectangle<int> r) { place (r, { a, b, c }, 0, kCell); };
     }
 
+    {   // STUTTER : repetition rythmique de l'audio (tous les parametres sont pilotables depuis les pistes du sequenceur)
+        auto* u = newUnit (NStut, "STUTTER / BEAT REPEAT", kModH, false);
+        auto* mode = addSelector (*u, "stutMode", juce::StringArray { "BEAT REPEAT", "REVERSE", "GATE", "OFFBEAT" });
+        auto* div  = addSelector (*u, "stutDiv", juce::StringArray { "1 BAR", "1/2", "1/4", "1/8", "1/16", "1/32", "1/64" });
+        auto* feel = addSelector (*u, "stutFeel", juce::StringArray { "STRAIGHT", "TRIPLET", "DOTTED" });
+        auto* len = mk (*u, "stutLen", "LENGTH", "0", "10", CvStutLen); auto* dec = mk (*u, "stutDecay", "DECAY", "0", "10", CvStutDecay); auto* pit = mk (*u, "stutPitch", "PITCH", "-12", "+12", CvStutPitch); auto* mx = mk (*u, "stutMix", "MIX", "0", "10", CvStutMix);
+        auto* eng = addToggle (*u, "stutOn", "ENGAGE");
+        u->layoutFn = [=] (juce::Rectangle<int> r)
+        {
+            const int sh = juce::jmin (30, (r.getHeight() - 8) / 3), gap = (r.getHeight() - 3 * sh) / 4;
+            mode->setBounds (r.getX(), r.getY() + gap, 340, sh);
+            div->setBounds  (r.getX(), r.getY() + 2 * gap + sh, 340, sh);
+            feel->setBounds (r.getX(), r.getY() + 3 * gap + 2 * sh, 340, sh);
+            place (r, { len, dec, pit, mx }, 356, 92);
+            eng->setBounds (r.getX() + 356 + 4 * 92 + 14, r.getCentreY() - 17, 110, 34);
+        };
+    }
+
     {   // BBD DELAY
         auto* u = newUnit (NBbd, "BBD DELAY", kModH, false);
         auto* a = mk (*u, "bbdTime", "TIME"); auto* b = mk (*u, "bbdFb", "FEEDBACK"); auto* c = mk (*u, "bbdTone", "TONE");
@@ -1550,8 +1641,7 @@ void OrageAudioProcessorEditor::buildUnits()
     }
 
     // ---------------- panneau lateral : tuiles de modules + master + remises a zero + entree/sortie
-    static const int tileNodes[] = { NOct, NDist, NColor, NFilter, NDestroy, NComp, NSpring, NBbd, NVerb, NGate };
-    for (int n : tileNodes)
+    for (int n : kTileNodes)
     {
         auto b = std::make_unique<juce::TextButton> (nodeName (n));
         b->setClickingTogglesState (false);
@@ -1599,8 +1689,7 @@ void OrageAudioProcessorEditor::refreshRack()
     }
     rackView.setUnits (list);
     patchPanel.layoutJacks();
-    static const int tileNodes[] = { NOct, NDist, NColor, NFilter, NDestroy, NComp, NSpring, NBbd, NGate };
-    for (size_t i = 0; i < tiles.size(); ++i) tiles[i]->setToggleState (proc.engine.inRack (tileNodes[i]), juce::dontSendNotification);
+    for (size_t i = 0; i < tiles.size(); ++i) tiles[i]->setToggleState (proc.engine.inRack (kTileNodes[i]), juce::dontSendNotification);
     patchBay.repaint();
     lastRackHash = 0;
     for (auto& s : proc.engine.rackSlot) lastRackHash = lastRackHash * 31u + (uint32_t) (s.load() + 2);
@@ -1781,6 +1870,7 @@ void OrageAudioProcessorEditor::resized()
     saveBtn.setBounds (W - 104, 42, 70, 28);
     cablesBtn.setBounds (W - 540, 44, 108, 24);
     themeBtn.setBounds (W - 640, 44, 100, 24);
+    midiBtn.setBounds (W - 640, 16, 100, 24);
 
     // ---- colonnes : panneau lateral | rack | (bandeau de modulation en bas)
     const int vpW = W - 170 - 310;
@@ -1808,7 +1898,7 @@ void OrageAudioProcessorEditor::resized()
     }
 
     // ---- panneau lateral
-    for (size_t i = 0; i < tiles.size(); ++i) tiles[i]->setBounds (8, 32 + (int) i * 25, 124, 22);
+    for (size_t i = 0; i < tiles.size(); ++i) tiles[i]->setBounds (8, 32 + (int) i * 23, 124, 21);
     knobById.at ("mix")->setBounds (4, 308, 66, 94);
     knobById.at ("output")->setBounds (70, 308, 66, 94);
     foot.setBounds (41, 414, 58, 90);

@@ -61,7 +61,25 @@ public:
 
     juce::AudioProcessorValueTreeState apvts;
     juce::MidiKeyboardState keyboardState;  // clavier a l'ecran (version instrument)
-    std::atomic<int> macroCC[8] { 21, 22, 23, 24, 25, 26, 27, 28 }, learnMacro { -1 };   // CC MIDI des macros (21..28 par defaut) et macro en apprentissage
+    // ---- MIDI learn universel : n'importe quel potard peut etre pilote par un CC (clic droit -> assigner). Les macros 1..8 sont sur CC 16..23 par defaut (Hydrasynth).
+    //      La configuration est celle du controleur, pas du son : elle est sauvee avec le projet et dans un fichier global, jamais dans les presets.
+    static constexpr int kMaxMap = 1024;
+    int  ccOfParam (const juce::String& id) const { const int i = mapIds.indexOf (id); return i < 0 ? -1 : mapCc[(size_t) i].load(); }
+    bool isLearning (const juce::String& id) const { const int i = mapIds.indexOf (id); return i >= 0 && i == learnIdx.load(); }
+    int  mapIndex (const juce::String& id) const { return mapIds.indexOf (id); }
+    int  ccAt (int i) const { return i < 0 ? -1 : mapCc[(size_t) i].load(); }
+    bool learningAt (int i) const { return i >= 0 && i == learnIdx.load(); }
+    void startMidiLearn (const juce::String& id) { learnIdx.store (mapIds.indexOf (id)); }
+    void cancelMidiLearn() { learnIdx.store (-1); }
+    void clearMidiAssign (const juce::String& id);
+    void defaultMidiAssign (const juce::String& id);          // CC d'origine (macros : 16..23), sinon rien
+    int  defaultCcOf (const juce::String& id) const;          // -1 si pas de CC d'origine
+    void resetMidiMap();
+    juce::String midiMapToString() const;
+    void midiMapFromString (const juce::String&);
+    void markMidiMapDirty() { mapDirty.store (true); }
+    void flushMidiMapIfDirty();                                // ecrit le fichier global si l'assignation a change
+    std::atomic<int> takeoverMode { 0 };                       // reprise de valeur : 0 SCALE (converge sans saut), 1 PICKUP (attend de croiser la valeur), 2 DIRECT (saute)
     orage::Synth synth;                     // utilise seulement par la version instrument (ORAGE_SYNTH)
     std::atomic<int> arpStepShown { -1 };   // pas courant de l'arpegiateur (affichage)
     orage::ArpPattern arpPat;               // motif de l'arpegiateur / sequenceur (pas + pistes de modulation), edite par l'interface
@@ -87,7 +105,17 @@ private:
     std::vector<MidiEv> evs;
     int lastArpOn = 0, lastAssign = 0, chordN = 3, chordIv[6] { 4, 7, 11, 0, 0, 0 }, learnN = 0, learnNotes[6] {};
     bool chordLearn = false, lastLearn = false, seqRec = false, lastRec = false;
-    bool handleMacroCC (int cc, int value);
+    bool handleCC (int cc, int value);
+    void applyMapped (int i, float v, float prevHw);
+    juce::StringArray mapIds;                                   // identifiants de tous les parametres assignables
+    std::vector<juce::RangedAudioParameter*> mapParams;
+    std::atomic<int> mapCc[kMaxMap];
+    std::atomic<int> learnIdx { -1 };
+    std::atomic<bool> mapDirty { false };
+    float hwPos[128];                                           // derniere position connue de chaque potard du clavier (thread audio)
+    float lastSetV[kMaxMap], aCur[kMaxMap], aHw[kMaxMap], lastIn[kMaxMap];
+    bool  caught[kMaxMap], anchored[kMaxMap];
+    juce::File midiMapFile() const;
     float arpStepHz (double bpm) const;
     float arpRateKnob = 0.55f; int arpSyncDiv = 0;
     std::vector<std::atomic<float>*> rawSyn;

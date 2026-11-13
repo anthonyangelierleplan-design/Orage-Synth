@@ -80,12 +80,21 @@ const PDef kDefs[] = {
     { "revShimmer","Reverb Shimmer",   0,   1,  0,    kFloat,  nullptr },
     { "revLowCut", "Reverb Low Cut",   0,   1,  0.1f, kFloat,  nullptr },
     { "revFreeze", "Reverb Freeze",    0,   1,  0,    kBool,   nullptr },
+    { "stutOn",    "Stutter Engage",   0,   1,  0,    kBool,   nullptr },
+    { "stutMode",  "Stutter Mode",     0,   3,  0,    kChoice, "Beat Repeat|Reverse|Gate|Offbeat" },
+    { "stutDiv",   "Stutter Division", 0,   6,  4,    kChoice, "1 bar|1/2|1/4|1/8|1/16|1/32|1/64" },
+    { "stutFeel",  "Stutter Feel",     0,   2,  0,    kChoice, "Straight|Triplet|Dotted" },
+    { "stutLen",   "Stutter Length",   0,   1,  0.6f, kFloat,  nullptr },
+    { "stutDecay", "Stutter Decay",    0,   1,  0,    kFloat,  nullptr },
+    { "stutPitch", "Stutter Pitch",    0,   1,  0.5f, kFloat,  nullptr },
+    { "stutMix",   "Stutter Mix",      0,   1,  1,    kFloat,  nullptr },
 };
 constexpr int kNumDefs = (int) (sizeof (kDefs) / sizeof (kDefs[0]));
 
 // ---- presets d'usine
 using namespace orage;
 #if ORAGE_SYNTH
+static_assert (orage::Engine::kExt == orage::kFxMod, "entrees de modulation des effets : moteur et synthe doivent correspondre");
 
 // ---------------------------------------------------------------- parametres du synthe (version instrument)
 struct SynDef { juce::String id, name; float mn, mx, def; Kind kind; juce::String choices; };
@@ -548,6 +557,17 @@ void aAcid (OrageAudioProcessor& p)
     setLane (p, 0, MdLpf, 0.55f, 0.2f, { 0.1f, 0.5f, 0.3f, 0.9f, 0.2f, 0.7f, 0.4f, 1.0f, 0.15f, 0.6f, 0.3f, 0.8f, 0.25f, 0.55f, 0.35f, 0.95f });
     setLane (p, 1, MdReso, 0.3f, 0.f, { 0.f, 0.f, 1.f, 0.f, 0.f, 1.f, 0.f, 0.f });
 }
+void aStutterSeq (OrageAudioProcessor& p)
+{
+    S (p, { {"output",-9},{"s_wave1",0},{"s_wave2",1},{"s_tune2",0.1f},{"s_lvl2",0.4f},{"s_ftype",1},{"s_lpf",0.55f},{"s_lpfRes",0.35f},{"s_fltEnv",0.4f},{"s_fD",0.25f},{"s_fS",0.1f},{"s_aD",0.3f},{"s_aS",0.3f},{"s_aR",0.2f},
+            {"s_arpOn",1},{"s_arpMode",2},{"s_arpOct",1},{"s_assign",0},{"s_arpRate",0.62f},{"s_arpGate",0.6f},{"revMix",0.2f},{"revDecay",0.55f},{"power",0.2f},
+            {"stutDiv",0},{"stutMode",0},{"stutFeel",0},{"stutLen",0.85f},{"stutDecay",0.15f},{"stutMix",1.f} });
+    setSteps (p, "1111111111111111");
+    // piste 1 : ENGAGE (quels pas declenchent le stutter) ; piste 2 : DIVISION (0.5 = 1/8, 0.67 = 1/16, 0.83 = 1/32) ; piste 3 : MODE (0 repeat, 0.33 reverse, 0.67 gate, 1 offbeat)
+    setLane (p, 0, MdStutOn,   1.f, 0.f, { 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.f, 1.f, 0.f, 0.f });
+    setLane (p, 1, MdStutDiv,  1.f, 0.f, { 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.67f, 0.67f, 0.5f, 0.5f, 0.5f, 0.5f, 0.83f, 0.67f, 0.5f, 0.5f });
+    setLane (p, 2, MdStutMode, 1.f, 0.f, { 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.33f, 0.67f, 0.f, 0.f });
+}
 void aFmSeq (OrageAudioProcessor& p)
 {
     S (p, { {"output",-9},{"s_wave1",2},{"s_wave2",2},{"s_tune2",12},{"s_lvl2",0.5f},{"s_ftype",1},{"s_lpf",0.65f},{"s_lpfRes",0.2f},{"s_aD",0.35f},{"s_aS",0.35f},{"s_aR",0.3f},
@@ -662,6 +682,7 @@ const Factory kFactory[] = {
     { "Wind Machine", "FX / Texture", xWind }, { "Metal Rain", "FX / Texture", xMetal }, { "Alien Choir", "FX / Texture", xAlien }, { "Thunder Drone", "FX / Texture", xThunder }, { "Ring Wobble", "FX / Texture", sRing },
     { "Solina Ensemble", "Pad", pSolina }, { "Vangelis Strings", "Pad", pVangelisStr }, { "Floyd Strings", "Pad", pFloydStr },
     { "Zimmer Low Strings", "Pad", pZimmerLow }, { "Tape Strings", "Pad", pTapeStr }, { "Bowed FM", "Pad", pBowedFm },
+    { "Stutter Sequencer", "Arp / Seq", aStutterSeq },
 #endif
     { "Waters Of Nazareth (depart)", "Rack FX", fWaters },
     { "Gated Fuzz Wall", "Rack FX", fGated },
@@ -704,6 +725,74 @@ OrageAudioProcessor::OrageAudioProcessor()
 #if ORAGE_SYNTH
     for (const auto& d : synDefs()) rawSyn.push_back (apvts.getRawParameterValue (d.id));
 #endif
+    for (auto* prm : getParameters())
+        if (auto* rp = dynamic_cast<juce::RangedAudioParameter*> (prm))
+            if (mapIds.size() < kMaxMap) { mapIds.add (rp->paramID); mapParams.push_back (rp); }
+    for (auto& c : mapCc) c.store (-1);
+    for (auto& v : hwPos) v = -1.f;
+    for (int i = 0; i < kMaxMap; ++i) { lastSetV[i] = -1.f; aCur[i] = aHw[i] = lastIn[i] = 0.f; caught[i] = anchored[i] = false; }
+    resetMidiMap();
+    if (const auto f = midiMapFile(); f.existsAsFile()) midiMapFromString (f.loadFileAsString());
+    mapDirty.store (false);
+}
+
+// ---------------------------------------------------------------- MIDI learn universel
+juce::File OrageAudioProcessor::midiMapFile() const
+{
+    return juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory).getChildFile ("Foudre Audio").getChildFile (ORAGE_SYNTH ? "midimap-synth.txt" : "midimap-fx.txt");
+}
+int OrageAudioProcessor::defaultCcOf (const juce::String& id) const
+{
+    for (int k = 0; k < 8; ++k) if (id == "s_m" + juce::String (k + 1)) return 16 + k;      // macros 1..8 = CC 16..23 (macros de l'Hydrasynth)
+    return -1;
+}
+void OrageAudioProcessor::resetMidiMap()
+{
+    for (auto& c : mapCc) c.store (-1);
+    for (int i = 0; i < mapIds.size(); ++i) mapCc[(size_t) i].store (defaultCcOf (mapIds[i]));
+    for (int i = 0; i < kMaxMap; ++i) anchored[i] = caught[i] = false;
+    learnIdx.store (-1); mapDirty.store (true);
+}
+void OrageAudioProcessor::clearMidiAssign (const juce::String& id)
+{
+    const int i = mapIds.indexOf (id); if (i < 0) return;
+    mapCc[(size_t) i].store (-1); anchored[i] = caught[i] = false; learnIdx.store (-1); mapDirty.store (true);
+}
+void OrageAudioProcessor::defaultMidiAssign (const juce::String& id)
+{
+    const int i = mapIds.indexOf (id); if (i < 0) return;
+    mapCc[(size_t) i].store (defaultCcOf (id)); anchored[i] = caught[i] = false; learnIdx.store (-1); mapDirty.store (true);
+}
+juce::String OrageAudioProcessor::midiMapToString() const
+{
+    juce::String s ("M" + juce::String (takeoverMode.load()));
+    for (int i = 0; i < mapIds.size(); ++i)
+    {
+        const int cc = mapCc[(size_t) i].load();
+        if (cc != defaultCcOf (mapIds[i])) s << ";" << mapIds[i] << "=" << cc;           // seulement les ecarts par rapport aux CC d'origine
+    }
+    return s;
+}
+void OrageAudioProcessor::midiMapFromString (const juce::String& str)
+{
+    resetMidiMap();
+    juce::StringArray t; t.addTokens (str.trim(), ";", "");
+    for (auto& tok : t)
+    {
+        if (tok.startsWith ("M") && ! tok.contains ("=")) { takeoverMode.store (juce::jlimit (0, 2, tok.substring (1).getIntValue())); continue; }
+        const int eq = tok.indexOfChar ('=');
+        if (eq <= 0) continue;
+        const int i = mapIds.indexOf (tok.substring (0, eq));
+        if (i >= 0) mapCc[(size_t) i].store (juce::jlimit (-1, 127, tok.substring (eq + 1).getIntValue()));
+    }
+    mapDirty.store (false);
+}
+void OrageAudioProcessor::flushMidiMapIfDirty()
+{
+    if (! mapDirty.exchange (false)) return;
+    const auto f = midiMapFile();
+    f.getParentDirectory().createDirectory();
+    f.replaceWithText (midiMapToString());
 }
 
 bool OrageAudioProcessor::isBusesLayoutSupported (const BusesLayout& l) const
@@ -751,6 +840,7 @@ orage::Params OrageAudioProcessor::readParams() const
     p.envRel = f();  p.envLevel = f();
     p.bbdTime = f();  p.bbdFb = f();  p.bbdTone = f();  p.bbdMod = f();  p.bbdMix = f();  p.bbdPing = b();  p.bbdSync = n();
     p.revMix = f();  p.revSize = f();  p.revDecay = f();  p.revPre = f();  p.revDamp = f();  p.revMod = f();  p.revWidth = f();  p.revShimmer = f();  p.revLowCut = f();  p.revFreeze = b();
+    p.stutOn = b();  p.stutMode = n();  p.stutDiv = n();  p.stutFeel = n();  p.stutLen = f();  p.stutDecay = f();  p.stutPitch = f();  p.stutMix = f();
     jassert (i == kNumDefs);
     return p;
 }
@@ -866,7 +956,7 @@ void OrageAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
             else if (m.isPitchWheel())   evs.push_back ({ pos, 3, 0, (float) (m.getPitchWheelValue() - 8192) / 8192.f * 2.f });
             else if (m.isAftertouch())   evs.push_back ({ pos, 5, m.getNoteNumber(), (float) m.getAfterTouchValue() / 127.f });
             else if (m.isChannelPressure()) evs.push_back ({ pos, 6, 0, (float) m.getChannelPressureValue() / 127.f });
-            else if (m.isController() && m.getControllerNumber() != 1 && handleMacroCC (m.getControllerNumber(), m.getControllerValue())) {}
+            else if (m.isController() && m.getControllerNumber() != 1 && handleCC (m.getControllerNumber(), m.getControllerValue())) {}
             else if (m.isController() && m.getControllerNumber() == 1) evs.push_back ({ pos, 4, 0, (float) m.getControllerValue() / 127.f });
         }
         {
@@ -939,7 +1029,6 @@ juce::ValueTree OrageAudioProcessor::captureState()
     state.setProperty ("category", presetCategory, nullptr);
     state.setProperty ("hdr", headerScope.load(), nullptr);
     { juce::String c; for (int k = 0; k < chordN; ++k) c << chordIv[k] << ","; state.setProperty ("chord", c, nullptr); }
-    { juce::String c; for (int k = 0; k < 8; ++k) c << macroCC[k].load() << ","; state.setProperty ("macroCC", c, nullptr); }
 #if ORAGE_SYNTH
     {
         juce::String c;
@@ -960,10 +1049,6 @@ void OrageAudioProcessor::applyState (juce::ValueTree state)
     presetName = state.getProperty ("presetName", "Init").toString();
     presetCategory = state.getProperty ("category", "").toString();
     headerScope.store ((int) state.getProperty ("hdr", 0));
-    {
-        juce::StringArray t; t.addTokens (state.getProperty ("macroCC", "").toString(), ",", ""); t.removeEmptyStrings();
-        for (int k = 0; k < 8; ++k) macroCC[k].store (k < t.size() ? t[k].getIntValue() : 21 + k);
-    }
     {
         const auto cs = state.getProperty ("chord", "").toString();
         if (cs.isNotEmpty()) { juce::StringArray t; t.addTokens (cs, ",", ""); t.removeEmptyStrings(); chordN = 0; for (auto& x : t) if (chordN < 6) chordIv[chordN++] = x.getIntValue(); }
@@ -995,14 +1080,28 @@ void OrageAudioProcessor::applyState (juce::ValueTree state)
 
 void OrageAudioProcessor::getStateInformation (juce::MemoryBlock& dest)
 {
-    if (auto xml = captureState().createXml()) copyXmlToBinary (*xml, dest);
+    auto st = captureState();
+    st.setProperty ("midiMap", midiMapToString(), nullptr);                // assignations MIDI : avec le projet, pas avec les presets
+    if (auto xml = st.createXml()) copyXmlToBinary (*xml, dest);
 }
 
 void OrageAudioProcessor::setStateInformation (const void* data, int size)
 {
     if (auto xml = getXmlFromBinary (data, size))
         if (xml->hasTagName (apvts.state.getType()))
-            applyState (juce::ValueTree::fromXml (*xml));
+        {
+            const auto vt = juce::ValueTree::fromXml (*xml);
+            applyState (vt);
+            if (vt.hasProperty ("midiMap")) midiMapFromString (vt.getProperty ("midiMap").toString());
+            else if (vt.hasProperty ("macroCC"))                                // projets d'une ancienne version : CC des macros sauves a part
+            {
+                juce::StringArray t; t.addTokens (vt.getProperty ("macroCC").toString(), ",", ""); t.removeEmptyStrings();
+                resetMidiMap();
+                const bool oldDefault = vt.getProperty ("macroCC").toString().startsWith ("21,22,23,24,25,26,27,28");     // ancien reglage d'usine : on prend les CC 16..23
+                for (int k = 0; k < 8 && k < t.size() && ! oldDefault; ++k)
+                    if (const int i = mapIds.indexOf ("s_m" + juce::String (k + 1)); i >= 0) mapCc[(size_t) i].store (t[k].getIntValue());
+            }
+        }
 }
 
 void OrageAudioProcessor::setParamReal (const char* id, float real)
@@ -1048,22 +1147,55 @@ void OrageAudioProcessor::loadFactoryPreset (int i)
     presetCategory = kFactory[i].category;
 }
 
-// CC MIDI -> macros (ex. macros de l'Hydrasynth). Retourne true si le CC a ete consomme.
-bool OrageAudioProcessor::handleMacroCC (int cc, int value)
+// CC MIDI -> parametres assignes (macros de l'Hydrasynth, ou tout potard appris par clic droit). Retourne true si le CC a ete consomme.
+bool OrageAudioProcessor::handleCC (int cc, int value)
 {
-#if ORAGE_SYNTH
-    const int ln = learnMacro.load();
-    if (ln >= 0 && ln < 8 && cc != 1 && cc < 120) { macroCC[ln].store (cc); learnMacro.store (-1); }
-    for (int k = 0; k < 8; ++k)
-        if (macroCC[k].load() == cc)
+    if (cc < 0 || cc > 127) return false;
+    const float v = (float) value / 127.f;
+    const int ln = learnIdx.load();
+    if (ln >= 0 && ln < mapIds.size() && cc != 0 && cc != 1 && cc != 32 && cc != 64 && cc < 120)
+    { mapCc[(size_t) ln].store (cc); learnIdx.store (-1); mapDirty.store (true); }
+    const float prevHw = hwPos[cc];
+    hwPos[cc] = v;
+    bool used = false;
+    const int n = mapIds.size();
+    for (int i = 0; i < n; ++i)
+        if (mapCc[(size_t) i].load() == cc) { used = true; applyMapped (i, v, prevHw); }
+    return used;
+}
+
+// Reprise de valeur : l'Hydrasynth n'envoie sa position qu'en bougeant. SCALE : la valeur de depart du plugin est conservee et rejoint
+// progressivement celle du potard (pas de saut, pas de course a la valeur) ; PICKUP : rien ne bouge tant que le potard n'a pas croise la valeur ; DIRECT : saute.
+void OrageAudioProcessor::applyMapped (int i, float v, float prevHw)
+{
+    auto* prm = mapParams[(size_t) i];
+    const float cur = prm->getValue();
+    const int mode = takeoverMode.load();
+    float out = v;
+    if (prm->isDiscrete() || mode == 2) { anchored[i] = caught[i] = false; }
+    else
+    {
+        const bool external = lastSetV[i] < 0.f || std::fabs (cur - lastSetV[i]) > 0.004f;      // valeur changee ailleurs (preset, souris, automation)
+        if (mode == 1)
         {
-            if (auto* prm = apvts.getParameter ("s_m" + juce::String (k + 1))) prm->setValueNotifyingHost ((float) value / 127.f);
-            return true;
+            if (external) { caught[i] = false; lastIn[i] = prevHw >= 0.f ? prevHw : v; }
+            if (! caught[i])
+            {
+                if (std::fabs (v - cur) < 0.02f || (lastIn[i] - cur) * (v - cur) <= 0.f) caught[i] = true;
+                lastIn[i] = v;
+                if (! caught[i]) return;
+            }
         }
-#else
-    juce::ignoreUnused (cc, value);
-#endif
-    return false;
+        else
+        {
+            if (external || ! anchored[i]) { anchored[i] = true; aCur[i] = cur; aHw[i] = prevHw >= 0.f ? prevHw : v; }
+            if (v >= aHw[i]) out = aCur[i] + (v - aHw[i]) * (1.f - aCur[i]) / std::max (1.f - aHw[i], 1e-4f);
+            else             out = aCur[i] - (aHw[i] - v) * aCur[i] / std::max (aHw[i], 1e-4f);
+            out = juce::jlimit (0.f, 1.f, out);
+        }
+    }
+    prm->setValueNotifyingHost (out);
+    lastSetV[i] = prm->getValue();
 }
 
 // cadence propre de l'arpegiateur : libre (0,5 a 20 pas/s) ou calee sur le tempo (memes divisions que les LFO)

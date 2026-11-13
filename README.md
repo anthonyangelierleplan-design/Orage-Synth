@@ -1,4 +1,11 @@
-# Orage v12 — Foudre Audio
+# Orage v13 — Foudre Audio
+
+## Nouveautés v13
+- **Module STUTTER / BEAT REPEAT** (rack, Orage et Orage FX) : répétition rythmique de l'audio calée sur le tempo. Modes BEAT REPEAT / REVERSE / GATE / OFFBEAT, divisions 1 mesure à 1/64, feeling droit / triolet / pointé, LENGTH, DECAY, PITCH, MIX, bouton ENGAGE, 5 entrées CV au patchbay (STUT GO / LEN / DEC / PIT / MIX). Le rack accepte maintenant 11 modules.
+- **MIDI learn sur tous les potards** (Orage) : clic droit → assigner / supprimer / CC d'origine ; macros sur CC 16 à 23 par défaut ; bouton MIDI dans l'en-tête pour afficher les CC ; modes de reprise SCALE / PICKUP / DIRECT. Les assignations sont sauvées avec le projet et dans un fichier global, plus dans les presets.
+- **Séquenceur** : tous les paramètres du Stutter (engage, mode, division, feeling, length, decay, pitch, mix) sont des destinations des pistes et de la matrice. Nouveau preset « Stutter Sequencer ».
+- Correctif : état des tuiles de modules dans le panneau latéral.
+
 
 ## Nouveautés v12
 - **Identité visuelle « Bel Air »** : nouveau logo ORAGE en lettres chromées (or / argent / cuivre selon le thème, éclair en barre du A, filet de vitesse, étincelle) ; modules FX avec bandeau crème, filet chromé, blason et grand pictogramme gravé sur le panneau ; teintes harmonisées pour chaque thème.

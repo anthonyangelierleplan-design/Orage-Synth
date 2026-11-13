@@ -15,12 +15,14 @@ inline int macroSrc (int i) { return i < 4 ? MsMac1 + i : MsMac5 + (i - 4); }
 enum ModDst { MdNone, MdPitch, MdPitch2, MdPw1, MdPw2, MdFm, MdRing, MdMix, MdHpf, MdLpf, MdReso, MdLevel, MdPan,
               MdFold, MdFxPower, MdFxClip, MdFxUnc, MdFxHpf, MdFxLpf, MdFxPeak, MdFxDestroy, MdFxRate, MdFxSpring, MdFxMix, MdFxChaos, MdBbdTime, MdBbdFb, MdBbdMix,
               MdRevMix, MdRevDecay, MdRevDamp,
-              MdNoise, MdHpfReso, MdDrive, MdMorph, MdFltEnv, MdFoldSym, MdLvl1, kNumModDst };
-constexpr int kFxMod = 17;                // destinations FX : MdFxPower .. MdRevDamp (les 10 premieres = les entrees CV du moteur d'effets)
+              MdNoise, MdHpfReso, MdDrive, MdMorph, MdFltEnv, MdFoldSym, MdLvl1,
+              MdStutOn, MdStutMode, MdStutDiv, MdStutFeel, MdStutLen, MdStutDecay, MdStutPitch, MdStutMix, kNumModDst };
+constexpr int kFxMod = 25;                // destinations FX : MdFxPower .. MdRevDamp (les 10 premieres = les entrees CV du moteur d'effets)
 inline const char* const kModSrcNames[kNumModSrc] { "-", "LFO 1", "LFO 2", "LFO 3", "LFO 4", "MACRO 1", "MACRO 2", "MACRO 3", "MACRO 4", "ENV FLT", "VELOCITY", "MOD WHEEL", "ENV AMP", "KEY TRACK", "RANDOM", "AFTERTOUCH", "POLY AT", "MACRO 5", "MACRO 6", "MACRO 7", "MACRO 8", "ARP LANE 1", "ARP LANE 2", "ARP LANE 3", "ARP LANE 4" };
 inline const char* const kModDstNames[kNumModDst] { "-", "PITCH", "PITCH VCO2", "PWM VCO1", "PWM VCO2", "FM", "RING", "MIX VCO2", "HPF", "LPF", "RESO", "LEVEL", "PAN",
     "FOLD", "FX DRIVE", "FX CLIP", "FX UNCERT.", "FX HPF", "FX LPF", "FX PEAK", "FX DESTROY", "FX D.RATE", "FX SPRING", "FX DRY/WET", "FX CHAOS", "BBD TIME", "BBD FEEDBK", "BBD MIX",
-    "REV MIX", "REV DECAY", "REV DAMP", "NOISE", "HPF RESO", "DRIVE", "SEM MORPH", "FLT ENV AMT", "FOLD SYM", "LEVEL VCO1" };
+    "REV MIX", "REV DECAY", "REV DAMP", "NOISE", "HPF RESO", "DRIVE", "SEM MORPH", "FLT ENV AMT", "FOLD SYM", "LEVEL VCO1",
+    "STUT ENGAGE", "STUT MODE", "STUT DIV", "STUT FEEL", "STUT LENGTH", "STUT DECAY", "STUT PITCH", "STUT MIX" };
 inline const char* const kLfoDivNames[14] { "Free", "4 bar", "2 bar", "1 bar", "1/2", "1/4", "1/8", "1/16", "1/4.", "1/8.", "1/16.", "1/4T", "1/8T", "1/16T" };
 inline const float kLfoDivBeats[14] { 0.f, 16.f, 8.f, 4.f, 2.f, 1.f, 0.5f, 0.25f, 1.5f, 0.75f, 0.375f, 2.f / 3.f, 1.f / 3.f, 1.f / 6.f };
 
@@ -395,6 +397,12 @@ private:
         }
     }
 
+    static int fxIndex (int dst)                                           // destination de matrice -> entree du moteur d'effets (-1 : pas une destination FX)
+    {
+        if (dst >= MdFxPower && dst <= MdRevDamp) return dst - MdFxPower;
+        if (dst >= MdStutOn && dst <= MdStutMix) return 17 + (dst - MdStutOn);
+        return -1;
+    }
     void computeFxMod()                                                    // sources globales : LFO libres, macros, molette, enveloppe de filtre (voix la plus forte), velocite
     {
         float src[kNumModSrc] {};
@@ -407,9 +415,9 @@ private:
         src[MsAmpEnv] = ae; src[MsKey] = lastKey; src[MsRandom] = lastRnd; src[MsChanAT] = chanAT; src[MsPolyAT] = std::max (pa, chanAT);
         float acc[kFxMod] {};
         for (const auto& sl : P.slot)
-            if (sl.src > 0 && sl.dst >= MdFxPower && sl.dst <= MdRevDamp && sl.amt != 0.f) acc[sl.dst - MdFxPower] += src[sl.src] * sl.amt;
+            if (sl.src > 0 && sl.amt != 0.f && fxIndex (sl.dst) >= 0) acc[fxIndex (sl.dst)] += src[sl.src] * sl.amt;
         for (int i = 0; i < 4; ++i)
-            if (P.lane[i].dst >= MdFxPower && P.lane[i].dst <= MdRevDamp && P.lane[i].amt != 0.f) acc[P.lane[i].dst - MdFxPower] += laneC[i] * P.lane[i].amt;
+            if (P.lane[i].amt != 0.f && fxIndex (P.lane[i].dst) >= 0) acc[fxIndex (P.lane[i].dst)] += laneC[i] * P.lane[i].amt;
         for (int i = 0; i < kFxMod; ++i) fxOut[i] = std::min (2.f, std::max (-2.f, acc[i]));
     }
 
