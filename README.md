@@ -41,3 +41,7 @@ Rack réordonnable, **delay BBD** (TIME, FEEDBACK, TONE, WOBBLE, MIX, PING-PONG,
 Façade façon Korg MS20 : zones délimitées par des traits blancs sérigraphiés, potards numérotés 0-10, symboles de formes d'onde. Les fenêtres de confirmation (vider le rack, patchbay, reset, sauvegarde) sont intégrées au plugin. La fenêtre se redimensionne.
 
 - **8 macros** pilotables en MIDI CC (16 à 23 par défaut = macros 1 à 8 de l'Hydrasynth, clic droit = MIDI learn, ex. macros de l'Hydrasynth) ; chaque preset d'usine embarque une sélection de macros (lignes 5 à 12 de la matrice).
+
+- **Page ARP** (onglet dédié) : arpégiateur / séquenceur — grille de 16 pas (silence / note / accent, ratchet), GATE, SWING, CHANCE, 6 directions, FREE RUN ; **mode SEQ** : une note par pas, enregistrement pas à pas (REC / REST / TIE / BACK), lecture transposée par la touche jouée (do central = hauteurs d'origine) ; **4 pistes de modulation** (16 pas, longueurs indépendantes, destination directe + sources ARP LANE 1-4 dans la matrice).
+- **Module FM** : DEPTH, sens (2>1 / 1>2 / croisée), RATIO musical, onde du modulateur, enveloppe de profondeur (ENV AMT / ATTACK / DECAY), FINE, VELOCITY, AFTERTOUCH, palettes BELL / E-PIANO / BRASS / METAL / GROWL / PAD.
+- Correction : les menus groupés de la matrice (sources / destinations) écrivaient le mauvais paramètre.

@@ -61,8 +61,10 @@ public:
 
     juce::AudioProcessorValueTreeState apvts;
     juce::MidiKeyboardState keyboardState;  // clavier a l'ecran (version instrument)
-    std::atomic<int> macroCC[8] { 16, 17, 18, 19, 20, 21, 22, 23 }, learnMacro { -1 };   // CC MIDI des macros (16..23 par defaut = macros 1..8 de l'Hydrasynth) et macro en apprentissage
+    std::atomic<int> macroCC[8] { 21, 22, 23, 24, 25, 26, 27, 28 }, learnMacro { -1 };   // CC MIDI des macros (21..28 par defaut) et macro en apprentissage
     orage::Synth synth;                     // utilise seulement par la version instrument (ORAGE_SYNTH)
+    std::atomic<int> arpStepShown { -1 };   // pas courant de l'arpegiateur (affichage)
+    orage::ArpPattern arpPat;               // motif de l'arpegiateur / sequenceur (pas + pistes de modulation), edite par l'interface
     orage::Arp arp;                         // arpegiateur (version instrument)
     orage::Engine engine;                   // rack + patchbay vivent ici ; l'editeur les lit et les modifie
     juce::String presetName { "Init" }, presetCategory;
@@ -81,10 +83,10 @@ private:
     orage::Params readParams() const;
     orage::SynthParams readSynth();
     orage::ArpParams arpParams;
-    struct MidiEv { int pos; int type; int a; float v; int b = -1; };       // type : 0 note on, 1 note off, 2 all off, 3 bend, 4 molette, 5 aftertouch poly, 6 aftertouch canal, 7/8/9 notes brutes de l'arpegiateur (simple / pile unison / off), 10/11 VCO du mode POLY (on / off, b = VCO)
+    struct MidiEv { int pos; int type; int a; float v; };       // type : 0 note on, 1 note off, 2 all off, 3 bend, 4 molette, 5 aftertouch poly, 6 aftertouch canal, 7/8/9 notes brutes de l'arpegiateur (simple / pile unison / off)
     std::vector<MidiEv> evs;
     int lastArpOn = 0, lastAssign = 0, chordN = 3, chordIv[6] { 4, 7, 11, 0, 0, 0 }, learnN = 0, learnNotes[6] {};
-    bool chordLearn = false, lastLearn = false;
+    bool chordLearn = false, lastLearn = false, seqRec = false, lastRec = false;
     bool handleMacroCC (int cc, int value);
     float arpStepHz (double bpm) const;
     float arpRateKnob = 0.55f; int arpSyncDiv = 0;

@@ -9,14 +9,15 @@ namespace orage
 {
 constexpr int kVoices = 6, kLfos = 4, kMacros = 8, kSlots = 12;
 enum Assign { AsPoly, AsMono, AsUnison, AsShare, AsChord };
-enum ModSrc { MsNone, MsLfo1, MsLfo2, MsLfo3, MsLfo4, MsMac1, MsMac2, MsMac3, MsMac4, MsEnv, MsVel, MsWheel, MsAmpEnv, MsKey, MsRandom, MsChanAT, MsPolyAT, MsMac5, MsMac6, MsMac7, MsMac8, kNumModSrc };
+enum ModSrc { MsNone, MsLfo1, MsLfo2, MsLfo3, MsLfo4, MsMac1, MsMac2, MsMac3, MsMac4, MsEnv, MsVel, MsWheel, MsAmpEnv, MsKey, MsRandom, MsChanAT, MsPolyAT, MsMac5, MsMac6, MsMac7, MsMac8, MsArp1, MsArp2, MsArp3, MsArp4, kNumModSrc };
+inline const float kFmRatios[12] { 1.f, 0.5f, 2.f / 3.f, 1.f, 1.5f, 2.f, 3.f, 4.f, 5.f, 7.f, 3.5f, 1.41421356f };
 inline int macroSrc (int i) { return i < 4 ? MsMac1 + i : MsMac5 + (i - 4); }
 enum ModDst { MdNone, MdPitch, MdPitch2, MdPw1, MdPw2, MdFm, MdRing, MdMix, MdHpf, MdLpf, MdReso, MdLevel, MdPan,
               MdFold, MdFxPower, MdFxClip, MdFxUnc, MdFxHpf, MdFxLpf, MdFxPeak, MdFxDestroy, MdFxRate, MdFxSpring, MdFxMix, MdFxChaos, MdBbdTime, MdBbdFb, MdBbdMix,
               MdRevMix, MdRevDecay, MdRevDamp,
               MdNoise, MdHpfReso, MdDrive, MdMorph, MdFltEnv, MdFoldSym, MdLvl1, kNumModDst };
 constexpr int kFxMod = 17;                // destinations FX : MdFxPower .. MdRevDamp (les 10 premieres = les entrees CV du moteur d'effets)
-inline const char* const kModSrcNames[kNumModSrc] { "-", "LFO 1", "LFO 2", "LFO 3", "LFO 4", "MACRO 1", "MACRO 2", "MACRO 3", "MACRO 4", "ENV FLT", "VELOCITY", "MOD WHEEL", "ENV AMP", "KEY TRACK", "RANDOM", "AFTERTOUCH", "POLY AT", "MACRO 5", "MACRO 6", "MACRO 7", "MACRO 8" };
+inline const char* const kModSrcNames[kNumModSrc] { "-", "LFO 1", "LFO 2", "LFO 3", "LFO 4", "MACRO 1", "MACRO 2", "MACRO 3", "MACRO 4", "ENV FLT", "VELOCITY", "MOD WHEEL", "ENV AMP", "KEY TRACK", "RANDOM", "AFTERTOUCH", "POLY AT", "MACRO 5", "MACRO 6", "MACRO 7", "MACRO 8", "ARP LANE 1", "ARP LANE 2", "ARP LANE 3", "ARP LANE 4" };
 inline const char* const kModDstNames[kNumModDst] { "-", "PITCH", "PITCH VCO2", "PWM VCO1", "PWM VCO2", "FM", "RING", "MIX VCO2", "HPF", "LPF", "RESO", "LEVEL", "PAN",
     "FOLD", "FX DRIVE", "FX CLIP", "FX UNCERT.", "FX HPF", "FX LPF", "FX PEAK", "FX DESTROY", "FX D.RATE", "FX SPRING", "FX DRY/WET", "FX CHAOS", "BBD TIME", "BBD FEEDBK", "BBD MIX",
     "REV MIX", "REV DECAY", "REV DAMP", "NOISE", "HPF RESO", "DRIVE", "SEM MORPH", "FLT ENV AMT", "FOLD SYM", "LEVEL VCO1" };
@@ -37,6 +38,8 @@ struct SynthParams
     float aA = 0.01f, aD = 0.3f, aS = 0.8f, aR = 0.25f;
     float fA = 0.01f, fD = 0.35f, fS = 0.2f, fR = 0.25f;
     int assign = 0, hold = 0;                 // affectation des touches (Poly, Mono, Unison, Share, Chord) et HOLD
+    int fmDir = 0, fmRatio = 0, fmWave = 0;   // FM : sens (0 VCO2>VCO1, 1 VCO1>VCO2, 2 croisee), rapport de frequence (0 libre), onde du modulateur (0 = celle du VCO)
+    float fmFine = 0.f, fmAtt = 0.f, fmDec = 0.4f, fmEnvAmt = 0.f, fmVel = 0.f, fmAT = 0.f;     // FM : desaccord fin, enveloppe de profondeur, vitesse, aftertouch
     float uniDetune = 0.3f;                   // ecart de desaccord des voix empilees
     int ftype = 0;                            // filtre passe-bas : 0 MS20, 1 SEM, 2 Ladder
     float semMorph = 0.f;                     // SEM : LP -> notch -> HP
@@ -45,6 +48,7 @@ struct SynthParams
     struct Lfo { float rate = 0.4f, slew = 0.f, fade = 0.f; int wave = 0, sync = 0, trig = 0; } lfo[kLfos];     // wave : 0 sin, 1 tri, 2 saw, 3 carre, 4 S&H
     float macro[kMacros] {};
     struct Slot { int src = 0, dst = 0; float amt = 0.f; } slot[kSlots];
+    struct Lane { int dst = 0; float amt = 0.f, glide = 0.f; } lane[4];      // pistes de modulation de l'arpegiateur : destination directe (sans passer par la matrice)
 };
 
 namespace sy
@@ -233,14 +237,7 @@ public:
         }
     }
     void noteOffRaw (int note) { releaseNote (note, true); }
-    // arpegiateur en POLY : un "VCO" fixe par pas (rotation sur 4). Comme sur le Mono/Poly, chaque VCO reagit differemment a la FM.
-    void noteOnSlot (int note, float vel, int slot)
-    {
-        if (slot < 0 || slot >= kVoices) return;
-        static const float kFm[4] { 0.25f, 1.f, 0.65f, 1.4f };
-        if (auto* v = startVoice (note, vel, 0.f, 0.f, 1.f, slot, true)) v->fmK = kFm[slot & 3];
-    }
-    void noteOffSlot (int slot, int note) { if (slot >= 0 && slot < kVoices && voices[slot].active && voices[slot].gated && voices[slot].note == note) release (voices[slot]); }
+    void setLane (int i, float v) { laneT[i] = v; }
     const float* fxMod() const { return fxOut; }                  // modulations globales des effets (matrice : destinations FX/BBD)
     int activeVoices() const { int n = 0; for (auto& v : voices) n += v.active ? 1 : 0; return n; }
 
@@ -259,6 +256,11 @@ public:
                 if (gPhase[i] >= 1.f) { gPhase[i] -= std::floor (gPhase[i]); gSh[i] = rnd(); }
                 gCur[i] += (gSh[i] - gCur[i]) * slewCoef (P.lfo[i].slew, lfoHz[i], dt);          // S&H : marches lissees par SLEW
             }
+            for (int i = 0; i < 4; ++i)                                      // pistes de l'arpegiateur : marches ou glissando selon GLIDE
+            {
+                const float sec = P.lane[i].glide * 0.6f;
+                laneC[i] += (laneT[i] - laneC[i]) * (sec < 0.002f ? 1.f : 1.f - std::exp (-dt / (sec * 0.35f)));
+            }
             for (auto& v : voices)
                 if (v.active) renderVoice (v, L + pos, R + pos, len, lfoHz, dt);
         }
@@ -271,8 +273,8 @@ private:
     struct Voice
     {
         bool active = false; int note = 60; float vel = 1.f; uint64_t age = 0;
-        bool gated = false, raw = false; int slot = -1; float uniCents = 0.f, uniPan = 0.f, gainV = 1.f, fmK = 1.f;
-        sy::Env aenv, fenv; float pitch = 60.f, ph1 = 0.f, ph2 = 0.f, prev2 = 0.f;
+        bool gated = false, raw = false; int slot = -1; float uniCents = 0.f, uniPan = 0.f, gainV = 1.f;
+        sy::Env aenv, fenv; float pitch = 60.f, ph1 = 0.f, ph2 = 0.f, prev1 = 0.f, prev2 = 0.f, fmT = 0.f;
         sy::Hp hp; sy::Lp lp; sy::Sem sem; sy::Ladder lad; float pat = 0.f, patS = 0.f, rndv = 0.f; float xPrev = 0.f; float lph[kLfos] {}, lfade[kLfos] {}, lsh[kLfos] {}, lcur[kLfos] {};
     };
     static constexpr int kKeys = 16;
@@ -283,6 +285,7 @@ private:
     Voice voices[kVoices];
     SynthParams P;
     float fs = 44100.f, bpm = 120.f, wheel = 0.f, bend = 0.f, gPhase[kLfos] {}, gSh[kLfos] {}, gCur[kLfos] {};
+    float laneT[4] {}, laneC[4] {};
     uint64_t counter = 0; int lastNote = -1; uint32_t seed = 12345u;
     float lastVel = 0.8f, fxOut[kFxMod] {}, chanAT = 0.f, lastRnd = 0.f, lastKey = 0.f;
 
@@ -397,6 +400,7 @@ private:
         float src[kNumModSrc] {};
         for (int i = 0; i < kLfos; ++i) src[MsLfo1 + i] = lfoWave (gPhase[i], P.lfo[i].wave, gCur[i]);
         for (int i = 0; i < kMacros; ++i) src[macroSrc (i)] = P.macro[i];
+        for (int i = 0; i < 4; ++i) src[MsArp1 + i] = laneC[i];
         float e = 0.f; for (auto& v : voices) if (v.active) e = std::max (e, v.fenv.v);
         src[MsEnv] = e; src[MsVel] = lastVel; src[MsWheel] = wheel;
         float ae = 0.f, pa = 0.f; for (auto& v : voices) if (v.active) { ae = std::max (ae, v.aenv.v); pa = std::max (pa, v.patS); }
@@ -404,6 +408,8 @@ private:
         float acc[kFxMod] {};
         for (const auto& sl : P.slot)
             if (sl.src > 0 && sl.dst >= MdFxPower && sl.dst <= MdRevDamp && sl.amt != 0.f) acc[sl.dst - MdFxPower] += src[sl.src] * sl.amt;
+        for (int i = 0; i < 4; ++i)
+            if (P.lane[i].dst >= MdFxPower && P.lane[i].dst <= MdRevDamp && P.lane[i].amt != 0.f) acc[P.lane[i].dst - MdFxPower] += laneC[i] * P.lane[i].amt;
         for (int i = 0; i < kFxMod; ++i) fxOut[i] = std::min (2.f, std::max (-2.f, acc[i]));
     }
 
@@ -456,6 +462,7 @@ private:
             src[MsLfo1 + i] = lfoWave (ph, l.wave, sh) * fadeG;
         }
         for (int i = 0; i < kMacros; ++i) src[macroSrc (i)] = P.macro[i];
+        for (int i = 0; i < 4; ++i) src[MsArp1 + i] = laneC[i];
         const float fe = v.fenv.tick (P.fA, P.fD, P.fS, P.fR, fs / (float) kCtl);   // enveloppes cadencees au bloc
         src[MsEnv] = fe; src[MsVel] = v.vel; src[MsWheel] = wheel;
         src[MsAmpEnv] = v.aenv.v; src[MsKey] = std::max (-1.f, std::min (1.f, (v.pitch - 60.f) / 48.f)); src[MsRandom] = v.rndv;
@@ -464,16 +471,24 @@ private:
         float md[kNumModDst] {};
         for (const auto& s : P.slot)
             if (s.src > 0 && s.dst > 0 && s.amt != 0.f) md[s.dst] += src[s.src] * s.amt;
+        for (int i = 0; i < 4; ++i)
+            if (P.lane[i].dst > 0 && P.lane[i].amt != 0.f) md[P.lane[i].dst] += laneC[i] * P.lane[i].amt;
 
         const float glideC = P.glide > 0.001f ? 1.f - std::exp (-dtCtl / (P.glide * 0.6f + 0.002f)) : 1.f;
         v.pitch += (((float) v.note) - v.pitch) * glideC;
         const float n1 = v.pitch + 12.f * (float) P.oct1 + bend + md[MdPitch] * 12.f + v.uniCents * 0.01f;
         const float n2 = v.pitch + 12.f * (float) P.oct2 + P.tune2 + P.fine2 * 0.01f + bend + md[MdPitch] * 12.f + md[MdPitch2] * 12.f + v.uniCents * 0.01f;
-        const float f1 = 440.f * std::pow (2.f, (n1 - 69.f) / 12.f), f2 = 440.f * std::pow (2.f, (n2 - 69.f) / 12.f);
+        // rapport de frequence entre les deux VCO (FM) : VCO2 suit VCO1 x rapport, la hauteur propre de VCO2 est ignoree
+        const float n2r = P.fmRatio > 0 ? n1 + 12.f * std::log2 (kFmRatios[std::min (11, P.fmRatio)]) + P.fmFine * 0.5f + md[MdPitch2] * 12.f : n2 + P.fmFine * 0.5f;
+        const float f1 = 440.f * std::pow (2.f, (n1 - 69.f) / 12.f), f2 = 440.f * std::pow (2.f, (n2r - 69.f) / 12.f);
         const float pw1 = std::min (0.95f, std::max (0.05f, P.pw1 + md[MdPw1] * 0.45f));
         const float pw2 = std::min (0.95f, std::max (0.05f, P.pw2 + md[MdPw2] * 0.45f));
         const float noiseA = std::min (1.f, std::max (0.f, P.noise + md[MdNoise])), lv1 = std::min (1.f, std::max (0.f, P.lvl1 + md[MdLvl1]));
-        const float fmA = std::min (1.f, std::max (0.f, P.fm + md[MdFm])), ringA = std::min (1.f, std::max (0.f, P.ring + md[MdRing]));
+        // enveloppe de profondeur FM : montee (ATT) puis descente exponentielle (DEC) depuis le debut de la note
+        v.fmT += dtCtl;
+        const float fAtt = 0.001f * std::pow (1000.f, P.fmAtt), fDec = 0.03f * std::pow (100.f, P.fmDec);
+        const float fEnv = v.fmT < fAtt ? v.fmT / fAtt : std::exp (-(v.fmT - fAtt) / fDec * 3.f);
+        const float fmA = std::min (1.f, std::max (0.f, P.fm + md[MdFm] + P.fmEnvAmt * fEnv + P.fmVel * v.vel + P.fmAT * v.patS)), ringA = std::min (1.f, std::max (0.f, P.ring + md[MdRing]));
         const float l2 = std::min (1.f, std::max (0.f, P.lvl2 + md[MdMix]));
 
         // ---- filtres
@@ -498,14 +513,20 @@ private:
 
         for (int i = 0; i < len; ++i)
         {
-            // VCO1 est module en frequence par VCO2 (FM audio), VCO2 est recale par VCO1 (hard sync)
-            const float inc1 = dt1 * std::pow (2.f, fmA * v.fmK * 2.5f * v.prev2);
+            // FM audio (sens au choix) ; VCO2 est recale par VCO1 si le hard sync est actif
+            const float inc1 = P.fmDir != 1 ? dt1 * std::pow (2.f, fmA * 2.5f * v.prev2) : dt1;
+            const float inc2 = P.fmDir != 0 ? dt2 * std::pow (2.f, fmA * 2.5f * v.prev1) : dt2;
             v.ph1 += inc1;
-            if (v.ph1 >= 1.f) { v.ph1 -= 1.f; if (P.sync) v.ph2 = v.ph1 * dt2 / std::max (inc1, 1e-6f); }
-            v.ph2 += dt2; if (v.ph2 >= 1.f) v.ph2 -= 1.f;
+            if (v.ph1 >= 1.f) { v.ph1 -= 1.f; if (P.sync) v.ph2 = v.ph1 * inc2 / std::max (inc1, 1e-6f); }
+            v.ph2 += inc2; if (v.ph2 >= 1.f) v.ph2 -= 1.f;
             const float o1 = sy::osc (P.wave1, v.ph1, std::min (0.45f, inc1), pw1);
-            const float o2 = sy::osc (P.wave2, v.ph2, std::min (0.45f, dt2), pw2);
-            v.prev2 = o2;
+            const float o2 = sy::osc (P.wave2, v.ph2, std::min (0.45f, inc2), pw2);
+            if (P.fmWave == 0) { v.prev1 = o1; v.prev2 = o2; }
+            else                                                                  // modulateur dedie : sinus, triangle ou carre
+            {
+                auto m = [this] (float ph, float inc) { return P.fmWave == 1 ? std::sin (6.2831853f * ph) : sy::osc (P.fmWave == 2 ? 2 : 1, ph, std::min (0.45f, inc), 0.5f); };
+                v.prev1 = m (v.ph1, inc1); v.prev2 = m (v.ph2, inc2);
+            }
             float x = o1 * lv1 + o2 * l2 + o1 * o2 * ringA * 1.4f + rnd() * noiseA * 0.7f;
             if (foldA > 0.001f) { const float xm = 0.5f * (x + v.xPrev); v.xPrev = x; x = 0.5f * (sy::fold (xm, foldA, foldS) + sy::fold (x, foldA, foldS)); }   // wavefolder (2 points : un peu moins de repliement)
             else v.xPrev = x;

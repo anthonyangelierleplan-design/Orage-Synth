@@ -129,14 +129,28 @@ const std::vector<SynDef>& synDefs()
         }
         F ("s_fold", "Wavefolder", 0, 1, 0);  F ("s_foldSym", "Fold Symmetry", -1, 1, 0);
         C ("s_arpOn", "Arp", "Off|On|Latch", 0);
-        C ("s_arpMode", "Arp Direction", "Up|Down|Up-Down", 0);
+        C ("s_arpMode", "Arp Direction", "Up|Down|Up-Down|Played|Random|Converge", 0);
         C ("s_arpOct", "Arp Range", "1 Oct|2 Oct|Full", 0);
         C ("s_ftype", "Filter Type", "MS-20|SEM|Ladder", 0);  F ("s_semMorph", "SEM Morph", 0, 1, 0);
         C ("s_assign", "Key Assign", "Poly|Mono|Unison|Share|Chord", 0);  B ("s_hold", "Hold", false);
         F ("s_uniDetune", "Unison Detune", 0, 1, 0.3f);  B ("s_chordLearn", "Chord Learn", false);
         for (int i = 5; i <= kMacros; ++i) F ("s_m" + juce::String (i), "Macro " + juce::String (i), 0, 1, 0);
         F ("s_arpRate", "Arp Rate", 0, 1, 0.55f);  C ("s_arpSync", "Arp Sync", divs.joinIntoString ("|"), 0);
-        F ("s_arpShift", "Arp Shift", 0, 1, 0);  F ("s_arpCluster", "Arp Cluster", 0, 1, 0);
+        F ("s_arpGate", "Arp Gate", 0.05f, 1, 0.5f);  F ("s_arpSwing", "Arp Swing", 0, 1, 0);  F ("s_arpChance", "Arp Chance", 0, 1, 1);
+        B ("s_arpFree", "Arp Free Run", false);
+        { juce::StringArray lens; for (int k = 1; k <= 16; ++k) lens.add (juce::String (k) + (k == 1 ? " STEP" : " STEPS")); C ("s_arpLen", "Arp Steps", lens.joinIntoString ("|"), 7);
+          for (int k = 1; k <= 4; ++k)
+          {
+              const juce::String q ("s_lane" + juce::String (k));
+              C (q + "Len", "Lane " + juce::String (k) + " Steps", lens.joinIntoString ("|"), 7);
+              C (q + "Dst", "Lane " + juce::String (k) + " Dest", dsts.joinIntoString ("|"), 0);
+              F (q + "Amt", "Lane " + juce::String (k) + " Amount", -1, 1, 0.5f);
+              F (q + "Glide", "Lane " + juce::String (k) + " Glide", 0, 1, 0);
+          } }
+        C ("s_fmDir", "FM Direction", "2>1|1>2|Both", 0);  C ("s_fmRatio", "FM Ratio", "Free|1:2|2:3|1:1|3:2|2:1|3:1|4:1|5:1|7:1|7:2|x1.41", 0);  C ("s_fmWave", "FM Wave", "Osc|Sine|Tri|Square", 0);
+        F ("s_fmFine", "FM Fine", -1, 1, 0);  F ("s_fmAtt", "FM Attack", 0, 1, 0);  F ("s_fmDec", "FM Decay", 0, 1, 0.4f);
+        F ("s_fmEnvAmt", "FM Env Amount", 0, 1, 0);  F ("s_fmVel", "FM Velocity", 0, 1, 0);  F ("s_fmAT", "FM Aftertouch", 0, 1, 0);
+        C ("s_arpType", "Arp Type", "Arp|Seq", 0);  B ("s_seqRec", "Step Record", false);
         return v;
     }();
     return defs;
@@ -471,6 +485,100 @@ void aMonopoly (OrageAudioProcessor& p)
     S (p, { {"output",-9},{"s_wave1",0},{"s_wave2",0},{"s_tune2",0.12f},{"s_lvl2",0.6f},{"s_ftype",2},{"s_lpf",0.4f},{"s_lpfRes",0.5f},{"s_fltEnv",0.5f},{"s_fD",0.2f},{"s_fS",0.1f},{"s_aD",0.25f},{"s_aS",0.5f},{"s_aR",0.2f},
             {"s_arpOn",2},{"s_arpMode",2},{"s_arpOct",2},{"s_assign",3},{"s_arpRate",0.65f},{"bbdMix",0.3f},{"bbdSync",5},{"revMix",0.2f},{"power",0.3f} });
 }
+// ---- sequenceur : motif de pas ("0" silence, "1" note, "2" accent), ratchets ("1".."4") et pistes de modulation
+void setSteps (OrageAudioProcessor& p, const char* st, const char* rt = nullptr)
+{
+    for (int i = 0; i < orage::kArpSteps; ++i)
+    {
+        const char c = st[i] != 0 ? st[i] : '1'; const char r = rt != nullptr && rt[i] != 0 ? rt[i] : '1';
+        p.arpPat.set (i, c - '0', r - '0');
+    }
+}
+void setLane (OrageAudioProcessor& p, int lane, int dst, float amt, float glide, std::initializer_list<float> vals)
+{
+    const juce::String q ("s_lane" + juce::String (lane + 1));
+    p.setParamReal ((q + "Dst").toRawUTF8(), (float) dst); p.setParamReal ((q + "Amt").toRawUTF8(), amt); p.setParamReal ((q + "Glide").toRawUTF8(), glide);
+    p.setParamReal ((q + "Len").toRawUTF8(), (float) (vals.size() - 1));
+    int i = 0; for (float v : vals) if (i < orage::kArpSteps) p.arpPat.lane[lane][i++] = v;
+}
+void aAcid (OrageAudioProcessor& p)
+{
+    S (p, { {"output",-9},{"s_wave1",0},{"s_wave2",0},{"s_tune2",0.08f},{"s_lvl2",0.5f},{"s_ftype",2},{"s_lpf",0.3f},{"s_lpfRes",0.55f},{"s_fltEnv",0.2f},{"s_fD",0.2f},{"s_fS",0.05f},{"s_aD",0.3f},{"s_aS",0.4f},{"s_aR",0.1f},{"s_drive",0.4f},
+            {"s_arpOn",1},{"s_arpMode",0},{"s_arpOct",1},{"s_assign",1},{"s_arpRate",0.68f},{"s_arpGate",0.45f},{"s_arpSwing",0.25f},{"power",0.3f},{"revMix",0.1f} });
+    setSteps (p, "1121101211211012");
+    setLane (p, 0, MdLpf, 0.55f, 0.2f, { 0.1f, 0.5f, 0.3f, 0.9f, 0.2f, 0.7f, 0.4f, 1.0f, 0.15f, 0.6f, 0.3f, 0.8f, 0.25f, 0.55f, 0.35f, 0.95f });
+    setLane (p, 1, MdReso, 0.3f, 0.f, { 0.f, 0.f, 1.f, 0.f, 0.f, 1.f, 0.f, 0.f });
+}
+void aFmSeq (OrageAudioProcessor& p)
+{
+    S (p, { {"output",-9},{"s_wave1",2},{"s_wave2",2},{"s_tune2",12},{"s_lvl2",0.5f},{"s_ftype",1},{"s_lpf",0.65f},{"s_lpfRes",0.2f},{"s_aD",0.35f},{"s_aS",0.35f},{"s_aR",0.3f},
+            {"s_arpOn",1},{"s_arpMode",2},{"s_arpOct",1},{"s_assign",0},{"s_arpRate",0.62f},{"s_arpGate",0.6f},{"bbdMix",0.3f},{"bbdSync",5},{"revMix",0.25f},{"power",0.2f} });
+    setSteps (p, "1111111111111111");
+    setLane (p, 0, MdFm, 0.7f, 0.15f, { 0.f, 0.3f, 0.6f, 1.f, 0.6f, 0.3f, 0.1f, 0.8f });
+    setLane (p, 1, MdPitch2, 0.05f, 0.f, { 0.f, 0.f, 0.5f, 0.f, 1.f, 0.f });
+}
+void aRatchet (OrageAudioProcessor& p)
+{
+    S (p, { {"output",-9},{"s_wave1",1},{"s_wave2",0},{"s_tune2",0.1f},{"s_lvl2",0.4f},{"s_ftype",1},{"s_lpf",0.5f},{"s_lpfRes",0.3f},{"s_fltEnv",0.5f},{"s_fD",0.2f},{"s_fS",0.f},{"s_aD",0.18f},{"s_aS",0.f},{"s_aR",0.15f},
+            {"s_arpOn",1},{"s_arpMode",4},{"s_arpOct",2},{"s_assign",0},{"s_arpRate",0.6f},{"s_arpGate",0.35f},{"s_arpChance",0.8f},{"revMix",0.3f},{"revDecay",0.6f},{"power",0.2f} });
+    setSteps (p, "2101112110121011", "1121142111211421");
+    setLane (p, 0, MdRevMix, 0.5f, 0.f, { 0.1f, 0.1f, 0.4f, 0.1f, 0.9f });
+}
+void aPolymeter (OrageAudioProcessor& p)
+{
+    S (p, { {"output",-10},{"s_wave1",0},{"s_wave2",1},{"s_lvl2",0.5f},{"s_tune2",7},{"s_ftype",1},{"s_lpf",0.45f},{"s_lpfRes",0.25f},{"s_aA",0.2f},{"s_aD",0.5f},{"s_aS",0.5f},{"s_aR",0.6f},
+            {"s_arpOn",2},{"s_arpMode",0},{"s_arpOct",2},{"s_assign",0},{"s_arpRate",0.52f},{"s_arpGate",0.8f},{"revMix",0.35f},{"revDecay",0.7f},{"revShimmer",0.15f},{"power",0.2f} });
+    setSteps (p, "1111111111111111");
+    setLane (p, 0, MdLpf, 0.5f, 0.5f, { 0.1f, 0.4f, 0.8f, 0.5f, 1.f });
+    setLane (p, 1, MdFold, 0.4f, 0.3f, { 0.f, 0.6f, 0.2f, 0.9f, 0.1f, 0.5f, 0.3f });
+    setLane (p, 2, MdPan, 0.5f, 0.4f, { 0.f, 1.f, 0.5f });
+    setLane (p, 3, MdFm, 0.35f, 0.f, { 0.f, 0.f, 1.f, 0.f, 0.f, 0.5f, 0.f, 0.f, 0.8f });
+}
+void setSeq (OrageAudioProcessor& p, std::initializer_list<int> notes, const char* ties = nullptr)
+{
+    int i = 0;
+    for (int n : notes) if (i < orage::kArpSteps) { p.arpPat.seqNote[i] = n; p.arpPat.tie[i] = ties != nullptr && ties[i] == '1' ? 1 : 0; ++i; }
+    p.setParamReal ("s_arpLen", (float) (i - 1));
+    p.setParamReal ("s_arpType", 1);
+}
+void bSeqAcid (OrageAudioProcessor& p)
+{
+    S (p, { {"output",-9},{"s_wave1",0},{"s_wave2",0},{"s_tune2",0.06f},{"s_lvl2",0.5f},{"s_ftype",2},{"s_lpf",0.32f},{"s_lpfRes",0.6f},{"s_fltEnv",0.45f},{"s_fD",0.18f},{"s_fS",0.05f},{"s_aD",0.3f},{"s_aS",0.3f},{"s_aR",0.08f},{"s_drive",0.4f},
+            {"s_arpOn",1},{"s_assign",1},{"s_arpRate",0.7f},{"s_arpGate",0.5f},{"s_arpSwing",0.2f},{"power",0.3f} });
+    setSteps (p, "2112112121121121");
+    setSeq (p, { 36, 36, 48, 36, 39, 36, 51, 36, 34, 34, 46, 34, 41, 36, 48, 43 }, "0000100000001000");
+    setLane (p, 0, MdLpf, 0.5f, 0.15f, { 0.2f, 0.4f, 0.9f, 0.3f, 0.5f, 0.2f, 1.0f, 0.4f });
+}
+void aSeqPluck (OrageAudioProcessor& p)
+{
+    S (p, { {"output",-9},{"s_wave1",1},{"s_wave2",0},{"s_tune2",0.1f},{"s_lvl2",0.4f},{"s_ftype",1},{"s_lpf",0.5f},{"s_lpfRes",0.25f},{"s_fltEnv",0.5f},{"s_fD",0.22f},{"s_fS",0.f},{"s_aD",0.2f},{"s_aS",0.f},{"s_aR",0.2f},
+            {"s_arpOn",1},{"s_arpRate",0.66f},{"s_arpGate",0.4f},{"bbdMix",0.3f},{"bbdSync",5},{"revMix",0.25f},{"power",0.2f} });
+    setSteps (p, "2101121021011210", "0000000000000000");
+    setSeq (p, { 60, 67, 72, 64, 71, 67, 76, 62, 69, 74, 65, 72, 67, 79, 64, 71 });
+    setLane (p, 0, MdRevMix, 0.4f, 0.f, { 0.1f, 0.1f, 0.8f, 0.1f });
+}
+// ---- FM
+void kFmBell (OrageAudioProcessor& p)
+{
+    S (p, { {"output",-9},{"s_wave1",2},{"s_wave2",2},{"s_lvl2",0},{"s_ftype",1},{"s_lpf",0.85f},{"s_lpfRes",0.1f},{"s_fltEnv",0.f},{"s_aA",0.f},{"s_aD",0.65f},{"s_aS",0.f},{"s_aR",0.5f},
+            {"s_fmRatio",10},{"s_fmWave",1},{"s_fm",0.28f},{"s_fmEnvAmt",0.55f},{"s_fmDec",0.55f},{"s_fmVel",0.3f},{"revMix",0.3f},{"revDecay",0.6f},{"power",0.1f} });
+}
+void kFmEp (OrageAudioProcessor& p)
+{
+    S (p, { {"output",-9},{"s_wave1",2},{"s_wave2",2},{"s_lvl2",0},{"s_ftype",1},{"s_lpf",0.8f},{"s_lpfRes",0.1f},{"s_fltEnv",0.f},{"s_aA",0.f},{"s_aD",0.55f},{"s_aS",0.1f},{"s_aR",0.35f},
+            {"s_fmRatio",3},{"s_fmWave",1},{"s_fm",0.12f},{"s_fmEnvAmt",0.5f},{"s_fmDec",0.35f},{"s_fmVel",0.5f},{"bbdMix",0.2f},{"bbdSync",5},{"revMix",0.2f},{"power",0.12f} });
+}
+void lFmBrass (OrageAudioProcessor& p)
+{
+    S (p, { {"output",-9},{"s_wave1",0},{"s_wave2",2},{"s_lvl2",0},{"s_ftype",1},{"s_lpf",0.7f},{"s_lpfRes",0.15f},{"s_fltEnv",0.2f},{"s_aA",0.12f},{"s_aD",0.5f},{"s_aS",0.8f},{"s_aR",0.2f},{"s_glide",0.05f},
+            {"s_fmRatio",3},{"s_fmWave",1},{"s_fm",0.1f},{"s_fmEnvAmt",0.45f},{"s_fmAtt",0.45f},{"s_fmDec",0.5f},{"s_fmVel",0.4f},{"s_fmAT",0.4f},{"power",0.2f},{"revMix",0.15f} });
+}
+void pFmMetal (OrageAudioProcessor& p)
+{
+    S (p, { {"output",-10},{"s_wave1",2},{"s_wave2",2},{"s_lvl2",0.15f},{"s_ftype",1},{"s_lpf",0.6f},{"s_lpfRes",0.2f},{"s_aA",0.45f},{"s_aD",0.6f},{"s_aS",0.8f},{"s_aR",0.9f},
+            {"s_fmRatio",11},{"s_fmWave",2},{"s_fmDir",2},{"s_fm",0.3f},{"s_fmEnvAmt",0.25f},{"s_fmAtt",0.6f},{"s_fmDec",0.8f},{"s_fmFine",0.12f},{"s_fmAT",0.5f},
+            {"revMix",0.4f},{"revDecay",0.75f},{"revShimmer",0.1f},{"power",0.15f} });
+}
 // ---- FX / TEXTURE
 void xWind (OrageAudioProcessor& p)
 {
@@ -508,7 +616,10 @@ const Factory kFactory[] = {
     { "Hard Sync Lead", "Lead", sLead }, { "Wavefold Lead", "Lead", sFoldLead },
     { "Glass Pluck", "Pluck / Keys", kGlass }, { "Ladder Keys", "Pluck / Keys", kLadder }, { "Marimba Ring", "Pluck / Keys", kMarimba }, { "Electric Clav", "Pluck / Keys", kClav }, { "FM Bell Pluck", "Pluck / Keys", sFm },
     { "Arp Rain", "Arp / Seq", aRain }, { "Trance Gate Arp", "Arp / Seq", aTrance }, { "Random Dreams", "Arp / Seq", aRandom }, { "Bass Sequence", "Arp / Seq", aBassSeq }, { "Arp Echo BBD", "Arp / Seq", sArpBbd },
+    { "Seq Acid Line", "Bass", bSeqAcid }, { "Seq Pluck", "Arp / Seq", aSeqPluck },
+    { "FM Bell", "Pluck / Keys", kFmBell }, { "FM E-Piano", "Pluck / Keys", kFmEp }, { "FM Brass", "Lead", lFmBrass }, { "FM Metal Pad", "Pad", pFmMetal },
     { "Unison Monster", "Lead", lUnison }, { "Chord Memory Pad", "Pad", pChordMem }, { "Share Strings", "Pad", pShare }, { "Monopoly Arp", "Arp / Seq", aMonopoly },
+    { "Acid Lanes", "Arp / Seq", aAcid }, { "FM Sequence", "Arp / Seq", aFmSeq }, { "Ratchet Pluck", "Arp / Seq", aRatchet }, { "Polymeter Drift", "Arp / Seq", aPolymeter },
     { "Wind Machine", "FX / Texture", xWind }, { "Metal Rain", "FX / Texture", xMetal }, { "Alien Choir", "FX / Texture", xAlien }, { "Thunder Drone", "FX / Texture", xThunder }, { "Ring Wobble", "FX / Texture", sRing },
 #endif
     { "Waters Of Nazareth (depart)", "Rack FX", fWaters },
@@ -570,7 +681,7 @@ void OrageAudioProcessor::prepareToPlay (double sampleRate, int)
     engine.prepare ((float) sampleRate);
 #if ORAGE_SYNTH
     synth.prepare ((float) sampleRate);
-    arp.prepare ((float) sampleRate);
+    arp.prepare ((float) sampleRate); arp.setPattern (&arpPat);
     evs.clear(); evs.reserve (2048);
 #endif
 }
@@ -631,7 +742,11 @@ orage::SynthParams OrageAudioProcessor::readSynth()
     arpParams.assign = s.assign; arpParams.hold = s.hold != 0;
     for (int k = 4; k < kMacros; ++k) s.macro[k] = f();
     arpRateKnob = f(); arpSyncDiv = n();
-    arpParams.shift = f(); arpParams.cluster = f();
+    arpParams.gate = f(); arpParams.swing = f(); arpParams.chance = f(); arpParams.free = b();
+    arpParams.len = n() + 1;
+    for (int k = 0; k < 4; ++k) { arpParams.laneLen[k] = n() + 1; s.lane[k].dst = n(); s.lane[k].amt = f(); s.lane[k].glide = f(); }
+    s.fmDir = n(); s.fmRatio = n(); s.fmWave = n(); s.fmFine = f(); s.fmAtt = f(); s.fmDec = f(); s.fmEnvAmt = f(); s.fmVel = f(); s.fmAT = f();
+    arpParams.seq = n() == 1; seqRec = b();
     jassert (i == rawSyn.size());
     return s;
 }
@@ -669,10 +784,12 @@ void OrageAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
 
         // ---- evenements du bloc : MIDI direct, ou arpegiateur (qui genere ses propres notes)
         evs.clear();
-        arp.setParams (arpParams);
-        const bool arpOn = arpParams.on != 0;
-        if (arpParams.on != lastArpOn) { lastArpOn = arpParams.on; synth.allNotesOff(); arp.allOff(); }
-        if (arpParams.assign != lastAssign) { lastAssign = arpParams.assign; arp.resetVoices(); }         // changer de mode ne coupe pas l'arpege : les touches restent
+        const bool recActive = arpParams.seq && seqRec;                    // enregistrement pas a pas : les touches jouent normalement et remplissent les pas
+        orage::ArpParams ap = arpParams; if (recActive) ap.on = 0;
+        arp.setParams (ap);
+        const bool arpOn = ap.on != 0;
+        if (recActive != lastRec) { lastRec = recActive; synth.allNotesOff(); arp.allOff(); if (recActive) arpPat.recPos = 0; }
+        if (ap.on != lastArpOn || ap.assign != lastAssign) { lastArpOn = ap.on; lastAssign = ap.assign; synth.allNotesOff(); arp.allOff(); }
         if (chordLearn != lastLearn)
         {
             if (chordLearn) { learnN = 0; }
@@ -694,6 +811,12 @@ void OrageAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
             if (m.isNoteOn())
             {
                 if (chordLearn && learnN < 6) learnNotes[learnN++] = m.getNoteNumber();
+                if (recActive)
+                {
+                    const int rp = juce::jlimit (0, orage::kArpSteps - 1, arpPat.recPos.load());
+                    arpPat.seqNote[rp] = m.getNoteNumber(); arpPat.step[rp] = m.getFloatVelocity() >= 0.85f ? 2 : 1; arpPat.tie[rp] = 0;
+                    arpPat.recPos = (rp + 1) % juce::jlimit (1, orage::kArpSteps, arpParams.len);
+                }
                 if (chordLearn) continue;                                    // en apprentissage, les touches ne jouent pas
                 if (arpOn) arp.noteOn (m.getNoteNumber(), m.getFloatVelocity()); else evs.push_back ({ pos, 0, m.getNoteNumber(), m.getFloatVelocity() });
             }
@@ -708,7 +831,13 @@ void OrageAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
         {
             orage::Arp::Ev ae[256];
             const int ac = arp.process (total, arpStepHz (bpm), ae, 256);
-            for (int k = 0; k < ac; ++k) evs.push_back ({ juce::jlimit (0, total - 1, ae[k].pos), ae[k].slot >= 0 ? (ae[k].on ? 10 : 11) : (ae[k].on ? (ae[k].stack ? 8 : 7) : 9), ae[k].note, ae[k].vel, ae[k].slot });
+            arpStepShown.store (arp.currentStep());
+            for (int k = 0; k < ac; ++k)
+            {
+                const int ps = juce::jlimit (0, total - 1, ae[k].pos);
+                if (ae[k].lane >= 0) evs.push_back ({ ps, 10, ae[k].lane, ae[k].val });
+                else evs.push_back ({ ps, ae[k].on ? (ae[k].stack ? 8 : 7) : 9, ae[k].note, ae[k].vel });
+            }
         }
         std::stable_sort (evs.begin(), evs.end(), [] (const MidiEv& a, const MidiEv& b) { return a.pos < b.pos; });
 
@@ -726,11 +855,10 @@ void OrageAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
                 case 1: synth.noteOff (e.a); break;
                 case 2: synth.allNotesOff(); break;
                 case 3: synth.setBend (e.v); break;
+                case 10: synth.setLane (e.a, e.v); break;
                 case 7: synth.noteOnRaw (e.a, e.v); break;
                 case 8: synth.noteOnStack (e.a, e.v); break;
                 case 9: synth.noteOffRaw (e.a); break;
-                case 10: synth.noteOnSlot (e.a, e.v, e.b); break;
-                case 11: synth.noteOffSlot (e.b, e.a); break;
                 case 5: synth.setPolyAT (e.a, e.v); break;
                 case 6: synth.setChanAT (e.v); break;
                 default: synth.setWheel (e.v); break;
@@ -770,6 +898,14 @@ juce::ValueTree OrageAudioProcessor::captureState()
     state.setProperty ("hdr", headerScope.load(), nullptr);
     { juce::String c; for (int k = 0; k < chordN; ++k) c << chordIv[k] << ","; state.setProperty ("chord", c, nullptr); }
     { juce::String c; for (int k = 0; k < 8; ++k) c << macroCC[k].load() << ","; state.setProperty ("macroCC", c, nullptr); }
+#if ORAGE_SYNTH
+    {
+        juce::String c;
+        for (int k = 0; k < orage::kArpSteps; ++k) c << arpPat.step[k].load() << ":" << arpPat.ratchet[k].load() << ":" << arpPat.seqNote[k].load() << ":" << arpPat.tie[k].load() << ",";
+        for (int l = 0; l < orage::kArpLanes; ++l) { c << "|"; for (int k = 0; k < orage::kArpSteps; ++k) c << juce::String (arpPat.lane[l][k].load(), 3) << ","; }
+        state.setProperty ("arpPat", c, nullptr);
+    }
+#endif
     return state;
 }
 
@@ -783,15 +919,34 @@ void OrageAudioProcessor::applyState (juce::ValueTree state)
     headerScope.store ((int) state.getProperty ("hdr", 0));
     {
         juce::StringArray t; t.addTokens (state.getProperty ("macroCC", "").toString(), ",", ""); t.removeEmptyStrings();
-        bool oldDefault = t.size() == 8;                              // anciennes valeurs par defaut (21..28) : on passe aux CC des macros de l'Hydrasynth
-        for (int k = 0; k < t.size() && k < 8; ++k) oldDefault = oldDefault && t[k].getIntValue() == 21 + k;
-        for (int k = 0; k < 8; ++k) macroCC[k].store (k < t.size() && ! oldDefault ? t[k].getIntValue() : 16 + k);
+        for (int k = 0; k < 8; ++k) macroCC[k].store (k < t.size() ? t[k].getIntValue() : 21 + k);
     }
     {
         const auto cs = state.getProperty ("chord", "").toString();
         if (cs.isNotEmpty()) { juce::StringArray t; t.addTokens (cs, ",", ""); t.removeEmptyStrings(); chordN = 0; for (auto& x : t) if (chordN < 6) chordIv[chordN++] = x.getIntValue(); }
         else { const int d[4] { 4, 7, 11, 0 }; chordN = 3; for (int k = 0; k < 3; ++k) chordIv[k] = d[k]; }
     }
+#if ORAGE_SYNTH
+    {
+        arpPat.reset();
+        juce::StringArray parts; parts.addTokens (state.getProperty ("arpPat", "").toString(), "|", "");
+        if (parts.size() > 0)
+        {
+            juce::StringArray t; t.addTokens (parts[0], ",", ""); t.removeEmptyStrings();
+            for (int k = 0; k < orage::kArpSteps && k < t.size(); ++k)
+            {
+                juce::StringArray f; f.addTokens (t[k], ":", "");
+                arpPat.step[k] = juce::jlimit (0, 2, f[0].getIntValue()); arpPat.ratchet[k] = juce::jlimit (1, 4, f[1].getIntValue());
+                arpPat.seqNote[k] = f.size() > 2 ? juce::jlimit (0, 127, f[2].getIntValue()) : 60; arpPat.tie[k] = f.size() > 3 ? juce::jlimit (0, 1, f[3].getIntValue()) : 0;
+            }
+            for (int l = 0; l < orage::kArpLanes && l + 1 < parts.size(); ++l)
+            {
+                juce::StringArray v; v.addTokens (parts[l + 1], ",", ""); v.removeEmptyStrings();
+                for (int k = 0; k < orage::kArpSteps && k < v.size(); ++k) arpPat.lane[l][k] = juce::jlimit (0.f, 1.f, v[k].getFloatValue());
+            }
+        }
+    }
+#endif
     apvts.replaceState (state);
 }
 
@@ -835,6 +990,9 @@ void OrageAudioProcessor::loadFactoryPreset (int i)
 {
     i = juce::jlimit (0, kNumFactory - 1, i);
     resetModules();
+#if ORAGE_SYNTH
+    arpPat.reset();
+#endif
     engine.clearPatch();
     if (i == 0) engine.setRack ({}); else engine.setDefaultRack();      // Init = rack vide ; les autres presets utilisent tous les modules
     if (i != 0) legacyFxDefaults (*this);
