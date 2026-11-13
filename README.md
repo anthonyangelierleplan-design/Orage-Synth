@@ -1,25 +1,4 @@
-# Orage v13 — Foudre Audio
-
-## Nouveautés v13
-- **Module STUTTER / BEAT REPEAT** (rack, Orage et Orage FX) : répétition rythmique de l'audio calée sur le tempo. Modes BEAT REPEAT / REVERSE / GATE / OFFBEAT, divisions 1 mesure à 1/64, feeling droit / triolet / pointé, LENGTH, DECAY, PITCH, MIX, bouton ENGAGE, 5 entrées CV au patchbay (STUT GO / LEN / DEC / PIT / MIX). Le rack accepte maintenant 11 modules.
-- **MIDI learn sur tous les potards** (Orage) : clic droit → assigner / supprimer / CC d'origine ; macros sur CC 16 à 23 par défaut ; bouton MIDI dans l'en-tête pour afficher les CC ; modes de reprise SCALE / PICKUP / DIRECT. Les assignations sont sauvées avec le projet et dans un fichier global, plus dans les presets.
-- **Séquenceur** : tous les paramètres du Stutter (engage, mode, division, feeling, length, decay, pitch, mix) sont des destinations des pistes et de la matrice. Nouveau preset « Stutter Sequencer ».
-- Correctif : état des tuiles de modules dans le panneau latéral.
-
-
-## Nouveautés v12
-- **Identité visuelle « Bel Air »** : nouveau logo ORAGE en lettres chromées (or / argent / cuivre selon le thème, éclair en barre du A, filet de vitesse, étincelle) ; modules FX avec bandeau crème, filet chromé, blason et grand pictogramme gravé sur le panneau ; teintes harmonisées pour chaque thème.
-- **Rack FX** : bouton d'activation / bypass par module (comme Serum 2), glisser-déposer pour réordonner avec défilement automatique du rack, barre de défilement qui ne cache plus les modules, textes mieux dégagés.
-- **6 nouveaux presets de cordes** (catégorie Pad) : Solina Ensemble, Vangelis Strings, Floyd Strings, Zimmer Low Strings, Tape Strings, Bowed FM.
-
-## Nouveautés v8
-- **Design** : quatre thèmes (CHAMPAGNE par défaut, ARGENT, CUIVRE, ORIGINAL noir et orange), bouton LOOK dans l'en-tête ; potards et touches métalliques en relief, plus aucune usure ; Roulette et Chaos retirés.
-- **Oscilloscope** : un clic sur la lampe du haut bascule entre la lampe (chauffe) et l'oscilloscope (sortie finale).
-- **Réverb plaque** (Dattorro) avec SIZE, DECAY, PRE-DELAY, DAMPING, MOTION, WIDTH, LOW CUT, **SHIMMER** (+1 octave) et **FREEZE** ; module du rack, cibles de la matrice (MIX, DECAY, DAMP).
-- **Filtre passe-bas** au choix : MS-20, SEM (12 dB, morph LP/notch/HP) ou Ladder (24 dB).
-- **Matrice** : 12 slots, menus rangés par familles ; nouvelles sources (ENV AMP, KEY TRACK, RANDOM, AFTERTOUCH, POLY AT) et destinations (NOISE, HPF RESO, DRIVE, SEM MORPH, FLT ENV AMT, FOLD SYM, LEVEL VCO1, réverb).
-- **Presets** : ~40 presets d'usine classés par catégorie (Pad, Bass, Lead, Pluck/Keys, Arp/Seq, FX/Texture, Rack FX) ; sauvegarde utilisateur avec catégorie.
-- Les modules FX démarrent à zéro (neutres) quand on les ajoute ; les presets d'usine gardent leur son.
+# Orage v7 — Foudre Audio
 
 Deux plugins, même design (métal peint noir usé, lampes qui chauffent) :
 
@@ -34,9 +13,7 @@ Deux plugins, même design (métal peint noir usé, lampes qui chauffent) :
 - **4 macros** et **matrice de modulation à 8 slots** (sources : LFO 1-4, macros 1-4, env filtre, vélocité, molette ; destinations : pitch, pitch VCO2, PWM 1/2, FM, ring, mix VCO2, HPF, LPF, reso, level, pan).
 - **Filtres MS20 retravaillés** : le HPF (cutoff plus haut, pic de résonance libre) gonfle les basses quand on monte la résonance vers 2 ; le LPF est plus sauvage (saturation asymétrique dans la boucle, la bande passante est ajoutée à la sortie : résonance criarde).
 - **Wavefolder** (repli sinus, FOLD + SYMMETRY) placé avant les filtres ; destination de la matrice.
-- **Key Assign** : POLY / MONO / UNISON / SHARE / CHORD MEMORY (LEARN CHORD), HOLD, DETUNE d'empilement.
-- **Arpégiateur façon Korg Monopoly** : OFF / ON / LATCH, UP / DOWN / UP-DN, 1 OCT / 2 OCT / FULL ; horloge propre (CLOCK libre ou calée sur le tempo) ; le motif dépend du mode Key Assign (SHARE = motifs étranges).
-- **Incertitude** (distorsion) : câble jack défaillant — coupures, grésillements, micro-boucles, surtensions, inversions de phase, écrasement ; fréquence et violence croissantes avec le bouton, aucun bruit ajouté.
+- **Arpégiateur** : UP / DOWN / UP-DN / RAND, division (1/4 à 1/32, avec triolets), 1 à 4 octaves, gate, ratchet x1-x4, chance, hold. Calé sur le tempo et la position d'Ableton.
 - **Matrice** dans un volet déroulant (bouton MATRIX) visible sur les deux onglets ; les destinations incluent maintenant les effets (FX DRIVE, CLIP, UNCERT., HPF, LPF, PEAK, DESTROY, D.RATE, SPRING, DRY/WET, CHAOS) et le delay BBD (TIME, FEEDBACK, MIX). Les sources LFO sont alors les LFO libres (non retriggés).
 - Molette de pitch (±2 demi-tons) et mod wheel (CC1).
 
@@ -52,8 +29,9 @@ Rack réordonnable, **delay BBD** (TIME, FEEDBACK, TONE, WOBBLE, MIX, PING-PONG,
 ## Design
 Façade façon Korg MS20 : zones délimitées par des traits blancs sérigraphiés, potards numérotés 0-10, symboles de formes d'onde. Les fenêtres de confirmation (vider le rack, patchbay, reset, sauvegarde) sont intégrées au plugin. La fenêtre se redimensionne.
 
-- **8 macros** pilotables en MIDI CC (16 à 23 par défaut = macros 1 à 8 de l'Hydrasynth, clic droit = MIDI learn, ex. macros de l'Hydrasynth) ; chaque preset d'usine embarque une sélection de macros (lignes 5 à 12 de la matrice).
-
-- **Page ARP** (onglet dédié) : arpégiateur / séquenceur — grille de 16 pas (silence / note / accent, ratchet), GATE, SWING, CHANCE, 6 directions, FREE RUN ; **mode SEQ** : une note par pas, enregistrement pas à pas (REC / REST / TIE / BACK), lecture transposée par la touche jouée (do central = hauteurs d'origine) ; **4 pistes de modulation** (16 pas, longueurs indépendantes, destination directe + sources ARP LANE 1-4 dans la matrice).
-- **Module FM** : DEPTH, sens (2>1 / 1>2 / croisée), RATIO musical, onde du modulateur, enveloppe de profondeur (ENV AMT / ATTACK / DECAY), FINE, VELOCITY, AFTERTOUCH, palettes BELL / E-PIANO / BRASS / METAL / GROWL / PAD.
-- Correction : les menus groupés de la matrice (sources / destinations) écrivaient le mauvais paramètre.
+## v14
+- **8 pistes de modulation** dans l'onglet ARP (pages LANES 1-4 / 5-8), chacune avec sa destination, sa longueur et son glide. Les pistes 5-8 sont aussi des sources de la matrice.
+- **Matrice à 16 slots** (au lieu de 8), avec beaucoup plus de destinations : enveloppes ADSR amp et filtre, glide, key track, reverb (size, pre-delay, shimmer, width), BBD (tone, wobble), spring, comp, gate, octaver, Color (low/mid/high), arpégiateur (rate, gate, swing, chance), vitesse des 4 LFO.
+- **Menus de destination/source en sous-menus** classés par module (OSCILLATORS, FILTER, ENVELOPES, LFO, ARPEGGIATOR, FX RACK > module…).
+- **Molette de modulation (CC1)** : routage par défaut molette → LPF (slot 13 de la matrice) dans chaque preset ; modifiable.
+- Anciens projets et presets restent compatibles.

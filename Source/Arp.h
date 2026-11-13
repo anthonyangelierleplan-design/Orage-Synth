@@ -11,7 +11,7 @@
 
 namespace orage
 {
-constexpr int kArpSteps = 16, kArpLanes = 4;
+constexpr int kArpSteps = 16, kArpLanes = 8;
 
 // motif partage entre l'interface et le thread audio (valeurs atomiques, lecture sans verrou)
 struct ArpPattern
@@ -44,7 +44,7 @@ struct ArpParams
     bool seq = false;      // mode SEQ : une note memorisee par pas (au lieu des touches tenues)
     bool free = false;     // les pistes de modulation tournent meme sans touche tenue
     int len = 8;           // longueur du motif de notes (1..16)
-    int laneLen[kArpLanes] { 8, 8, 8, 8 };
+    int laneLen[kArpLanes] { 8, 8, 8, 8, 8, 8, 8, 8 };
 };
 
 class Arp

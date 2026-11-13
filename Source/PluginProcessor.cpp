@@ -94,7 +94,7 @@ constexpr int kNumDefs = (int) (sizeof (kDefs) / sizeof (kDefs[0]));
 // ---- presets d'usine
 using namespace orage;
 #if ORAGE_SYNTH
-static_assert (orage::Engine::kExt == orage::kFxMod, "entrees de modulation des effets : moteur et synthe doivent correspondre");
+static_assert (orage::Engine::kExt <= orage::kFxMod && orage::kLanes == orage::kArpLanes, "entrees de modulation des effets et pistes : moteur, synthe et arpegiateur doivent correspondre");
 
 // ---------------------------------------------------------------- parametres du synthe (version instrument)
 struct SynDef { juce::String id, name; float mn, mx, def; Kind kind; juce::String choices; };
@@ -148,7 +148,7 @@ const std::vector<SynDef>& synDefs()
         F ("s_arpGate", "Arp Gate", 0.05f, 1, 0.5f);  F ("s_arpSwing", "Arp Swing", 0, 1, 0);  F ("s_arpChance", "Arp Chance", 0, 1, 1);
         B ("s_arpFree", "Arp Free Run", false);
         { juce::StringArray lens; for (int k = 1; k <= 16; ++k) lens.add (juce::String (k) + (k == 1 ? " STEP" : " STEPS")); C ("s_arpLen", "Arp Steps", lens.joinIntoString ("|"), 7);
-          for (int k = 1; k <= 4; ++k)
+          for (int k = 1; k <= kLanes; ++k)
           {
               const juce::String q ("s_lane" + juce::String (k));
               C (q + "Len", "Lane " + juce::String (k) + " Steps", lens.joinIntoString ("|"), 7);
@@ -308,6 +308,7 @@ void applyMacroSet (OrageAudioProcessor& p, const juce::String& cat)
     static const MacroDef rack[8]  { { MdLpf, 0.5f }, { MdRevMix, 0.4f }, { MdBbdMix, 0.4f }, { MdFxPower, 0.4f }, { MdFxUnc, 0.4f }, { MdFxDestroy, 0.4f }, { MdFxSpring, 0.4f }, { MdFxChaos, 0.4f } };
     const MacroDef* d = cat == "Pad" ? pad : cat == "Bass" ? bass : cat == "Lead" ? lead : cat == "Pluck / Keys" ? keys : cat == "Arp / Seq" ? arp : cat == "FX / Texture" ? fx : rack;
     for (int k = 0; k < 8; ++k) M (p, 5 + k, macroSrc (k), d[k].dst, d[k].amt);
+    M (p, 13, MsWheel, MdLpf, 0.4f);                                    // molette de modulation : routage par defaut (filtre), reglable dans la matrice
 #else
     juce::ignoreUnused (p, cat);
 #endif
@@ -875,7 +876,7 @@ orage::SynthParams OrageAudioProcessor::readSynth()
     arpRateKnob = f(); arpSyncDiv = n();
     arpParams.gate = f(); arpParams.swing = f(); arpParams.chance = f(); arpParams.free = b();
     arpParams.len = n() + 1;
-    for (int k = 0; k < 4; ++k) { arpParams.laneLen[k] = n() + 1; s.lane[k].dst = n(); s.lane[k].amt = f(); s.lane[k].glide = f(); }
+    for (int k = 0; k < kLanes; ++k) { arpParams.laneLen[k] = n() + 1; s.lane[k].dst = n(); s.lane[k].amt = f(); s.lane[k].glide = f(); }
     s.fmDir = n(); s.fmRatio = n(); s.fmWave = n(); s.fmFine = f(); s.fmAtt = f(); s.fmDec = f(); s.fmEnvAmt = f(); s.fmVel = f(); s.fmAT = f();
     arpParams.seq = n() == 1; seqRec = b();
     jassert (i == rawSyn.size());
@@ -910,6 +911,12 @@ void OrageAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
         keyboardState.processNextMidiBuffer (midi, 0, total, true);     // clavier a l'ecran -> notes MIDI
         synth.setHost (bpm);
         synth.setParams (readSynth());
+        {   // modulation globale (matrice, pistes) de l'arpegiateur : valeurs du bloc precedent
+            const float* gm = synth.fxMod();
+            arpParams.gate   = juce::jlimit (0.05f, 1.f, arpParams.gate + 0.5f * gm[39]);
+            arpParams.swing  = juce::jlimit (0.f, 1.f, arpParams.swing + 0.5f * gm[40]);
+            arpParams.chance = juce::jlimit (0.f, 1.f, arpParams.chance + 0.5f * gm[41]);
+        }
         float* sl = buffer.getWritePointer (0);
         float* sr = nc > 1 ? buffer.getWritePointer (1) : buffer.getWritePointer (0);
 
@@ -961,7 +968,7 @@ void OrageAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
         }
         {
             orage::Arp::Ev ae[256];
-            const int ac = arp.process (total, arpStepHz (bpm), ae, 256);
+            const int ac = arp.process (total, arpStepHz (bpm) * std::pow (2.f, 2.f * synth.fxMod()[38]), ae, 256);
             arpStepShown.store (arp.currentStep());
             for (int k = 0; k < ac; ++k)
             {

@@ -7,7 +7,7 @@ namespace { juce::Font bold (float h) { return juce::Font (juce::FontOptions (h,
 // ---------------------------------------------------------------- volet de la matrice
 namespace
 {
-struct Fam { const char* title; std::vector<int> items; };
+struct Fam { const char* title; std::vector<int> items; std::vector<Fam> subs {}; };
 // Les menus sont groupes par famille : l'ordre d'affichage n'est pas l'ordre du parametre. L'attachement standard de JUCE se fonde sur la
 // position dans la liste ; celui-ci se fonde sur l'identifiant (id = index du parametre + 1).
 struct IdComboAttachment
@@ -21,33 +21,46 @@ struct IdComboAttachment
     ~IdComboAttachment() { cb.onChange = nullptr; }
     juce::ComboBox& cb; juce::ParameterAttachment att;
 };
+void addFam (juce::PopupMenu& menu, const Fam& f, const char* const* names)
+{
+    for (int i : f.items) menu.addItem (i + 1, names[i]);                          // id = index du parametre + 1
+    for (const auto& sf : f.subs) { juce::PopupMenu sub; addFam (sub, sf, names); menu.addSubMenu (sf.title, sub); }
+}
+// menus en sous-menus par module (plus de defilement interminable)
 void fillGrouped (juce::ComboBox& cb, const std::vector<Fam>& fams, const char* const* names)
 {
-    cb.addItem ("-", 1);
-    for (const auto& f : fams)
-    {
-        cb.addSectionHeading (f.title);
-        for (int i : f.items) cb.addItem (names[i], i + 1);                       // id = index du parametre + 1
-    }
+    auto* root = cb.getRootMenu();
+    root->addItem (1, "-");
+    for (const auto& f : fams) { juce::PopupMenu sub; addFam (sub, f, names); root->addSubMenu (f.title, sub); }
 }
 const std::vector<Fam>& srcFamilies()
 {
     static const std::vector<Fam> f { { "LFO", { MsLfo1, MsLfo2, MsLfo3, MsLfo4 } }, { "MACROS", { MsMac1, MsMac2, MsMac3, MsMac4, MsMac5, MsMac6, MsMac7, MsMac8 } },
-                                      { "ENVELOPES", { MsEnv, MsAmpEnv } }, { "PERFORMANCE", { MsVel, MsWheel, MsKey, MsChanAT, MsPolyAT } }, { "RANDOM", { MsRandom } }, { "ARP LANES", { MsArp1, MsArp2, MsArp3, MsArp4 } } };
+                                      { "ENVELOPES", { MsEnv, MsAmpEnv } }, { "PERFORMANCE", { MsVel, MsWheel, MsKey, MsChanAT, MsPolyAT } }, { "RANDOM", { MsRandom } },
+                                      { "ARP LANES", { MsArp1, MsArp2, MsArp3, MsArp4, MsArp5, MsArp6, MsArp7, MsArp8 } } };
     return f;
 }
 const std::vector<Fam>& dstFamilies()
 {
     static const std::vector<Fam> f {
-        { "PITCH", { MdPitch, MdPitch2 } },
-        { "OSCILLATORS", { MdPw1, MdPw2, MdFm, MdRing, MdMix, MdLvl1, MdNoise } },
-        { "FILTERS", { MdHpf, MdHpfReso, MdLpf, MdReso, MdMorph, MdFltEnv, MdDrive } },
-        { "WAVEFOLDER", { MdFold, MdFoldSym } },
-        { "AMP / SPACE", { MdLevel, MdPan } },
-        { "FX RACK", { MdFxPower, MdFxClip, MdFxUnc, MdFxHpf, MdFxLpf, MdFxPeak, MdFxDestroy, MdFxRate, MdFxSpring, MdFxMix } },
-        { "BBD DELAY", { MdBbdTime, MdBbdFb, MdBbdMix } },
-        { "STUTTER", { MdStutOn, MdStutMode, MdStutDiv, MdStutFeel, MdStutLen, MdStutDecay, MdStutPitch, MdStutMix } },
-        { "REVERB", { MdRevMix, MdRevDecay, MdRevDamp } } };
+        { "OSCILLATORS", { MdPitch, MdPitch2, MdPw1, MdPw2, MdLvl1, MdMix, MdNoise, MdGlide } },
+        { "FM / RING / FOLD", { MdFm, MdRing, MdFold, MdFoldSym } },
+        { "FILTER", { MdHpf, MdHpfReso, MdLpf, MdReso, MdMorph, MdFltEnv, MdDrive, MdKeyTrack } },
+        { "ENVELOPES", {}, { { "AMP ENVELOPE", { MdAmpA, MdAmpD, MdAmpS, MdAmpR } }, { "FILTER ENVELOPE", { MdFltA, MdFltD, MdFltS, MdFltR } } } },
+        { "LFO", { MdLfo1Rate, MdLfo2Rate, MdLfo3Rate, MdLfo4Rate } },
+        { "ARPEGGIATOR", { MdArpRate, MdArpGate, MdArpSwing, MdArpChance } },
+        { "OUTPUT", { MdLevel, MdPan } },
+        { "FX RACK", { MdFxMix, MdFxChaos }, {
+            { "OCTAVER", { MdOctAmt } },
+            { "DISTORTION", { MdFxPower, MdFxClip, MdFxUnc } },
+            { "COLOR", { MdColLow, MdColMid, MdColHigh } },
+            { "FILTER", { MdFxHpf, MdFxLpf, MdFxPeak } },
+            { "DESTROY", { MdFxDestroy, MdFxRate } },
+            { "COMP / GATE", { MdCompAmt, MdGateThresh } },
+            { "STUTTER", { MdStutOn, MdStutMode, MdStutDiv, MdStutFeel, MdStutLen, MdStutDecay, MdStutPitch, MdStutMix } },
+            { "SPRING", { MdFxSpring, MdSprDecay } },
+            { "BBD DELAY", { MdBbdTime, MdBbdFb, MdBbdMix, MdBbdTone, MdBbdWobble } },
+            { "REVERB", { MdRevMix, MdRevDecay, MdRevDamp, MdRevSize, MdRevPre, MdRevShimmer, MdRevWidth } } } } };
     return f;
 }
 }
@@ -383,10 +396,11 @@ SynthPanel::SynthPanel (OrageAudioProcessor& p, int pg) : proc (p), page (pg)
         }
         // ---- rang 3 : pistes de modulation
         {
-            auto* u = unit ("MODULATION LANES  (each lane drives any destination, with its own length)");
+            auto* u = unit ("MODULATION LANES  (8 lanes, each drives any destination, with its own length)");
             struct L { juce::ComboBox *dst, *len; KnobUnit *amt, *glide; LaneEditor* ed; juce::TextButton *rnd, *clr; Tag* tg; };
             auto lanes = std::make_shared<std::vector<L>>();
-            for (int i = 0; i < 4; ++i)
+            auto page = std::make_shared<int>(0);                                 // 0 : pistes 1-4, 1 : pistes 5-8
+            for (int i = 0; i < kLanes; ++i)
             {
                 const juce::String q ("s_lane" + juce::String (i + 1));
                 L l;
@@ -398,12 +412,24 @@ SynthPanel::SynthPanel (OrageAudioProcessor& p, int pg) : proc (p), page (pg)
                 l.tg = tag (*u, "LANE " + juce::String (i + 1), juce::Justification::centredLeft, 10.f);
                 lanes->push_back (l);
             }
-            u->layoutFn = [lanes] (juce::Rectangle<int> r)
+            auto* p1 = button (*u, "LANES 1-4", nullptr); auto* p2 = button (*u, "LANES 5-8", nullptr);
+            for (auto* b : { p1, p2 }) { b->setClickingTogglesState (true); b->setRadioGroupId (4711); }
+            p1->setToggleState (true, juce::dontSendNotification);
+            auto relayout = [u] { u->resized(); u->repaint(); };
+            p1->onClick = [page, relayout] { *page = 0; relayout(); };
+            p2->onClick = [page, relayout] { *page = 1; relayout(); };
+            u->layoutFn = [lanes, page, p1, p2] (juce::Rectangle<int> r)
             {
                 const int rh = r.getHeight() / 4;
-                for (int i = 0; i < 4; ++i)
+                p1->setBounds (r.getRight() - 170, r.getY() - 25, 80, 18); p2->setBounds (r.getRight() - 86, r.getY() - 25, 80, 18);
+                for (int i = 0; i < kLanes; ++i)
                 {
-                    auto& l = (*lanes)[(size_t) i]; const int y = r.getY() + i * rh;
+                    auto& l = (*lanes)[(size_t) i];
+                    const bool shown = (i / 4) == *page;
+                    for (juce::Component* c : { (juce::Component*) l.dst, (juce::Component*) l.len, (juce::Component*) l.amt, (juce::Component*) l.glide, (juce::Component*) l.ed, (juce::Component*) l.rnd, (juce::Component*) l.clr, (juce::Component*) l.tg })
+                        c->setVisible (shown);
+                    if (! shown) continue;
+                    const int y = r.getY() + (i % 4) * rh;
                     l.tg->setBounds (r.getX(), y + 1, 60, 12);
                     l.dst->setBounds (r.getX(), y + 13, 150, 22); l.len->setBounds (r.getX(), y + 37, 150, 22);
                     l.rnd->setBounds (r.getX(), y + 61, 72, 18); l.clr->setBounds (r.getX() + 78, y + 61, 72, 18);

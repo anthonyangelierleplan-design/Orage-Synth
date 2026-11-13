@@ -946,7 +946,7 @@ public:
     std::atomic<float> heat { 0.f }, arc { 0.f };
     std::atomic<float> compGr { 0.f }, gateLed { 1.f };            // vumeter du comp (dB de reduction) et voyant du gate
     std::atomic<float> modLed[kNumSrc];
-    static constexpr int kExt = 25;                              // 10 entrees CV + chaos + BBD temps / feedback / mix + reverb mix / decay / damp
+    static constexpr int kExt = 38;                              // 10 entrees CV + chaos + BBD temps / feedback / mix + reverb mix / decay / damp
     std::atomic<uint32_t> audioIn[kNumNodes], cvIn[kNumCv];     // le patch : masques de bits des sources branchees
 
     std::atomic<int> rackSlot[kMaxRack];                         // ordre des modules sur le rack (-1 = vide)
@@ -1245,7 +1245,7 @@ private:
         eClip  = clamp01 (U (p.clip,  CvClip)  + 0.45f * c * chaos.v[1]);
         eUnc   = clamp01 (U (p.unc,   CvUnc)   + 0.30f * c * std::fabs (chaos.v[2]));
 
-        const float lowDb = p.low + 9.f * c * chaos.v[2], midDb = p.mid + 9.f * c * chaos.v[3], hiDb = p.high + 9.f * c * chaos.v[1];
+        const float lowDb = p.low + 9.f * c * chaos.v[2] + 12.f * extS[35], midDb = p.mid + 9.f * c * chaos.v[3] + 12.f * extS[36], hiDb = p.high + 9.f * c * chaos.v[1] + 12.f * extS[37];
         if (std::fabs (lowDb - lowDbLast) > 0.01f) { lowB.makeLowShelf (fs, 110.0, lowDb);       lowDbLast = lowDb; }
         if (std::fabs (midDb - midDbLast) > 0.01f) { midB.makePeak (fs, 900.0, 0.8, midDb);       midDbLast = midDb; }
         if (std::fabs (hiDb  - hiDbLast)  > 0.01f) { hiB.makeHighShelf (fs, 4500.0, hiDb);        hiDbLast  = hiDb; }
@@ -1274,10 +1274,10 @@ private:
         eSyncBeats = divBeats (p.dSync);
         if (eSyncBeats > 0.f) eGrainMs = eSyncBeats * 60000.f / (float) curBpm * 0.25f * std::pow (8.f, p.dGrain);
         else                  eGrainMs = 10.f * std::pow (35.f, p.dGrain);
-        comp.set (p.compType, p.compAmt, p.compThresh, p.compAtt);
-        gate.set (p.gateThresh, p.gateRel, p.gateRange);
+        comp.set (p.compType, clamp01 (p.compAmt + 0.6f * extS[32]), p.compThresh, p.compAtt);
+        gate.set (clamp01 (p.gateThresh + 0.6f * extS[33]), p.gateRel, p.gateRange);
         eSpringMix = U (p.springMix, CvSpring);
-        spring.set (p.springDecay, p.springDrip);
+        spring.set (clamp01 (p.springDecay + 0.6f * extS[31]), p.springDrip);
         outTarget = dbToLin (p.output);
         mixTarget = p.on ? U (p.mix, CvMix) : 0.f;
         if (mixCur < 0.f) { mixCur = mixTarget; outCur = outTarget; }
@@ -1286,6 +1286,7 @@ private:
     // ------------------------------------------------ modules
     void modOct (const Buf& in, Buf& o, int n, int nc)
     {
+        const float oa = clamp01 (p.octAmt + 0.6f * extS[34]);
         for (int i = 0; i < n; ++i)
             for (int c = 0; c < nc; ++c)
             {
@@ -1296,7 +1297,7 @@ private:
                     oct.process (c, x, down, up);
                     if (p.octMode == 1 || p.octMode == 3) w += down;
                     if (p.octMode == 2 || p.octMode == 3) w += up;
-                    x = x * (1.f - 0.3f * p.octAmt) + w * p.octAmt;
+                    x = x * (1.f - 0.3f * oa) + w * oa;
                 }
                 o.ch[c][i] = x;
             }
@@ -1429,7 +1430,7 @@ private:
         const float fb = clamp01 (p.bbdFb + 0.6f * extS[12]), mix = clamp01 (p.bbdMix + 0.6f * extS[13]);
         const float* inL = in.ch[0]; const float* inR = in.ch[nc > 1 ? 1 : 0];
         float dummyR[kSub];
-        bbd.process (inL, inR, o.ch[0], nc > 1 ? o.ch[1] : dummyR, n, nc, std::min (1.9f, t), fb, p.bbdTone, p.bbdMod, p.bbdPing, mix);
+        bbd.process (inL, inR, o.ch[0], nc > 1 ? o.ch[1] : dummyR, n, nc, std::min (1.9f, t), fb, clamp01 (p.bbdTone + 0.6f * extS[29]), clamp01 (p.bbdMod + 0.6f * extS[30]), p.bbdPing, mix);
     }
 
     void modVerb (const Buf& in, Buf& o, int n, int nc)
@@ -1437,7 +1438,7 @@ private:
         const float mix = clamp01 (p.revMix + 0.6f * extS[14]), dec = clamp01 (p.revDecay + 0.6f * extS[15]), dmp = clamp01 (p.revDamp + 0.6f * extS[16]);
         const float* inL = in.ch[0]; const float* inR = in.ch[nc > 1 ? 1 : 0];
         float dummyR[kSub];
-        verb.process (inL, inR, o.ch[0], nc > 1 ? o.ch[1] : dummyR, n, nc, mix, p.revSize, dec, p.revPre, dmp, p.revMod, p.revWidth, p.revShimmer, p.revLowCut, p.revFreeze);
+        verb.process (inL, inR, o.ch[0], nc > 1 ? o.ch[1] : dummyR, n, nc, mix, clamp01 (p.revSize + 0.6f * extS[25]), dec, clamp01 (p.revPre + 0.6f * extS[26]), dmp, p.revMod, clamp01 (p.revWidth + 0.6f * extS[28]), clamp01 (p.revShimmer + 0.6f * extS[27]), p.revLowCut, p.revFreeze);
     }
 
     void modStut (const Buf& in, Buf& o, int n, int nc)

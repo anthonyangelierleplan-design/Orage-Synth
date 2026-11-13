@@ -7,22 +7,30 @@
 
 namespace orage
 {
-constexpr int kVoices = 6, kLfos = 4, kMacros = 8, kSlots = 12;
+constexpr int kVoices = 6, kLfos = 4, kMacros = 8, kSlots = 16, kLanes = 8;
 enum Assign { AsPoly, AsMono, AsUnison, AsShare, AsChord };
-enum ModSrc { MsNone, MsLfo1, MsLfo2, MsLfo3, MsLfo4, MsMac1, MsMac2, MsMac3, MsMac4, MsEnv, MsVel, MsWheel, MsAmpEnv, MsKey, MsRandom, MsChanAT, MsPolyAT, MsMac5, MsMac6, MsMac7, MsMac8, MsArp1, MsArp2, MsArp3, MsArp4, kNumModSrc };
+enum ModSrc { MsNone, MsLfo1, MsLfo2, MsLfo3, MsLfo4, MsMac1, MsMac2, MsMac3, MsMac4, MsEnv, MsVel, MsWheel, MsAmpEnv, MsKey, MsRandom, MsChanAT, MsPolyAT, MsMac5, MsMac6, MsMac7, MsMac8, MsArp1, MsArp2, MsArp3, MsArp4, MsArp5, MsArp6, MsArp7, MsArp8, kNumModSrc };
 inline const float kFmRatios[12] { 1.f, 0.5f, 2.f / 3.f, 1.f, 1.5f, 2.f, 3.f, 4.f, 5.f, 7.f, 3.5f, 1.41421356f };
 inline int macroSrc (int i) { return i < 4 ? MsMac1 + i : MsMac5 + (i - 4); }
+inline int laneSrc (int i)  { return i < 4 ? MsArp1 + i : MsArp5 + (i - 4); }
 enum ModDst { MdNone, MdPitch, MdPitch2, MdPw1, MdPw2, MdFm, MdRing, MdMix, MdHpf, MdLpf, MdReso, MdLevel, MdPan,
               MdFold, MdFxPower, MdFxClip, MdFxUnc, MdFxHpf, MdFxLpf, MdFxPeak, MdFxDestroy, MdFxRate, MdFxSpring, MdFxMix, MdFxChaos, MdBbdTime, MdBbdFb, MdBbdMix,
               MdRevMix, MdRevDecay, MdRevDamp,
               MdNoise, MdHpfReso, MdDrive, MdMorph, MdFltEnv, MdFoldSym, MdLvl1,
-              MdStutOn, MdStutMode, MdStutDiv, MdStutFeel, MdStutLen, MdStutDecay, MdStutPitch, MdStutMix, kNumModDst };
-constexpr int kFxMod = 25;                // destinations FX : MdFxPower .. MdRevDamp (les 10 premieres = les entrees CV du moteur d'effets)
-inline const char* const kModSrcNames[kNumModSrc] { "-", "LFO 1", "LFO 2", "LFO 3", "LFO 4", "MACRO 1", "MACRO 2", "MACRO 3", "MACRO 4", "ENV FLT", "VELOCITY", "MOD WHEEL", "ENV AMP", "KEY TRACK", "RANDOM", "AFTERTOUCH", "POLY AT", "MACRO 5", "MACRO 6", "MACRO 7", "MACRO 8", "ARP LANE 1", "ARP LANE 2", "ARP LANE 3", "ARP LANE 4" };
+              MdStutOn, MdStutMode, MdStutDiv, MdStutFeel, MdStutLen, MdStutDecay, MdStutPitch, MdStutMix,
+              MdAmpA, MdAmpD, MdAmpS, MdAmpR, MdFltA, MdFltD, MdFltS, MdFltR, MdGlide, MdKeyTrack,                              // voix : enveloppes, portamento, key tracking
+              MdRevSize, MdRevPre, MdRevShimmer, MdRevWidth, MdBbdTone, MdBbdWobble, MdSprDecay, MdCompAmt, MdGateThresh, MdOctAmt, MdColLow, MdColMid, MdColHigh,   // effets (entrees 25..37 du moteur)
+              MdArpRate, MdArpGate, MdArpSwing, MdArpChance, MdLfo1Rate, MdLfo2Rate, MdLfo3Rate, MdLfo4Rate,                // globaux du synthe (entrees 38..45)
+              kNumModDst };
+constexpr int kFxMod = 46;                // destinations FX : MdFxPower .. MdRevDamp (les 10 premieres = les entrees CV du moteur d'effets)
+inline const char* const kModSrcNames[kNumModSrc] { "-", "LFO 1", "LFO 2", "LFO 3", "LFO 4", "MACRO 1", "MACRO 2", "MACRO 3", "MACRO 4", "ENV FLT", "VELOCITY", "MOD WHEEL", "ENV AMP", "KEY TRACK", "RANDOM", "AFTERTOUCH", "POLY AT", "MACRO 5", "MACRO 6", "MACRO 7", "MACRO 8", "ARP LANE 1", "ARP LANE 2", "ARP LANE 3", "ARP LANE 4", "ARP LANE 5", "ARP LANE 6", "ARP LANE 7", "ARP LANE 8" };
 inline const char* const kModDstNames[kNumModDst] { "-", "PITCH", "PITCH VCO2", "PWM VCO1", "PWM VCO2", "FM", "RING", "MIX VCO2", "HPF", "LPF", "RESO", "LEVEL", "PAN",
     "FOLD", "FX DRIVE", "FX CLIP", "FX UNCERT.", "FX HPF", "FX LPF", "FX PEAK", "FX DESTROY", "FX D.RATE", "FX SPRING", "FX DRY/WET", "FX CHAOS", "BBD TIME", "BBD FEEDBK", "BBD MIX",
     "REV MIX", "REV DECAY", "REV DAMP", "NOISE", "HPF RESO", "DRIVE", "SEM MORPH", "FLT ENV AMT", "FOLD SYM", "LEVEL VCO1",
-    "STUT ENGAGE", "STUT MODE", "STUT DIV", "STUT FEEL", "STUT LENGTH", "STUT DECAY", "STUT PITCH", "STUT MIX" };
+    "STUT ENGAGE", "STUT MODE", "STUT DIV", "STUT FEEL", "STUT LENGTH", "STUT DECAY", "STUT PITCH", "STUT MIX",
+    "AMP ATTACK", "AMP DECAY", "AMP SUSTAIN", "AMP RELEASE", "FLT ATTACK", "FLT DECAY", "FLT SUSTAIN", "FLT RELEASE", "PORTAMENTO", "KEY TRACK",
+    "REV SIZE", "REV PRE-DELAY", "REV SHIMMER", "REV WIDTH", "BBD TONE", "BBD WOBBLE", "SPRING DECAY", "COMP AMOUNT", "GATE THRESH", "OCTAVER DOSE", "COLOR LOW", "COLOR MID", "COLOR HIGH",
+    "ARP RATE", "ARP GATE", "ARP SWING", "ARP CHANCE", "LFO 1 RATE", "LFO 2 RATE", "LFO 3 RATE", "LFO 4 RATE" };
 inline const char* const kLfoDivNames[14] { "Free", "4 bar", "2 bar", "1 bar", "1/2", "1/4", "1/8", "1/16", "1/4.", "1/8.", "1/16.", "1/4T", "1/8T", "1/16T" };
 inline const float kLfoDivBeats[14] { 0.f, 16.f, 8.f, 4.f, 2.f, 1.f, 0.5f, 0.25f, 1.5f, 0.75f, 0.375f, 2.f / 3.f, 1.f / 3.f, 1.f / 6.f };
 
@@ -50,7 +58,7 @@ struct SynthParams
     struct Lfo { float rate = 0.4f, slew = 0.f, fade = 0.f; int wave = 0, sync = 0, trig = 0; } lfo[kLfos];     // wave : 0 sin, 1 tri, 2 saw, 3 carre, 4 S&H
     float macro[kMacros] {};
     struct Slot { int src = 0, dst = 0; float amt = 0.f; } slot[kSlots];
-    struct Lane { int dst = 0; float amt = 0.f, glide = 0.f; } lane[4];      // pistes de modulation de l'arpegiateur : destination directe (sans passer par la matrice)
+    struct Lane { int dst = 0; float amt = 0.f, glide = 0.f; } lane[kLanes];      // pistes de modulation de l'arpegiateur : destination directe (sans passer par la matrice)
 };
 
 namespace sy
@@ -247,7 +255,7 @@ public:
     {
         for (int i = 0; i < n; ++i) { L[i] = 0.f; R[i] = 0.f; }
         // LFO globaux (voix sans retrig)
-        const float lfoHz[kLfos] = { hz (0), hz (1), hz (2), hz (3) };
+        const float lfoHz[kLfos] = { hz (0) * std::pow (2.f, 3.f * fxOut[42]), hz (1) * std::pow (2.f, 3.f * fxOut[43]), hz (2) * std::pow (2.f, 3.f * fxOut[44]), hz (3) * std::pow (2.f, 3.f * fxOut[45]) };   // vitesse des LFO modulable (matrice, +/-3 octaves)
         for (int pos = 0; pos < n; pos += kCtl)
         {
             const int len = std::min (kCtl, n - pos);
@@ -258,7 +266,7 @@ public:
                 if (gPhase[i] >= 1.f) { gPhase[i] -= std::floor (gPhase[i]); gSh[i] = rnd(); }
                 gCur[i] += (gSh[i] - gCur[i]) * slewCoef (P.lfo[i].slew, lfoHz[i], dt);          // S&H : marches lissees par SLEW
             }
-            for (int i = 0; i < 4; ++i)                                      // pistes de l'arpegiateur : marches ou glissando selon GLIDE
+            for (int i = 0; i < kLanes; ++i)                                      // pistes de l'arpegiateur : marches ou glissando selon GLIDE
             {
                 const float sec = P.lane[i].glide * 0.6f;
                 laneC[i] += (laneT[i] - laneC[i]) * (sec < 0.002f ? 1.f : 1.f - std::exp (-dt / (sec * 0.35f)));
@@ -277,7 +285,7 @@ private:
         bool active = false; int note = 60; float vel = 1.f; uint64_t age = 0;
         bool gated = false, raw = false; int slot = -1; float uniCents = 0.f, uniPan = 0.f, gainV = 1.f;
         sy::Env aenv, fenv; float pitch = 60.f, ph1 = 0.f, ph2 = 0.f, prev1 = 0.f, prev2 = 0.f, fmT = 0.f;
-        sy::Hp hp; sy::Lp lp; sy::Sem sem; sy::Ladder lad; float pat = 0.f, patS = 0.f, rndv = 0.f; float xPrev = 0.f; float lph[kLfos] {}, lfade[kLfos] {}, lsh[kLfos] {}, lcur[kLfos] {};
+        sy::Hp hp; sy::Lp lp; sy::Sem sem; sy::Ladder lad; float pat = 0.f, patS = 0.f, rndv = 0.f; float xPrev = 0.f; float lph[kLfos] {}, lfade[kLfos] {}, lsh[kLfos] {}, lcur[kLfos] {}; float envM[8] {};     // envM : modulation des enveloppes (bloc precedent)
     };
     static constexpr int kKeys = 16;
     struct Key { int note; float vel; bool phys; uint64_t t; };
@@ -287,7 +295,7 @@ private:
     Voice voices[kVoices];
     SynthParams P;
     float fs = 44100.f, bpm = 120.f, wheel = 0.f, bend = 0.f, gPhase[kLfos] {}, gSh[kLfos] {}, gCur[kLfos] {};
-    float laneT[4] {}, laneC[4] {};
+    float laneT[kLanes] {}, laneC[kLanes] {};
     uint64_t counter = 0; int lastNote = -1; uint32_t seed = 12345u;
     float lastVel = 0.8f, fxOut[kFxMod] {}, chanAT = 0.f, lastRnd = 0.f, lastKey = 0.f;
 
@@ -401,6 +409,8 @@ private:
     {
         if (dst >= MdFxPower && dst <= MdRevDamp) return dst - MdFxPower;
         if (dst >= MdStutOn && dst <= MdStutMix) return 17 + (dst - MdStutOn);
+        if (dst >= MdRevSize && dst <= MdColHigh) return 25 + (dst - MdRevSize);
+        if (dst >= MdArpRate && dst <= MdLfo4Rate) return 38 + (dst - MdArpRate);
         return -1;
     }
     void computeFxMod()                                                    // sources globales : LFO libres, macros, molette, enveloppe de filtre (voix la plus forte), velocite
@@ -408,7 +418,7 @@ private:
         float src[kNumModSrc] {};
         for (int i = 0; i < kLfos; ++i) src[MsLfo1 + i] = lfoWave (gPhase[i], P.lfo[i].wave, gCur[i]);
         for (int i = 0; i < kMacros; ++i) src[macroSrc (i)] = P.macro[i];
-        for (int i = 0; i < 4; ++i) src[MsArp1 + i] = laneC[i];
+        for (int i = 0; i < kLanes; ++i) src[laneSrc (i)] = laneC[i];
         float e = 0.f; for (auto& v : voices) if (v.active) e = std::max (e, v.fenv.v);
         src[MsEnv] = e; src[MsVel] = lastVel; src[MsWheel] = wheel;
         float ae = 0.f, pa = 0.f; for (auto& v : voices) if (v.active) { ae = std::max (ae, v.aenv.v); pa = std::max (pa, v.patS); }
@@ -416,7 +426,7 @@ private:
         float acc[kFxMod] {};
         for (const auto& sl : P.slot)
             if (sl.src > 0 && sl.amt != 0.f && fxIndex (sl.dst) >= 0) acc[fxIndex (sl.dst)] += src[sl.src] * sl.amt;
-        for (int i = 0; i < 4; ++i)
+        for (int i = 0; i < kLanes; ++i)
             if (P.lane[i].amt != 0.f && fxIndex (P.lane[i].dst) >= 0) acc[fxIndex (P.lane[i].dst)] += laneC[i] * P.lane[i].amt;
         for (int i = 0; i < kFxMod; ++i) fxOut[i] = std::min (2.f, std::max (-2.f, acc[i]));
     }
@@ -470,8 +480,9 @@ private:
             src[MsLfo1 + i] = lfoWave (ph, l.wave, sh) * fadeG;
         }
         for (int i = 0; i < kMacros; ++i) src[macroSrc (i)] = P.macro[i];
-        for (int i = 0; i < 4; ++i) src[MsArp1 + i] = laneC[i];
-        const float fe = v.fenv.tick (P.fA, P.fD, P.fS, P.fR, fs / (float) kCtl);   // enveloppes cadencees au bloc
+        for (int i = 0; i < kLanes; ++i) src[laneSrc (i)] = laneC[i];
+        auto tm = [] (float t, float m) { return t * std::pow (4.f, m); };               // temps d'enveloppe : x4 / :4 a pleine modulation
+        const float fe = v.fenv.tick (tm (P.fA, v.envM[4]), tm (P.fD, v.envM[5]), std::min (1.f, std::max (0.f, P.fS + v.envM[6])), tm (P.fR, v.envM[7]), fs / (float) kCtl);   // enveloppes cadencees au bloc
         src[MsEnv] = fe; src[MsVel] = v.vel; src[MsWheel] = wheel;
         src[MsAmpEnv] = v.aenv.v; src[MsKey] = std::max (-1.f, std::min (1.f, (v.pitch - 60.f) / 48.f)); src[MsRandom] = v.rndv;
         v.patS += (v.pat - v.patS) * 0.4f;
@@ -479,10 +490,13 @@ private:
         float md[kNumModDst] {};
         for (const auto& s : P.slot)
             if (s.src > 0 && s.dst > 0 && s.amt != 0.f) md[s.dst] += src[s.src] * s.amt;
-        for (int i = 0; i < 4; ++i)
+        for (int i = 0; i < kLanes; ++i)
             if (P.lane[i].dst > 0 && P.lane[i].amt != 0.f) md[P.lane[i].dst] += laneC[i] * P.lane[i].amt;
 
-        const float glideC = P.glide > 0.001f ? 1.f - std::exp (-dtCtl / (P.glide * 0.6f + 0.002f)) : 1.f;
+        for (int k = 0; k < 8; ++k) v.envM[k] = md[MdAmpA + k];
+        const float aA2 = tm (P.aA, md[MdAmpA]), aD2 = tm (P.aD, md[MdAmpD]), aS2 = std::min (1.f, std::max (0.f, P.aS + md[MdAmpS])), aR2 = tm (P.aR, md[MdAmpR]);
+        const float glideV = std::min (1.f, std::max (0.f, P.glide + md[MdGlide]));
+        const float glideC = glideV > 0.001f ? 1.f - std::exp (-dtCtl / (glideV * 0.6f + 0.002f)) : 1.f;
         v.pitch += (((float) v.note) - v.pitch) * glideC;
         const float n1 = v.pitch + 12.f * (float) P.oct1 + bend + md[MdPitch] * 12.f + v.uniCents * 0.01f;
         const float n2 = v.pitch + 12.f * (float) P.oct2 + P.tune2 + P.fine2 * 0.01f + bend + md[MdPitch] * 12.f + md[MdPitch2] * 12.f + v.uniCents * 0.01f;
@@ -500,7 +514,7 @@ private:
         const float l2 = std::min (1.f, std::max (0.f, P.lvl2 + md[MdMix]));
 
         // ---- filtres
-        const float kt = (v.pitch - 60.f) / 12.f * P.keytrack;
+        const float kt = (v.pitch - 60.f) / 12.f * std::min (1.5f, std::max (0.f, P.keytrack + md[MdKeyTrack]));
         const float hpfHz = 25.f * std::pow (600.f, std::min (1.f, std::max (0.f, P.hpf + md[MdHpf] * 0.5f)));
         const float lpfOct = std::min (1.f, std::max (0.f, P.lpf + md[MdLpf] * 0.5f));
         float lpfHz = 25.f * std::pow (720.f, lpfOct) * std::pow (2.f, kt + fe * std::min (1.f, std::max (0.f, P.fltEnv + md[MdFltEnv] * 0.5f)) * 5.f);
@@ -544,7 +558,7 @@ private:
             if (P.ftype == 1)      lp = v.sem.run (dx, gL, kSem, morph) * 1.15f;
             else if (P.ftype == 2) lp = v.lad.run (dx * 1.2f, gL, kLad) * (1.f + 1.0f * res);
             else                   lp = v.lp.run (dx, gL, kL, res);
-            const float a = v.aenv.tick (P.aA, P.aD, P.aS, P.aR, fs);
+            const float a = v.aenv.tick (aA2, aD2, aS2, aR2, fs);
             const float y = lp * a * level * v.gainV * (0.35f + 0.65f * v.vel);
             L[i] += y * gl; R[i] += y * gr;
         }
