@@ -968,7 +968,7 @@ void OrageAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
             else if (m.isAftertouch())   evs.push_back ({ pos, 5, m.getNoteNumber(), (float) m.getAfterTouchValue() / 127.f });
             else if (m.isChannelPressure()) evs.push_back ({ pos, 6, 0, (float) m.getChannelPressureValue() / 127.f });
             else if (m.isController() && m.getControllerNumber() != 1 && handleCC (m.getControllerNumber(), m.getControllerValue())) {}
-            else if (m.isController() && m.getControllerNumber() == 1) evs.push_back ({ pos, 4, 0, (float) m.getControllerValue() / 127.f });
+            else if (m.isController() && m.getControllerNumber() == 1) { handleCC (1, m.getControllerValue()); evs.push_back ({ pos, 4, 0, (float) m.getControllerValue() / 127.f }); }
         }
         {
             orage::Arp::Ev ae[256];
@@ -1164,7 +1164,7 @@ bool OrageAudioProcessor::handleCC (int cc, int value)
     if (cc < 0 || cc > 127) return false;
     const float v = (float) value / 127.f;
     const int ln = learnIdx.load();
-    if (ln >= 0 && ln < mapIds.size() && cc != 0 && cc != 1 && cc != 32 && cc != 64 && cc < 120)
+    if (ln >= 0 && ln < mapIds.size() && cc != 0 && cc != 32 && cc != 64 && cc < 120)
     { mapCc[(size_t) ln].store (cc); learnIdx.store (-1); mapDirty.store (true); }
     const float prevHw = hwPos[cc];
     hwPos[cc] = v;
