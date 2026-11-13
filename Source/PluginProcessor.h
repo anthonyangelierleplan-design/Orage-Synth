@@ -81,6 +81,8 @@ public:
     void flushMidiMapIfDirty();                                // ecrit le fichier global si l'assignation a change
     std::atomic<int> takeoverMode { 0 };                       // reprise de valeur : 0 SCALE (converge sans saut), 1 PICKUP (attend de croiser la valeur), 2 DIRECT (saute)
     orage::Synth synth;                     // utilise seulement par la version instrument (ORAGE_SYNTH)
+    std::atomic<int> lastMidiMsg { 0 };     // dernier message MIDI recu (affichage) : kind<<16 | numero<<8 | valeur ; kind 1 note, 2 CC, 3 pitch, 4 aftertouch
+    std::atomic<int> wheelShown { 0 };      // valeur de la molette (CC1) 0..127 pour l'affichage
     std::atomic<int> arpStepShown { -1 };   // pas courant de l'arpegiateur (affichage)
     orage::ArpPattern arpPat;               // motif de l'arpegiateur / sequenceur (pas + pistes de modulation), edite par l'interface
     orage::Arp arp;                         // arpegiateur (version instrument)

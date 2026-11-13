@@ -372,6 +372,7 @@ private:
     std::unique_ptr<OrageDialog> dialog;
     Jack *jackIn = nullptr, *jackOut = nullptr, *jackMix = nullptr;
     LedToggle cablesBtn, midiBtn;
+    juce::Label midiMon;
 
     std::vector<std::unique_ptr<KnobUnit>> knobs;
     std::map<std::string, KnobUnit*> knobById;

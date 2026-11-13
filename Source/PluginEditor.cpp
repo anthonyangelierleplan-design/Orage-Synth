@@ -1390,6 +1390,8 @@ OrageAudioProcessorEditor::OrageAudioProcessorEditor (OrageAudioProcessor& p, ju
     cablesBtn.setToggleState (true, juce::dontSendNotification);
     cablesBtn.onClick = [this] { patchBay.cablesVisible = cablesBtn.getToggleState(); patchBay.repaint(); };
 #if ORAGE_SYNTH
+    addAndMakeVisible (midiMon);                                    // moniteur : dernier message MIDI recu + position de la molette
+    midiMon.setFont (juce::Font (juce::FontOptions (11.f, juce::Font::bold))); midiMon.setColour (juce::Label::textColourId, juce::Colour (0xffe8d9a8)); midiMon.setInterceptsMouseClicks (false, false);
     addAndMakeVisible (midiBtn);                                    // montre / cache les etiquettes CC des potards assignes
     midiBtn.setButtonText ("MIDI");
     {
@@ -1830,6 +1832,16 @@ void OrageAudioProcessorEditor::timerCallback()
     arcShown = juce::jmax (arcShown * 0.82f, proc.engine.arc.load());
     repaint (headerArea);
     patchBay.repaintLeds();
+    {
+        const int v = proc.lastMidiMsg.load(), kind = v >> 16, a = (v >> 8) & 255, b = v & 255;
+        juce::String s = "IN: -";
+        if (kind == 1) s = "IN: NOTE " + juce::String (a) + " v" + juce::String (b);
+        else if (kind == 2) s = "IN: CC" + juce::String (a) + " = " + juce::String (b);
+        else if (kind == 3) s = "IN: PITCH BEND";
+        else if (kind == 4) s = "IN: AFTERTOUCH " + juce::String (b);
+        s += "  |  WHEEL " + juce::String (proc.wheelShown.load());
+        if (midiMon.getText() != s) midiMon.setText (s, juce::dontSendNotification);
+    }
 
     if (vu != nullptr)       { vu->setValue (proc.engine.compGr.load()); vu->tick(); }
     if (gateLamp != nullptr) gateLamp->set (proc.engine.gateLed.load() > 0.5f);
@@ -1871,6 +1883,7 @@ void OrageAudioProcessorEditor::resized()
     cablesBtn.setBounds (W - 540, 44, 108, 24);
     themeBtn.setBounds (W - 640, 44, 100, 24);
     midiBtn.setBounds (W - 640, 16, 100, 24);
+    midiMon.setBounds (W - 530, 16, 125, 24);
 
     // ---- colonnes : panneau lateral | rack | (bandeau de modulation en bas)
     const int vpW = W - 170 - 310;

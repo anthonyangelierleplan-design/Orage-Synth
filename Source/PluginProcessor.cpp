@@ -946,6 +946,10 @@ void OrageAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
         {
             const auto m = meta.getMessage();
             const int pos = juce::jlimit (0, total - 1, meta.samplePosition);
+            if (m.isController()) { lastMidiMsg.store ((2 << 16) | (m.getControllerNumber() << 8) | m.getControllerValue()); if (m.getControllerNumber() == 1) wheelShown.store (m.getControllerValue()); }
+            else if (m.isNoteOn()) lastMidiMsg.store ((1 << 16) | (m.getNoteNumber() << 8) | m.getVelocity());
+            else if (m.isPitchWheel()) lastMidiMsg.store ((3 << 16) | ((m.getPitchWheelValue() >> 7) << 8) | (m.getPitchWheelValue() & 127));
+            else if (m.isChannelPressure() || m.isAftertouch()) lastMidiMsg.store ((4 << 16) | (m.getChannelPressureValue() & 127));
             if (m.isNoteOn())
             {
                 if (chordLearn && learnN < 6) learnNotes[learnN++] = m.getNoteNumber();
