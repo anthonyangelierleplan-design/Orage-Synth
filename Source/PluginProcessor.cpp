@@ -480,6 +480,45 @@ void pShare (OrageAudioProcessor& p)
     S (p, { {"output",-9},{"s_wave1",0},{"s_wave2",1},{"s_lvl2",0.5f},{"s_tune2",0.1f},{"s_ftype",1},{"s_lpf",0.55f},{"s_lpfRes",0.2f},{"s_aA",0.5f},{"s_aS",0.9f},{"s_aR",0.8f},
             {"s_assign",3},{"s_uniDetune",0.4f},{"revMix",0.3f},{"revDecay",0.7f},{"power",0.2f} });
 }
+void pSolina (OrageAudioProcessor& p)
+{
+    S (p, { {"output",-9},{"s_wave1",0},{"s_wave2",0},{"s_tune2",0.12f},{"s_lvl2",0.8f},{"s_ftype",1},{"s_lpf",0.62f},{"s_lpfRes",0.1f},{"s_fltEnv",0.05f},
+            {"s_aA",0.45f},{"s_aS",0.95f},{"s_aR",0.5f},{"s_l1Rate",0.14f},{"bbdMix",0.55f},{"bbdTime",0.12f},{"bbdFb",0.2f},{"revMix",0.2f},{"revDecay",0.55f},{"power",0.2f} });
+    M (p, 1, MsLfo1, MdPitch2, 0.03f); M (p, 2, MsPolyAT, MdLpf, 0.3f);
+}
+void pVangelisStr (OrageAudioProcessor& p)
+{
+    S (p, { {"output",-9},{"s_wave1",0},{"s_wave2",1},{"s_lvl2",0.5f},{"s_tune2",0.1f},{"s_ftype",1},{"s_lpf",0.5f},{"s_lpfRes",0.25f},{"s_fltEnv",0.2f},
+            {"s_aA",0.62f},{"s_aD",0.6f},{"s_aS",0.9f},{"s_aR",0.75f},{"s_l1Rate",0.1f},{"bbdMix",0.3f},{"bbdTime",0.4f},{"bbdFb",0.35f},
+            {"revMix",0.4f},{"revDecay",0.75f},{"revSize",0.8f},{"revDamp",0.5f},{"power",0.2f} });
+    M (p, 1, MsLfo1, MdLpf, 0.15f); M (p, 2, MsWheel, MdLpf, 0.4f); M (p, 3, MsPolyAT, MdRevMix, 0.3f);
+}
+void pFloydStr (OrageAudioProcessor& p)
+{
+    S (p, { {"output",-9},{"s_wave1",0},{"s_wave2",0},{"s_tune2",0.15f},{"s_lvl2",0.7f},{"s_ftype",1},{"s_lpf",0.42f},{"s_lpfRes",0.15f},{"s_drive",0.15f},
+            {"s_aA",0.55f},{"s_aS",0.95f},{"s_aR",0.7f},{"s_l1Rate",0.12f},{"power",0.3f},{"clip",0.15f},{"bbdMix",0.3f},{"bbdTime",0.3f},{"bbdFb",0.25f},
+            {"revMix",0.35f},{"revDecay",0.7f},{"revDamp",0.6f} });
+    M (p, 1, MsPolyAT, MdLpf, 0.3f);
+}
+void pZimmerLow (OrageAudioProcessor& p)
+{
+    S (p, { {"output",-9},{"s_wave1",0},{"s_wave2",0},{"s_oct1",1},{"s_oct2",1},{"s_tune2",0.1f},{"s_lvl2",0.8f},{"s_ftype",1},{"s_lpf",0.4f},{"s_lpfRes",0.15f},{"s_fltEnv",0.2f},
+            {"s_assign",2},{"s_uniDetune",0.35f},{"s_aA",0.7f},{"s_aS",0.95f},{"s_aR",0.7f},{"bbdMix",0.2f},{"revMix",0.35f},{"revDecay",0.8f},{"revSize",0.85f},{"power",0.2f} });
+    M (p, 1, MsPolyAT, MdLpf, 0.4f); M (p, 2, MsWheel, MdRevMix, 0.3f);
+}
+void pTapeStr (OrageAudioProcessor& p)
+{
+    S (p, { {"output",-9},{"s_wave1",0},{"s_wave2",0},{"s_tune2",0.18f},{"s_lvl2",0.7f},{"s_ftype",1},{"s_lpf",0.45f},{"s_lpfRes",0.1f},
+            {"s_aA",0.4f},{"s_aS",0.9f},{"s_aR",0.55f},{"s_l1Rate",0.08f},{"s_l2Rate",0.3f},{"power",0.35f},{"clip",0.2f},{"unc",0.15f},
+            {"bbdMix",0.4f},{"bbdTime",0.2f},{"bbdFb",0.3f},{"revMix",0.25f},{"revDecay",0.6f} });
+    M (p, 1, MsLfo1, MdPitch2, 0.04f); M (p, 2, MsLfo2, MdLpf, 0.08f);
+}
+void pBowedFm (OrageAudioProcessor& p)
+{
+    S (p, { {"output",-10},{"s_wave1",2},{"s_wave2",2},{"s_fm",0.2f},{"s_tune2",12.05f},{"s_lvl1",0.7f},{"s_lvl2",0.3f},{"s_ftype",1},{"s_lpf",0.6f},{"s_lpfRes",0.15f},
+            {"s_aA",0.5f},{"s_aS",0.9f},{"s_aR",0.6f},{"s_l1Rate",0.12f},{"revMix",0.35f},{"revDecay",0.7f},{"power",0.2f} });
+    M (p, 1, MsLfo1, MdFm, 0.1f); M (p, 2, MsPolyAT, MdFm, 0.3f); M (p, 3, MsWheel, MdLpf, 0.3f);
+}
 void aMonopoly (OrageAudioProcessor& p)
 {
     S (p, { {"output",-9},{"s_wave1",0},{"s_wave2",0},{"s_tune2",0.12f},{"s_lvl2",0.6f},{"s_ftype",2},{"s_lpf",0.4f},{"s_lpfRes",0.5f},{"s_fltEnv",0.5f},{"s_fD",0.2f},{"s_fS",0.1f},{"s_aD",0.25f},{"s_aS",0.5f},{"s_aR",0.2f},
@@ -621,6 +660,8 @@ const Factory kFactory[] = {
     { "Unison Monster", "Lead", lUnison }, { "Chord Memory Pad", "Pad", pChordMem }, { "Share Strings", "Pad", pShare }, { "Monopoly Arp", "Arp / Seq", aMonopoly },
     { "Acid Lanes", "Arp / Seq", aAcid }, { "FM Sequence", "Arp / Seq", aFmSeq }, { "Ratchet Pluck", "Arp / Seq", aRatchet }, { "Polymeter Drift", "Arp / Seq", aPolymeter },
     { "Wind Machine", "FX / Texture", xWind }, { "Metal Rain", "FX / Texture", xMetal }, { "Alien Choir", "FX / Texture", xAlien }, { "Thunder Drone", "FX / Texture", xThunder }, { "Ring Wobble", "FX / Texture", sRing },
+    { "Solina Ensemble", "Pad", pSolina }, { "Vangelis Strings", "Pad", pVangelisStr }, { "Floyd Strings", "Pad", pFloydStr },
+    { "Zimmer Low Strings", "Pad", pZimmerLow }, { "Tape Strings", "Pad", pTapeStr }, { "Bowed FM", "Pad", pBowedFm },
 #endif
     { "Waters Of Nazareth (depart)", "Rack FX", fWaters },
     { "Gated Fuzz Wall", "Rack FX", fGated },
@@ -893,6 +934,7 @@ juce::ValueTree OrageAudioProcessor::captureState()
     auto state = apvts.copyState();
     state.setProperty ("patch", juce::String (engine.serializePatch()), nullptr);
     state.setProperty ("rack", juce::String (engine.serializeRack()), nullptr);
+    state.setProperty ("bypass", (int) engine.bypassMask.load(), nullptr);
     state.setProperty ("presetName", presetName, nullptr);
     state.setProperty ("category", presetCategory, nullptr);
     state.setProperty ("hdr", headerScope.load(), nullptr);
@@ -914,6 +956,7 @@ void OrageAudioProcessor::applyState (juce::ValueTree state)
     engine.loadPatch (state.getProperty ("patch", "").toString().toStdString());
     const auto rk = state.getProperty ("rack", "").toString();
     if (rk.isNotEmpty()) engine.loadRack (rk.toStdString()); else engine.setDefaultRack();
+    engine.bypassMask.store ((uint32_t) (int) state.getProperty ("bypass", 0));
     presetName = state.getProperty ("presetName", "Init").toString();
     presetCategory = state.getProperty ("category", "").toString();
     headerScope.store ((int) state.getProperty ("hdr", 0));
@@ -994,6 +1037,7 @@ void OrageAudioProcessor::loadFactoryPreset (int i)
     arpPat.reset();
 #endif
     engine.clearPatch();
+    engine.bypassMask.store (0);
     if (i == 0) engine.setRack ({}); else engine.setDefaultRack();      // Init = rack vide ; les autres presets utilisent tous les modules
     if (i != 0) legacyFxDefaults (*this);
     kFactory[i].apply (*this);

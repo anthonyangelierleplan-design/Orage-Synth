@@ -1,4 +1,9 @@
-# Orage v8 — Foudre Audio
+# Orage v12 — Foudre Audio
+
+## Nouveautés v12
+- **Identité visuelle « Bel Air »** : nouveau logo ORAGE en lettres chromées (or / argent / cuivre selon le thème, éclair en barre du A, filet de vitesse, étincelle) ; modules FX avec bandeau crème, filet chromé, blason et grand pictogramme gravé sur le panneau ; teintes harmonisées pour chaque thème.
+- **Rack FX** : bouton d'activation / bypass par module (comme Serum 2), glisser-déposer pour réordonner avec défilement automatique du rack, barre de défilement qui ne cache plus les modules, textes mieux dégagés.
+- **6 nouveaux presets de cordes** (catégorie Pad) : Solina Ensemble, Vangelis Strings, Floyd Strings, Zimmer Low Strings, Tape Strings, Bowed FM.
 
 ## Nouveautés v8
 - **Design** : quatre thèmes (CHAMPAGNE par défaut, ARGENT, CUIVRE, ORIGINAL noir et orange), bouton LOOK dans l'en-tête ; potards et touches métalliques en relief, plus aucune usure ; Roulette et Chaos retirés.

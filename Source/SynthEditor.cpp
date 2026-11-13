@@ -299,6 +299,7 @@ SynthPanel::SynthPanel (OrageAudioProcessor& p, int pg) : proc (p), page (pg)
     // potards alignes verticalement au centre de la zone, a taille fixe
     auto place = [] (juce::Rectangle<int> r, std::vector<KnobUnit*> ks, int x0, int cellW)
     {
+        cellW = juce::jmin (cellW, (r.getWidth() - x0) / juce::jmax (1, (int) ks.size()));     // jamais plus large que le module
         int x = r.getX() + x0;
         const int kh = juce::jmin (r.getHeight(), cellW + 28), y = r.getY() + (r.getHeight() - kh) / 2;
         for (auto* k : ks) { k->setBounds (x, y, cellW, kh); x += cellW; }
@@ -405,8 +406,8 @@ SynthPanel::SynthPanel (OrageAudioProcessor& p, int pg) : proc (p), page (pg)
                     l.tg->setBounds (r.getX(), y + 1, 60, 12);
                     l.dst->setBounds (r.getX(), y + 13, 150, 22); l.len->setBounds (r.getX(), y + 37, 150, 22);
                     l.rnd->setBounds (r.getX(), y + 61, 72, 18); l.clr->setBounds (r.getX() + 78, y + 61, 72, 18);
-                    l.amt->setBounds (r.getX() + 160, y, 80, rh); l.glide->setBounds (r.getX() + 240, y, 80, rh);
-                    l.ed->setBounds (r.getX() + 330, y + 1, r.getWidth() - 330, rh - 2);
+                    l.amt->setBounds (r.getX() + 160, y + 4, 80, rh - 8); l.glide->setBounds (r.getX() + 240, y + 4, 80, rh - 8);
+                    l.ed->setBounds (r.getX() + 330, y + 3, r.getWidth() - 330, rh - 6);
                 }
             };
         }

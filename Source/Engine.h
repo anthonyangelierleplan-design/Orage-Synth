@@ -866,6 +866,7 @@ public:
     std::atomic<uint32_t> audioIn[kNumNodes], cvIn[kNumCv];     // le patch : masques de bits des sources branchees
 
     std::atomic<int> rackSlot[kMaxRack];                         // ordre des modules sur le rack (-1 = vide)
+    std::atomic<uint32_t> bypassMask { 0 };                      // un bit par module : 1 = module contourne (le signal le traverse sans traitement)
 
     Engine()
     {
@@ -1062,6 +1063,14 @@ private:
                 }
             if (fed) for (int c = 0; c < nc; ++c) for (int i = 0; i < n; ++i) in.ch[c][i] = 1.25f * std::tanh (0.8f * in.ch[c][i]);
 
+            if (nd != NOut && (bypassMask.load() & (1u << nd)) != 0)       // module contourne : le signal passe tel quel
+            {
+                out[nd] = in;
+                if (nd == NComp) compGr.store (0.f);
+                if (nd == NGate) gateLed.store (1.f);
+                done[nd] = true;
+                continue;
+            }
             switch (nd)
             {
                 case NOct:     modOct (in, out[nd], n, nc); break;

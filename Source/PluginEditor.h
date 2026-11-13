@@ -30,8 +30,8 @@ inline void applyTheme (int i) { themeIdx = juce::jlimit (0, 3, i); paint = juce
 
 void paintFacade (juce::Image& img, int W, int H, bool frame);     // fond de facade selon le theme
 
-constexpr int kHeaderH = 84;      // hauteur de l'en-tete (une seule lampe)
-constexpr int kFxH = 820;         // hauteur de conception de l'editeur d'effets
+constexpr int kHeaderH = 96;      // hauteur de l'en-tete (une seule lampe)
+constexpr int kFxH = 832;         // hauteur de conception de l'editeur d'effets
 
 class OrageAudioProcessorEditor;
 class RackView;
@@ -237,19 +237,22 @@ public:
     bool fixed, collapsed = false;
     std::function<void (juce::Rectangle<int>)> layoutFn;
     std::function<void()> onRemove;
+    int topTrim = 28;                                // hauteur reservee au bandeau de titre avant la zone des commandes
+    std::function<bool()> isActive;                  // false : module contourne (bypass)
+    std::function<void()> onToggleActive;
     int currentHeight() const { return collapsed ? 26 : fullHeight; }
 private:
     struct JackSlot { Jack* jack; int col, row; juce::String label; };
     std::vector<JackSlot> jackSlots;
     int jackCols = 0;
     RackView* rackView;
-    enum Region { None, Handle, Collapse, Remove } pressed = None;
+    enum Region { None, Handle, Power, Collapse, Remove } pressed = None;
     Region regionAt (juce::Point<int>) const;
     int grabOffset = 0;
 };
 
 // ---------------------------------------------------------------- le rack (contenu du Viewport)
-class RackView : public juce::Component
+class RackView : public juce::Component, private juce::Timer
 {
 public:
     explicit RackView (OrageAudioProcessorEditor& e) : owner (e) {}
@@ -262,8 +265,11 @@ public:
     void dragMove (ModuleUnit*, int pointerY, int grabOffsetY);
     void dragEnd (ModuleUnit*);
 private:
+    void timerCallback() override;                              // defilement automatique pendant un deplacement de module
     OrageAudioProcessorEditor& owner;
     std::vector<ModuleUnit*> order, temp;
+    ModuleUnit* dragU = nullptr;
+    int lastPointerY = 0, dragGrab = 0;
 };
 
 // ---------------------------------------------------------------- panneaux lateraux
@@ -343,7 +349,7 @@ private:
     juce::Image panelTex;
     juce::Random rnd;
     float heatShown = 0.f, arcShown = 0.f;
-    uint32_t lastPatchHash = 0, lastRackHash = 0;
+    uint32_t lastPatchHash = 0, lastRackHash = 0, lastBypass = 0;
 
     // en-tete
     juce::TextButton prevBtn { "<" }, nextBtn { ">" }, nameBtn, saveBtn { "SAVE" };
@@ -381,7 +387,7 @@ private:
 public:
     std::function<void()> onThemeChanged;                        // pour que la fenetre parente repeigne ses propres fonds
 private:
-    static juce::Rectangle<float> lampWindow() { return { 470.f, 6.f, 220.f, 72.f }; }
+    static juce::Rectangle<float> lampWindow() { return { 470.f, 12.f, 220.f, 72.f }; }
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OrageAudioProcessorEditor)
 };

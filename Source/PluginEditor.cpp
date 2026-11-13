@@ -253,6 +253,141 @@ void drawCable (juce::Graphics& g, juce::Point<float> a, juce::Point<float> b, j
         g.drawEllipse (c.x - 6.f, c.y - 6.f, 12.f, 12.f, 1.8f);
     }
 }
+
+// ================================================================ identite "Bel Air" : logo chrome + modules bi-ton
+struct BaWord { juce::Path centre; float width = 0.f; };
+BaWord baWord (const char* txt, float sw, float gap, bool bolt)
+{
+    const float H = 100.f, m = sw * 0.5f; BaWord w; float x = 0.f;
+    for (const char* c = txt; *c; ++c)
+    {
+        juce::Path p; float W = 80.f;
+        switch (*c)
+        {
+        case 'O': W = 92.f; p.addRoundedRectangle (m, m, W - 2 * m, H - 2 * m, 34.f); break;
+        case 'R': W = 78.f;
+            p.startNewSubPath (m, H); p.lineTo (m, m); p.lineTo (W - m - 16, m); p.quadraticTo (W - m, m, W - m, m + 16);
+            p.lineTo (W - m, H * 0.52f - 16); p.quadraticTo (W - m, H * 0.52f, W - m - 16, H * 0.52f); p.lineTo (m, H * 0.52f);
+            p.startNewSubPath (W * 0.40f, H * 0.52f); p.lineTo (W - m + 2, H); break;
+        case 'A': W = 92.f;
+            p.startNewSubPath (m * 0.4f, H); p.lineTo (W * 0.37f, m); p.lineTo (W * 0.63f, m); p.lineTo (W - m * 0.4f, H);
+            if (bolt) { p.startNewSubPath (W * 0.14f, H * 0.54f); p.lineTo (W * 0.58f, H * 0.54f); p.lineTo (W * 0.42f, H * 0.82f); p.lineTo (W * 0.86f, H * 0.82f); }
+            else { p.startNewSubPath (W * 0.20f, H * 0.68f); p.lineTo (W * 0.80f, H * 0.68f); }
+            break;
+        case 'G': W = 90.f;
+            p.startNewSubPath (W - m, m); p.lineTo (m + 30, m); p.quadraticTo (m, m, m, m + 30); p.lineTo (m, H - m - 30); p.quadraticTo (m, H - m, m + 30, H - m);
+            p.lineTo (W - m, H - m); p.lineTo (W - m, H * 0.50f); p.lineTo (W * 0.52f, H * 0.50f); break;
+        case 'E': W = 72.f;
+            p.startNewSubPath (W - m, m); p.lineTo (m, m); p.lineTo (m, H - m); p.lineTo (W - m, H - m);
+            p.startNewSubPath (m, H * 0.5f); p.lineTo (W - m - 10, H * 0.5f); break;
+        case 'F': W = 72.f;
+            p.startNewSubPath (W - m, m); p.lineTo (m, m); p.lineTo (m, H);
+            p.startNewSubPath (m, H * 0.5f); p.lineTo (W - m - 10, H * 0.5f); break;
+        case 'X': W = 84.f;
+            p.startNewSubPath (m, 0.f); p.lineTo (W - m, H); p.startNewSubPath (W - m, 0.f); p.lineTo (m, H); break;
+        }
+        w.centre.addPath (p, juce::AffineTransform::translation (x, 0.f)); x += W + gap;
+    }
+    w.width = x - gap; return w;
+}
+juce::Path baOutline (const juce::Path& c, float sw)
+{
+    juce::Path o; juce::PathStrokeType (sw, juce::PathStrokeType::mitered, juce::PathStrokeType::butt).createStrokedPath (o, c); return o;
+}
+juce::Path baPlaced (const juce::Path& o, float x, float y, float s)
+{
+    juce::Path q (o); q.applyTransform (juce::AffineTransform::scale (s).translated (x, y)); return q;
+}
+struct BaChrome { juce::uint32 hi, mid, dark, low, low2; };
+const BaChrome kBaGold { 0xfffff6d8, 0xffcfa95c, 0xff3d2d12, 0xffe9d092, 0xfffff1c4 };
+const BaChrome kBaSilver { 0xfff7fbff, 0xff95a0b0, 0xff1d2430, 0xffbcc6d4, 0xffeaf0f8 };
+const BaChrome kBaCopper { 0xfffff0d8, 0xffc9764a, 0xff3a1a0c, 0xffe8b08a, 0xffffe0c4 };
+// remplissage chrome (horizon marque) ; biseau calcule a partir d'un masque pour eviter les aretes internes
+void baChromeFill (juce::Graphics& g, juce::Image& img, const juce::Path& o, const BaChrome& c)
+{
+    const auto bb = o.getBounds();
+    for (int i = 4; i >= 1; --i) { g.setColour (juce::Colours::black.withAlpha (0.12f)); g.fillPath (o, juce::AffineTransform::translation ((float) i * 0.6f, (float) i * 0.8f)); }
+    juce::ColourGradient gr (C (c.hi), 0.f, bb.getY(), C (c.low2), 0.f, bb.getBottom(), false);
+    gr.addColour (0.30, C (c.mid)); gr.addColour (0.47, C (c.dark)); gr.addColour (0.50, C (c.hi)); gr.addColour (0.53, C (c.low)); gr.addColour (0.80, C (c.mid));
+    g.setGradientFill (gr); g.fillPath (o);
+    { juce::Graphics::ScopedSaveState ss (g); g.reduceClipRegion (o);
+      g.setGradientFill (juce::ColourGradient (juce::Colours::white.withAlpha (0.30f), bb.getX(), bb.getY(), juce::Colours::white.withAlpha (0.f), bb.getX() + bb.getWidth() * 0.35f, bb.getBottom(), false)); g.fillPath (o); }
+    const auto box = bb.getSmallestIntegerContainer().expanded (4).getIntersection (img.getBounds());
+    if (box.isEmpty()) return;
+    juce::Image mask (juce::Image::ARGB, box.getWidth(), box.getHeight(), true);
+    { juce::Graphics gm (mask); gm.addTransform (juce::AffineTransform::translation ((float) -box.getX(), (float) -box.getY())); gm.setColour (juce::Colours::white); gm.fillPath (o); }
+    juce::Image ov (juce::Image::ARGB, box.getWidth(), box.getHeight(), true);
+    {
+        juce::Image::BitmapData m (mask, juce::Image::BitmapData::readOnly), d (ov, juce::Image::BitmapData::writeOnly);
+        const int w = box.getWidth(), h = box.getHeight();
+        auto at = [&] (int x, int y) { return (x < 0 || y < 0 || x >= w || y >= h) ? 0 : (int) m.getPixelColour (x, y).getAlpha(); };
+        const int D = 2;
+        for (int y = 0; y < h; ++y) for (int x = 0; x < w; ++x)
+        {
+            if (at (x, y) >= 128)
+            {
+                float hi = 0.f, lo = 0.f;
+                for (int k = 1; k <= D; ++k) { if (at (x - k, y - k) < 128) hi = juce::jmax (hi, (float) (D + 1 - k) / (float) D); if (at (x + k, y + k) < 128) lo = juce::jmax (lo, (float) (D + 1 - k) / (float) D); }
+                if (hi > 0.f) d.setPixelColour (x, y, juce::Colours::white.withAlpha (0.8f * hi));
+                else if (lo > 0.f) d.setPixelColour (x, y, juce::Colours::black.withAlpha (0.5f * lo));
+            }
+            else if (at (x - 1, y) >= 128 || at (x + 1, y) >= 128 || at (x, y - 1) >= 128 || at (x, y + 1) >= 128)
+                d.setPixelColour (x, y, juce::Colours::black.withAlpha (0.6f));
+        }
+    }
+    juce::Graphics gi (img); gi.drawImageAt (ov, box.getX(), box.getY());
+}
+void baSparkle (juce::Graphics& g, juce::Point<float> c, float r)
+{
+    juce::Path s; s.startNewSubPath (c.x, c.y - r); s.quadraticTo (c.x, c.y, c.x + r * 0.9f, c.y); s.quadraticTo (c.x, c.y, c.x, c.y + r); s.quadraticTo (c.x, c.y, c.x - r * 0.9f, c.y); s.quadraticTo (c.x, c.y, c.x, c.y - r); s.closeSubPath();
+    g.setColour (juce::Colours::white.withAlpha (0.3f)); g.fillEllipse (c.x - r * 0.45f, c.y - r * 0.45f, r * 0.9f, r * 0.9f);
+    g.setColour (juce::Colours::white); g.fillPath (s);
+}
+// pictogrammes des modules (id 0..9) ; -1 : eclair
+void baGlyph (juce::Graphics& g, int id, juce::Rectangle<float> r, juce::Colour c, float sw)
+{
+    g.setColour (c);
+    juce::Path p; const float x = r.getX(), y = r.getY(), w = r.getWidth(), h = r.getHeight(), cy = y + h * 0.5f;
+    auto sine = [&] (float yc, float amp, float per) { p.startNewSubPath (x, yc); for (int i = 0; i <= 40; ++i) { const float t = (float) i / 40.f; p.lineTo (x + w * t, yc - amp * std::sin (t * per * 6.2832f)); } };
+    switch (id)
+    {
+    case 0: p.startNewSubPath (x, y + h * .8f); p.lineTo (x + w * .25f, y + h * .8f); p.lineTo (x + w * .25f, y + h * .2f); p.lineTo (x + w * .75f, y + h * .2f); p.lineTo (x + w * .75f, y + h * .8f); p.lineTo (x + w, y + h * .8f); break;
+    case 1: sine (y + h * .3f, h * .2f, 1.f); sine (y + h * .72f, h * .2f, 2.f); break;
+    case 2: p.startNewSubPath (x, cy); for (int i = 0; i <= 40; ++i) { const float t = (float) i / 40.f; p.lineTo (x + w * t, cy - juce::jlimit (-h * .22f, h * .22f, h * .5f * std::sin (t * 6.2832f * 1.5f))); } break;
+    case 3: for (int i = 0; i < 3; ++i) p.addEllipse (x + w * (.22f * (float) i), y + h * (i == 1 ? .02f : .30f), w * .56f, h * .56f); break;
+    case 4: p.startNewSubPath (x, y + h * .25f); p.lineTo (x + w * .45f, y + h * .25f); p.cubicTo (x + w * .7f, y + h * .25f, x + w * .7f, y + h * .8f, x + w, y + h * .8f); break;
+    case 5: for (int i = 0; i < 16; ++i) { const float a = (float) i / 16.f * 6.2832f, rr = (i % 2 ? .22f : .5f) * w; const juce::Point<float> q (x + w * .5f + rr * std::cos (a), cy + rr * std::sin (a)); i == 0 ? p.startNewSubPath (q) : p.lineTo (q); } p.closeSubPath(); break;
+    case 6: p.startNewSubPath (x, y + h * .22f); p.lineTo (x + w * .42f, cy); p.lineTo (x, y + h * .78f); p.startNewSubPath (x + w, y + h * .22f); p.lineTo (x + w * .58f, cy); p.lineTo (x + w, y + h * .78f); break;
+    case 7: p.startNewSubPath (x, cy); for (int i = 0; i <= 80; ++i) { const float t = (float) i / 80.f; p.lineTo (x + w * t + w * .1f * std::cos (t * 6.2832f * 4.f) - w * .1f, cy + h * .38f * std::sin (t * 6.2832f * 4.f)); } break;
+    case 8: for (int i = 0; i < 4; ++i) { const float hh = h * .45f * std::pow (.72f, (float) i), xx = x + w * ((float) i + .5f) / 4.f; p.startNewSubPath (xx, cy - hh); p.lineTo (xx, cy + hh); } break;
+    case 9: p.addRectangle (x + w * .05f, y + h * .12f, w * .9f, h * .76f); p.addEllipse (x + w * .5f - w * .14f, cy - h * .14f, w * .28f, h * .28f); p.addEllipse (x + w * .5f - w * .3f, cy - h * .3f, w * .6f, h * .6f); break;
+    default: p.startNewSubPath (x + w * .62f, y); p.lineTo (x + w * .2f, y + h * .56f); p.lineTo (x + w * .5f, y + h * .56f); p.lineTo (x + w * .36f, y + h); p.lineTo (x + w * .82f, y + h * .4f); p.lineTo (x + w * .54f, y + h * .4f); p.closeSubPath(); break;
+    }
+    g.strokePath (p, juce::PathStrokeType (sw, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+}
+void baCrest (juce::Graphics& g, juce::Rectangle<float> r, juce::Colour fill, int glyphId, juce::Colour rimHi, juce::Colour rimLo)
+{
+    juce::Path v; const float x = r.getX(), y = r.getY(), w = r.getWidth(), h = r.getHeight();
+    v.startNewSubPath (x, y + h * .12f); v.lineTo (x + w * .35f, y + h * .12f); v.lineTo (x + w * .5f, y + h * .22f); v.lineTo (x + w * .65f, y + h * .12f); v.lineTo (x + w, y + h * .12f); v.lineTo (x + w * .86f, y + h * .5f); v.lineTo (x + w * .5f, y + h); v.lineTo (x + w * .14f, y + h * .5f); v.closeSubPath();
+    g.setColour (juce::Colours::black.withAlpha (0.45f)); g.fillPath (v, juce::AffineTransform::translation (0.8f, 1.4f));
+    g.setGradientFill (juce::ColourGradient (rimHi, x, y, rimLo, x + w, y + h, false)); g.fillPath (v);
+    juce::Path vi (v); vi.applyTransform (juce::AffineTransform::scale (0.78f, 0.78f, x + w * .5f, y + h * .5f)); g.setColour (fill); g.fillPath (vi);
+    baGlyph (g, glyphId, { x + w * .27f, y + h * .32f, w * .46f, h * .34f }, juce::Colours::white, 1.5f);
+}
+int baIndex (const juce::String& t)
+{
+    static const char* keys[10] { "NOISE GATE", "OCTAVER", "DISTORSION", "COLOR", "FILTER", "DESTROY", "TUBE COMP", "SPRING", "BBD", "PLATE" };
+    for (int i = 0; i < 10; ++i) if (t.startsWithIgnoreCase (keys[i])) return i;
+    return -1;
+}
+struct BaTone { juce::uint32 tint; float mix, sat, bright; juce::uint32 cream; };
+BaTone baTone()
+{
+    static const BaTone t[4] { { 0xffd4b26a, 0.30f, 0.86f, 1.00f, 0xfff2e6c8 }, { 0xff9db4d0, 0.34f, 0.74f, 1.00f, 0xffeef1f6 },
+                               { 0xffc97a4e, 0.32f, 0.86f, 1.00f, 0xfff3e0d2 }, { 0xff8a8a90, 0.50f, 0.52f, 0.86f, 0xffe4e0d4 } };
+    return t[juce::jlimit (0, 3, look::themeIdx)];
+}
+const juce::uint32 kBaBody[11] { 0xff2c3036, 0xff1d8f8c, 0xffc7432e, 0xffb98a22, 0xff3b78ad, 0xffa8132a, 0xff3a9a72, 0xffbd5876, 0xff6a4d98, 0xff1c6670, 0xff2f3a48 };
 } // namespace
 
 void paintFacade (juce::Image& img, int W, int H, bool frame) { paintFacadeImpl (img, W, H, frame); }
@@ -817,7 +952,7 @@ void PatchPanel::paint (juce::Graphics& g)
     g.setColour (look::print.withAlpha (0.55f));
     g.setFont (font (8.5f, false));
     g.drawFittedText (fr ("Glisser d'une sortie vers une entr\xc3\xa9" "e.  Double-clic sur une prise : d\xc3\xa9" "brancher."),
-                      14, getHeight() - 40, getWidth() - 28, 30, juce::Justification::centredLeft, 2);
+                      14, getHeight() - 27, getWidth() - 28, 21, juce::Justification::centredLeft, 2);
 }
 
 void PatchPanel::paintOverChildren (juce::Graphics& g)
@@ -841,6 +976,7 @@ ModuleUnit::Region ModuleUnit::regionAt (juce::Point<int> p) const
     if (fixed) return None;
     if (p.x > getWidth() - 30) return Remove;
     if (p.x > getWidth() - 58) return Collapse;
+    if (p.x > getWidth() - 92 && isActive) return Power;
     return Handle;
 }
 
@@ -852,29 +988,71 @@ void ModuleUnit::addJack (Jack* j, int col, int row, const juce::String& label)
 
 void ModuleUnit::paint (juce::Graphics& g)
 {
-    const auto b = getLocalBounds().toFloat();
-    drawPlate (g, b);
-    g.setColour (look::print.withAlpha (0.95f));
-    g.setFont (font (12.5f));
-    g.drawText (title, fixed ? 12 : 32, 4, getWidth() - (fixed ? 24 : 100), 16, juce::Justification::centredLeft, false);
-    g.setColour (look::print.withAlpha (0.35f));
-    g.fillRect (fixed ? 12 : 32, 24, getWidth() - (fixed ? 24 : 100) - 12, 1);
+    const auto b = getLocalBounds().toFloat().reduced (1.f);
+    const int si = baIndex (title);
+    const auto& th = look::T(); const auto tone = baTone();
+    const juce::Colour body = si < 0 ? C (tone.tint).interpolatedWith (juce::Colours::black, 0.72f)                   // modules neutres : teinte du theme assombrie
+                                     : C (kBaBody[si]).interpolatedWith (C (tone.tint), tone.mix).withMultipliedSaturation (tone.sat).withMultipliedBrightness (tone.bright);
+    const float rad = 9.f, bandH = 22.f;
+    {
+        juce::Graphics::ScopedSaveState ss (g);
+        juce::Path rp; rp.addRoundedRectangle (b, rad); g.reduceClipRegion (rp);
+        g.setGradientFill (juce::ColourGradient (body.brighter (0.22f), 0.f, b.getY(), body.darker (0.38f), 0.f, b.getBottom(), false)); g.fillRect (b);
+        g.setGradientFill (juce::ColourGradient (juce::Colours::white.withAlpha (0.20f), b.getX(), b.getY() + bandH, juce::Colours::transparentWhite, b.getX() + b.getWidth() * 0.55f, b.getBottom(), false));
+        g.fillRect (b.withTrimmedTop (bandH));
+        const juce::Colour cream = C (tone.cream);
+        g.setGradientFill (juce::ColourGradient (cream.brighter (0.1f), 0.f, b.getY(), cream.darker (0.14f), 0.f, b.getY() + bandH, false));
+        g.fillRect (b.getX(), b.getY(), b.getWidth(), collapsed ? b.getHeight() : bandH);
+        if (! collapsed && si >= 0)                                                          // grand pictogramme du module, grave en filigrane sur la peinture
+        {
+            const float gh = juce::jmin (b.getHeight() - 52.f, 112.f), gw = gh * 1.25f;
+            const juce::Rectangle<float> gr (b.getRight() - (float) jackStripWidth() - gw - 34.f, b.getY() + bandH + 14.f + (b.getHeight() - bandH - 14.f - gh) * 0.5f, gw, gh);
+            baGlyph (g, si, gr.translated (1.5f, 2.f), juce::Colours::black.withAlpha (0.22f), 10.f);
+            baGlyph (g, si, gr, juce::Colours::white.withAlpha (0.20f), 10.f);
+        }
+    }
+    if (! collapsed)                                                                       // lisere chrome sous le bandeau
+    {
+        const float yy = b.getY() + bandH + 1.f;
+        g.setColour (juce::Colours::black.withAlpha (0.5f)); g.fillRect (b.getX() + 1.f, yy + 1.5f, b.getWidth() - 2.f, 2.f);
+        g.setGradientFill (juce::ColourGradient (C (th.metalHi), 0.f, yy - 1.5f, C (th.metalLo).brighter (0.3f), 0.f, yy + 2.f, false));
+        g.fillRect (b.getX() + 1.f, yy - 1.5f, b.getWidth() - 2.f, 3.4f);
+    }
+    const float cx = fixed ? 8.f : 26.f;
+    baCrest (g, { cx, 0.f, 30.f, 34.f }, body.darker (0.3f), si, C (th.metalHi), C (th.metalLo).brighter (0.2f));
+    const int tx = (int) cx + 36;
+    g.setColour (juce::Colour (0xff22262a));
+    g.setFont (juce::Font (juce::FontOptions (13.5f, juce::Font::bold | juce::Font::italic)));
+    g.drawText (title, tx, 3, getWidth() - tx - (fixed ? 12 : (isActive ? 98 : 62)), 18, juce::Justification::centredLeft, false);
+    if (! fixed && isActive)                                                             // bouton d'activation (bypass), comme sur Serum 2
+    {
+        const bool on = isActive();
+        const juce::Point<float> pc ((float) getWidth() - 74.f, 13.f);
+        g.setColour (juce::Colours::black.withAlpha (0.35f)); g.fillEllipse (pc.x - 9.f, pc.y - 8.f, 18.f, 18.f);
+        g.setGradientFill (juce::ColourGradient (on ? C (th.led).brighter (0.7f) : juce::Colour (0xff6a6a70), pc.x, pc.y - 9.f, on ? C (th.led).darker (0.35f) : juce::Colour (0xff3a3a40), pc.x, pc.y + 9.f, false));
+        g.fillEllipse (pc.x - 9.f, pc.y - 9.f, 18.f, 18.f);
+        g.setColour (juce::Colours::black.withAlpha (0.7f)); g.drawEllipse (pc.x - 9.f, pc.y - 9.f, 18.f, 18.f, 1.1f);
+        juce::Path pw; pw.addCentredArc (pc.x, pc.y + 0.5f, 4.6f, 4.6f, 0.f, 0.65f, 5.63f, true); pw.startNewSubPath (pc.x, pc.y - 5.5f); pw.lineTo (pc.x, pc.y);
+        g.setColour (on ? juce::Colour (0xff2a1a04) : juce::Colour (0xffb8b8be)); g.strokePath (pw, juce::PathStrokeType (1.8f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+    }
     if (! fixed)
     {
-        g.setColour (look::print.withAlpha (0.5f));                                      // poignee de deplacement
-        for (int cx = 0; cx < 2; ++cx) for (int cy = 0; cy < 3; ++cy)
-            g.fillEllipse (11.f + (float) cx * 7.f, 6.f + (float) cy * 5.f, 3.f, 3.f);
+        g.setColour (juce::Colour (0xff22262a).withAlpha (0.55f));                       // poignee de deplacement
+        for (int cx2 = 0; cx2 < 2; ++cx2) for (int cy = 0; cy < 3; ++cy)
+            g.fillEllipse (7.f + (float) cx2 * 7.f, 6.f + (float) cy * 5.f, 3.f, 3.f);
         juce::Path tri;                                                                  // replier / deplier
-        const float tx = (float) getWidth() - 46.f;
-        if (collapsed) tri.addTriangle (tx, 7.f, tx, 19.f, tx + 10.f, 13.f);
-        else           tri.addTriangle (tx - 1.f, 8.f, tx + 11.f, 8.f, tx + 5.f, 18.f);
-        g.setColour (look::print.withAlpha (0.85f));
+        const float tx2 = (float) getWidth() - 46.f;
+        if (collapsed) tri.addTriangle (tx2, 7.f, tx2, 19.f, tx2 + 10.f, 13.f);
+        else           tri.addTriangle (tx2 - 1.f, 8.f, tx2 + 11.f, 8.f, tx2 + 5.f, 18.f);
+        g.setColour (juce::Colour (0xff22262a).withAlpha (0.85f));
         g.fillPath (tri);
         const float xx = (float) getWidth() - 20.f;                                      // retirer du rack
         g.setColour (look::cvRing.withAlpha (0.95f));
         g.drawLine (xx, 8.f, xx + 10.f, 18.f, 2.f);
         g.drawLine (xx + 10.f, 8.f, xx, 18.f, 2.f);
     }
+    g.setColour (juce::Colours::black.withAlpha (0.55f)); g.drawRoundedRectangle (b.expanded (1.f), rad + 1.f, 1.4f);
+    g.setGradientFill (juce::ColourGradient (C (th.metalHi), 0.f, b.getY(), C (th.metalLo).brighter (0.25f), 0.f, b.getBottom(), false)); g.drawRoundedRectangle (b, rad, 2.2f);
     if (! collapsed && ! jackSlots.empty())                                              // etiquettes des prises + filet de separation
     {
         const int x0 = getWidth() - 10 - jackCols * 58;
@@ -890,7 +1068,14 @@ void ModuleUnit::paint (juce::Graphics& g)
     }
 }
 
-void ModuleUnit::paintOverChildren (juce::Graphics& g) { drawSpecks (g, getLocalBounds()); }
+void ModuleUnit::paintOverChildren (juce::Graphics& g)
+{
+    if (isActive && ! isActive() && ! collapsed)                                          // module contourne : face assombrie, titre intact
+    {
+        g.setColour (juce::Colours::black.withAlpha (0.46f));
+        g.fillRoundedRectangle (getLocalBounds().toFloat().reduced (1.f).withTrimmedTop (26.f), 6.f);
+    }
+}
 
 void ModuleUnit::resized()
 {
@@ -899,7 +1084,7 @@ void ModuleUnit::resized()
     const int x0 = getWidth() - 10 - jackCols * 58;
     for (const auto& s : jackSlots)
         s.jack->setCentrePosition (x0 + s.col * 58 + 29, 34 + s.row * 38 + 14);
-    if (layoutFn) layoutFn (getLocalBounds().withTrimmedTop (28).withTrimmedBottom (4).withTrimmedLeft (10).withTrimmedRight (10 + jackStripWidth()));
+    if (layoutFn) layoutFn (getLocalBounds().withTrimmedTop (topTrim).withTrimmedBottom (4).withTrimmedLeft (10).withTrimmedRight (10 + jackStripWidth()));
 }
 
 void ModuleUnit::mouseDown (const juce::MouseEvent& e)
@@ -923,6 +1108,7 @@ void ModuleUnit::mouseUp (const juce::MouseEvent& e)
         resized(); repaint();
         if (rackView != nullptr) rackView->relayout();
     }
+    else if (pressed == Power && region == Power && onToggleActive) { onToggleActive(); repaint(); }
     else if (pressed == Remove && region == Remove && onRemove) onRemove();
     pressed = None;
 }
@@ -965,7 +1151,7 @@ void RackView::layoutUnits (const std::vector<ModuleUnit*>& list, ModuleUnit* dr
     if (getHeight() != total) setSize (w, total);
 }
 
-void RackView::dragStart (ModuleUnit*, int) { temp = order; }
+void RackView::dragStart (ModuleUnit* u, int grab) { temp = order; dragU = u; dragGrab = grab; startTimerHz (60); }
 
 void RackView::dragMove (ModuleUnit* u, int pointerY, int grab)
 {
@@ -976,11 +1162,30 @@ void RackView::dragMove (ModuleUnit* u, int pointerY, int grab)
     for (auto* o : others) { const int h = o->currentHeight(); if (centre > y + h / 2) ++idx; y += h + 8; }
     temp = others;
     temp.insert (temp.begin() + idx, u);
+    lastPointerY = pointerY; dragGrab = grab;
     layoutUnits (temp, u, pointerY - grab);
+}
+
+// pendant un deplacement : le rack defile tout seul quand on approche du haut ou du bas de la fenetre
+void RackView::timerCallback()
+{
+    auto* vp = findParentComponentOfClass<juce::Viewport>();
+    if (vp == nullptr || dragU == nullptr) return;
+    const int top = vp->getViewPositionY(), vh = vp->getViewHeight(), zone = 64;
+    const int rel = lastPointerY - top;
+    int dy = 0;
+    if (rel < zone)           dy = -(int) (2.f + (float) juce::jmin (zone * 2, zone - rel) * 0.25f);
+    else if (rel > vh - zone) dy = (int) (2.f + (float) juce::jmin (zone * 2, rel - (vh - zone)) * 0.25f);
+    if (dy == 0) return;
+    const int ny = juce::jlimit (0, juce::jmax (0, getHeight() - vh), top + dy);
+    if (ny == top) return;
+    vp->setViewPosition (vp->getViewPositionX(), ny);
+    dragMove (dragU, lastPointerY + (ny - top), dragGrab);
 }
 
 void RackView::dragEnd (ModuleUnit*)
 {
+    stopTimer(); dragU = nullptr;
     if (! temp.empty()) order = temp;
     temp.clear();
     layoutUnits (order);
@@ -1150,12 +1355,16 @@ ModuleUnit* OrageAudioProcessorEditor::newUnit (int node, const juce::String& ti
     if (fixed)
     {
         stripUnits.push_back (std::make_unique<ModuleUnit> (nullptr, node, title, height, true));
+        stripUnits.back()->topTrim = 33;
         addAndMakeVisible (*stripUnits.back());
         return stripUnits.back().get();
     }
     auto u = std::make_unique<ModuleUnit> (&rackView, node, title, height, false);
     auto* raw = u.get();
+    raw->topTrim = 33;
     u->onRemove = [this, node] { proc.engine.removeFromRack (node); refreshRack(); };
+    u->isActive = [this, node] { return (proc.engine.bypassMask.load() & (1u << node)) == 0; };
+    u->onToggleActive = [this, node] { proc.engine.bypassMask.fetch_xor (1u << node); lastBypass = proc.engine.bypassMask.load(); };
     rackView.addChildComponent (*raw);
     rackUnits[node] = std::move (u);
     return raw;
@@ -1163,7 +1372,7 @@ ModuleUnit* OrageAudioProcessorEditor::newUnit (int node, const juce::String& ti
 
 void OrageAudioProcessorEditor::buildUnits()
 {
-    constexpr int kModH = 150, kCell = 108;
+    constexpr int kModH = 158, kCell = 108;
     auto addSelector = [this] (juce::Component& parent, const char* id, const juce::StringArray& names)
     {
         auto sel = std::make_unique<SegmentSelector> (proc.apvts, id, names);
@@ -1197,6 +1406,7 @@ void OrageAudioProcessorEditor::buildUnits()
     };
     auto place = [] (juce::Rectangle<int> r, std::vector<KnobUnit*> ks, int x0, int cellW)
     {
+        cellW = juce::jmin (cellW, (r.getWidth() - x0) / juce::jmax (1, (int) ks.size()));     // jamais plus large que le module
         int x = r.getX() + x0;
         const int kh = juce::jmin (r.getHeight(), cellW + 22), y = r.getY() + (r.getHeight() - kh) / 2;
         for (auto* k : ks) { k->setBounds (x, y, cellW, kh); x += cellW; }
@@ -1540,6 +1750,7 @@ void OrageAudioProcessorEditor::timerCallback()
     for (auto& k : knobs)
         if (k->cvIndex >= 0) k->setCvActive (proc.engine.cvIn[k->cvIndex].load() != 0);
 
+    if (const uint32_t bm = proc.engine.bypassMask.load(); bm != lastBypass) { lastBypass = bm; for (auto& kv : rackUnits) kv.second->repaint(); }
     uint32_t rh = 0;
     for (auto& s : proc.engine.rackSlot) rh = rh * 31u + (uint32_t) (s.load() + 2);
     if (rh != lastRackHash) refreshRack();
@@ -1564,12 +1775,12 @@ void OrageAudioProcessorEditor::resized()
     headerArea = { 0, 0, W, kHeaderH };
 
     // ---- en-tete : presets
-    prevBtn.setBounds (W - 400, 36, 30, 28);
-    nameBtn.setBounds (W - 364, 36, 220, 28);
-    nextBtn.setBounds (W - 140, 36, 30, 28);
-    saveBtn.setBounds (W - 104, 36, 70, 28);
-    cablesBtn.setBounds (W - 540, 38, 108, 24);
-    themeBtn.setBounds (W - 640, 38, 100, 24);
+    prevBtn.setBounds (W - 400, 42, 30, 28);
+    nameBtn.setBounds (W - 364, 42, 220, 28);
+    nextBtn.setBounds (W - 140, 42, 30, 28);
+    saveBtn.setBounds (W - 104, 42, 70, 28);
+    cablesBtn.setBounds (W - 540, 44, 108, 24);
+    themeBtn.setBounds (W - 640, 44, 100, 24);
 
     // ---- colonnes : panneau lateral | rack | (bandeau de modulation en bas)
     const int vpW = W - 170 - 310;
@@ -1577,7 +1788,8 @@ void OrageAudioProcessorEditor::resized()
     patchPanel.setBounds (W - 310, top, 300, H - top - 10);
     side.setBounds (10, top, 140, H - top - 10);
     viewport.setBounds (160, top, vpW, H - top - 8 - 172 - 8);
-    rackView.setSize (viewport.getMaximumVisibleWidth(), juce::jmax (90, rackView.getHeight()));
+    rackView.setSize (juce::jmax (200, vpW - 10 - 10), juce::jmax (90, rackView.getHeight()));
+    rackView.relayout();
     patchBay.setBounds (getLocalBounds());
     patchBay.toFront (false);
 
@@ -1613,20 +1825,33 @@ void OrageAudioProcessorEditor::rebuildFacade()
     const auto& th = look::T();
     paintFacade (panelTex, W, H, true);
     juce::Graphics g (panelTex);
-    g.setColour (look::print.withAlpha (0.95f));
-    g.setFont (font (46.f));
-    g.drawText (titleText, 30, 2, 340, 52, juce::Justification::centredLeft, false);
-    g.setGradientFill (juce::ColourGradient (juce::Colour (th.trim), 32.f, 0.f, juce::Colour (th.trim).withAlpha (0.f), 212.f, 0.f, false));
-    g.fillRect (32, 55, 180, 2);
+    {   // logo ORAGE : lettres chrome dessinees a la main, eclair dans le A, filet de vitesse
+        const BaChrome& chrome = (look::themeIdx == 1 || look::themeIdx == 3) ? kBaSilver : look::themeIdx == 2 ? kBaCopper : kBaGold;
+        const auto w = baWord ("ORAGE", 20.f, 13.f, true);
+        const float s = 0.46f, x = 36.f, y = 11.f;
+        baChromeFill (g, panelTex, baPlaced (baOutline (w.centre, 20.f), x, y, s), chrome);
+        float xEnd = x + w.width * s;
+        if (titleText.endsWith (" FX"))
+        {
+            const auto f = baWord ("FX", 20.f, 13.f, false);
+            baChromeFill (g, panelTex, baPlaced (baOutline (f.centre, 20.f), xEnd + 12.f, y + 17.f, 0.29f), chrome);
+            xEnd += 12.f + f.width * 0.29f;
+        }
+        juce::Path st; const float y0 = 61.f;
+        st.startNewSubPath (x, y0); st.lineTo (xEnd + 26.f, y0); st.lineTo (xEnd + 6.f, y0 + 4.f); st.lineTo (x, y0 + 4.f); st.closeSubPath();
+        g.setGradientFill (juce::ColourGradient (C (chrome.low), x, 0.f, C (chrome.low).withAlpha (0.f), xEnd + 26.f, 0.f, false)); g.fillPath (st);
+        
+        baSparkle (g, { x + 4.f, y + 4.f }, 8.f);
+    }
     g.setColour (look::print.withAlpha (0.8f));
     g.setFont (font (10.5f));
-    g.drawText (subText, 32, 60, 420, 13, juce::Justification::centredLeft, false);
+    g.drawText (subText, 36, 69, 420, 13, juce::Justification::centredLeft, false);
     g.setFont (font (9.f, false));
     g.setColour (juce::Colour (th.trim).withAlpha (0.9f));
-    g.drawText ("FOUDRE AUDIO  -  PATCH IT. BREAK IT.", 32, 71, 360, 11, juce::Justification::centredLeft, false);
+    g.drawText ("FOUDRE AUDIO  -  PATCH IT. BREAK IT.", 36, 81, 360, 11, juce::Justification::centredLeft, false);
     g.setColour (look::print.withAlpha (0.8f));
     g.setFont (font (9.5f));
-    g.drawText ("PRESET", W - 400, 20, 80, 13, juce::Justification::centredLeft, false);
+    g.drawText ("PRESET", W - 400, 26, 80, 13, juce::Justification::centredLeft, false);
     repaint();
 }
 
