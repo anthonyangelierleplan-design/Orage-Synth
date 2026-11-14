@@ -54,6 +54,13 @@ Façade façon Korg MS20 : zones délimitées par des traits blancs sérigraphi�
 
 - **Nouveau « LADDER CEM3320 »** : modèle du circuit CEM3320 du Pro-One (4 étages OTA à tanh, retour implicite par le VCA de résonance), l'auto-oscillation suit le cutoff (< 1 %). **Nouveau « SEM CKT »** : modèle du circuit Oberheim SEM (mélangeur, deux intégrateurs CA3080, diodes D11/D12 sur le retour, morph LP > notch > HP conservé). Calibrés sur les schémas et la théorie du circuit, PAS sur des enregistrements du matériel (aucun disponible) : jugement à l'oreille. CPU 11,5 % et 10,8 % (6 voix) contre 7-9 % pour les anciens.
 
+## v18d (stabilité des filtres circuit)
+- **Cri strident du LADDER CEM3320 cutoff ouvert à fond : corrigé.** Cause : avec le cutoff très haut, le calcul du filtre (pas d'intégration trop grand pour la résolution de Newton) ne convergeait plus et partait en oscillation parasite jusqu'à pleine échelle, même à résonance moyenne.
+- **Parasites / instabilité en polyphonie (SEM CKT surtout) : corrigé.** Deux causes : le même défaut de calcul sur les notes aiguës (le suivi de clavier pousse leur cutoff vers le haut), et une erreur de schéma dans mon SEM : les diodes réduisaient l'amortissement à fort niveau au lieu de l'augmenter, donc la résonance pouvait s'emballer.
+- **Correction** : les filtres LADDER CEM3320 et SEM CKT tournent à cadence double (suréchantillonnage ×2), résolution amortie, topologie du SEM corrigée (amortissement fixe, régénération écrêtée par les diodes).
+- **Mesure** : sur 2176 réglages (notes seules et accords, 44,1 et 48 kHz, cutoff jusqu'au maximum), 270 cas avaient des parasites au-dessus de -20 dB avant ; 0 après, au niveau des anciens filtres. Coût : CPU 15,7 % (Ladder CEM3320) et 13,6 % (SEM CKT) pour 6 voix, contre 11 % avant.
+- Le MS-10 CKT auto-oscille fort (crête pleine échelle) à résonance 100 % et cutoff ouvert : c'est le comportement calibré sur le vrai MS-10, pas un défaut de calcul.
+
 ## v18c (anneaux, FX, presets)
 - **Anneaux de modulation** : 100 % = tour complet du potard. Avant, 100 % n'agissait que sur la moitié de la course pour le filtre, la largeur d'impulsion et les EQ du rack, et sur 60 % pour les autres FX (l'anneau et le son étaient d'accord, mais pas avec le potard). La matrice compense maintenant l'échelle interne. Les réglages de modulation déjà sauvegardés dans tes anciens presets agiront donc plus fort (×2 sur le filtre).
 - **FX** : quand on allume un module du rack avec son bouton, tous ses potards repartent de leur valeur neutre (plus de potard laissé à fond). Les presets d'usine du synthé démarrent aussi tous les FX à zéro ; seuls les 6 presets « Rack FX » gardent leurs anciens réglages de départ.

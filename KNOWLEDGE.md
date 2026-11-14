@@ -15,6 +15,7 @@ Les chiffres viennent des tests automatiques, pas d'une écoute : l'oreille rest
 - Après modification d'un en-tête : recompiler TOUS les objets (un objet périmé = plantage `free(): invalid pointer`).
 
 ## Journal des problèmes (symptôme → cause → correction)
+- v18d — Cri strident du Ladder CEM cutoff à fond, parasites en polyphonie (SEM CKT) → (1) g = tan(pi f/fs) monte à 6 près de Nyquist : Newton non amorti diverge et le trapèze sonne à Nyquist ; (2) SEM : diodes placées sur l'amortissement au lieu de la régénération → amortissement qui BAISSE à fort niveau → suréchantillonnage ×2 des filtres circuit (g < 1), Newton amorti (pas ≤ 1 Vs), SEM = amortissement fixe d0 − régénération écrêtée. ERREUR DE MÉTHODE : j'avais validé les filtres seulement à cutoff moyen (800 / 3000 Hz) et sur une note.
 - v18c — Anneau de modulation qui ne fait pas le tour du potard à 100 % → le moteur applique 0,5 / 0,45 / 0,6 sur certaines destinations et l'anneau en tenait compte → la matrice divise par cette échelle (modNative dans Synth.h), l'anneau affiche 100 % = course complète.
 - v18c — Potard à fond à l'allumage d'un module FX → valeurs de départ « legacy » non nulles pour tous les presets et aucun reset à l'activation → defauts à zéro, reset des potards du module quand on l'allume (bouton du module).
 - v18 — Résonance MS-20 trop « générique » → filtre modélisé par réponse, pas par circuit → MS-10 écrit depuis le schéma (équations nodales, trapèze + Newton 1D réduit à la tension de diode), tables de cutoff/compensation issues de l'auto-oscillation SIMULÉE (pas de formule), calibré sur enregistrements réels.
@@ -85,6 +86,7 @@ Les chiffres viennent des tests automatiques, pas d'une écoute : l'oreille rest
 3. Cutoff : table construite à partir de la fréquence d'auto-oscillation simulée (inclut la pré-déformation bilinéaire), jamais d'une formule théorique.
 4. Valider sur enregistrements : réponse harmonique relative au filtre ouvert, ajustement du cutoff par trame, erreur RMS ancien/nouveau.
 5. Mesurer CPU en vrai plugin, fuzz de réglages extrêmes, presets.
+6. OBLIGATOIRE avant de pousser un filtre : grille de stabilité (tools/tests/stabilite_filtres.cpp) : notes 48 à 96 et accords, cutoff 0,5 à 1,0, résonance jusqu'à 0,9, drive, enveloppe, à 44,1 et 48 kHz ; critère : énergie hors harmoniques < -20 dB et comparaison aux anciens filtres. Un filtre non linéaire implicite se teste TOUJOURS cutoff à fond.
 
 ## Méthode : générer et calibrer des presets
 Table de données (tools/presets/presets.py) → code C++ → banc de test qui joue chaque preset → niveau de sortie calculé par catégorie (RMS pour les sons tenus, crête pour les plucks/arpèges) → 2 passes. Toujours garder une table séparée des fonctions : refaire les presets coûte alors une heure, pas une journée.
