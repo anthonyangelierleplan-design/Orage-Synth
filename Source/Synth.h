@@ -69,13 +69,19 @@ inline float blep (float t, float dt)
     if (t > 1.f - dt) { t = (t - 1.f) / dt; return t * t + t + t + 1.f; }
     return 0.f;
 }
+inline float blamp (float t, float dt)                                     // integrale du blep : arrondit les angles du triangle (anti-repliement)
+{
+    if (t < dt) { t = t / dt - 1.f; return -(1.f / 3.f) * t * t * t; }
+    if (t > 1.f - dt) { t = (t - 1.f) / dt + 1.f; return (1.f / 3.f) * t * t * t; }
+    return 0.f;
+}
 inline float osc (int wave, float ph, float dt, float pw)
 {
     switch (wave)
     {
         case 0: return 2.f * ph - 1.f - blep (ph, dt);
         case 1: { float t2 = ph - pw; if (t2 < 0.f) t2 += 1.f; return (ph < pw ? 1.f : -1.f) + blep (ph, dt) - blep (t2, dt); }
-        default: return 4.f * std::fabs (ph - 0.5f) - 1.f;
+        default: { float t2 = ph + 0.5f; if (t2 >= 1.f) t2 -= 1.f; return 4.f * std::fabs (ph - 0.5f) - 1.f + 4.f * dt * (blamp (t2, dt) - blamp (ph, dt)); }
     }
 }
 struct Env
@@ -182,6 +188,58 @@ struct Ladder
         return in;
     }
 };
+// tanh rapide (Pade 7/6) : erreur < 1e-4 sur +/-4.5, borne au-dela ; utilisee dans les etages surechantillonnes
+inline float tanhFast (float x)
+{
+    if (x > 4.5f) return 1.f; if (x < -4.5f) return -1.f;
+    const float x2 = x * x;
+    return x * (135135.f + x2 * (17325.f + x2 * (378.f + x2))) / (135135.f + x2 * (62370.f + x2 * (3150.f + x2 * 28.f)));
+}
+// ---- surechantillonnage x4 autour d'une non-linearite (2 etages demi-bande) : les harmoniques creees au-dessus de Nyquist sont filtrees au lieu de se replier
+template <int L> struct HalfBand                                    // L impair avec (L-1)/2 impair (11, 15, 23...) : un tap sur deux est nul, on ne calcule que les autres
+{
+    float h[L] {}, xh[L] {}, zh[L] {};
+    HalfBand()
+    {
+        const int c = (L - 1) / 2; double sum = 0;
+        for (int k = 0; k < L; ++k)
+        {
+            const double t = (k - c) * 0.5, sinc = (k == c) ? 1.0 : std::sin (3.14159265358979 * t) / (3.14159265358979 * t);
+            const double w = 0.42 - 0.5 * std::cos (6.283185307179586 * k / (L - 1)) + 0.08 * std::cos (2.0 * 6.283185307179586 * k / (L - 1));   // Blackman
+            h[k] = (float) (0.5 * sinc * w); sum += h[k];
+        }
+        for (auto& v : h) v = (float) (v / sum);
+    }
+    void up (float x, float& y0, float& y1)                             // 1 echantillon -> 2
+    {
+        const int n = (L + 1) / 2;
+        for (int k = n - 1; k > 0; --k) xh[k] = xh[k - 1];
+        xh[0] = x;
+        float a = 0.f;
+        for (int j = 0; j < n; ++j) a += h[2 * j] * xh[j];
+        y0 = 2.f * a; y1 = 2.f * h[(L - 1) / 2] * xh[(L - 3) / 4];
+    }
+    float down (float z0, float z1)                                     // 2 echantillons -> 1
+    {
+        for (int k = L - 1; k > 1; --k) zh[k] = zh[k - 2];
+        zh[1] = z0; zh[0] = z1;
+        float y = h[(L - 1) / 2] * zh[(L - 1) / 2];
+        for (int k = 0; k < L; k += 2) y += h[k] * zh[k];
+        return y;
+    }
+};
+struct Over4
+{
+    HalfBand<23> a; HalfBand<11> b;
+    template <typename F> float run (float x, F&& nl)
+    {
+        float u0, u1; a.up (x, u0, u1);
+        float w0, w1, w2, w3; b.up (u0, w0, w1); b.up (u1, w2, w3);
+        w0 = nl (w0); w1 = nl (w1); w2 = nl (w2); w3 = nl (w3);
+        const float d0 = b.down (w0, w1), d1 = b.down (w2, w3);
+        return a.down (d0, d1);
+    }
+};
 // ---- wavefolder (repli sinus) : 0 = transparent
 inline float fold (float x, float amt, float sym)
 {
@@ -283,7 +341,13 @@ public:
             for (auto& v : voices)
                 if (v.active) renderVoice (v, L + pos, R + pos, len, lfoHz, dt);
         }
-        for (int i = 0; i < n; ++i) { L[i] = std::tanh (L[i] * P.master * 0.7f); R[i] = std::tanh (R[i] * P.master * 0.7f); }
+        const float dcC = 1.f - std::exp (-6.2831853f * 6.f / fs);                              // coupe-continu a 6 Hz : la saturation asymetrique ne laisse plus de composante continue en sortie
+        for (int i = 0; i < n; ++i)
+        {
+            float l = std::tanh (L[i] * P.master * 0.7f), r = std::tanh (R[i] * P.master * 0.7f);
+            dcL += dcC * (l - dcL); dcR += dcC * (r - dcR);
+            L[i] = l - dcL; R[i] = r - dcR;
+        }
         computeFxMod();
     }
 
@@ -292,13 +356,13 @@ private:
     static constexpr float SynthParams::* kSm[] = { &SynthParams::lpf, &SynthParams::lpfRes, &SynthParams::hpf, &SynthParams::hpfRes, &SynthParams::drive, &SynthParams::semMorph, &SynthParams::fold, &SynthParams::foldSym,
         &SynthParams::fm, &SynthParams::ring, &SynthParams::lvl1, &SynthParams::lvl2, &SynthParams::noise, &SynthParams::pw1, &SynthParams::pw2, &SynthParams::fltEnv, &SynthParams::keytrack, &SynthParams::master };
     static constexpr int kSmN = (int) (sizeof (kSm) / sizeof (kSm[0]));
-    SynthParams Tg; float sm[kSmN] {}, sm1[kSmN] {}; bool smInit = false;
+    SynthParams Tg; float sm[kSmN] {}, sm1[kSmN] {}; float dcL = 0.f, dcR = 0.f; bool smInit = false;
     struct Voice
     {
         bool active = false; int note = 60; float vel = 1.f; uint64_t age = 0;
         bool gated = false, raw = false; int slot = -1; float uniCents = 0.f, uniPan = 0.f, gainV = 1.f;
         sy::Env aenv, fenv; float pitch = 60.f, ph1 = 0.f, ph2 = 0.f, prev1 = 0.f, prev2 = 0.f, fmT = 0.f;
-        sy::Hp hp; sy::Lp lp; sy::Sem sem; sy::Ladder lad; float pat = 0.f, patS = 0.f, rndv = 0.f; float xPrev = 0.f, drvLp = 0.f; bool cInit = false; float c0[16] {}; float lph[kLfos] {}, lfade[kLfos] {}, lsh[kLfos] {}, lcur[kLfos] {}; float envM[8] {};     // envM : modulation des enveloppes (bloc precedent)
+        sy::Hp hp; sy::Lp lp; sy::Sem sem; sy::Ladder lad; float pat = 0.f, patS = 0.f, rndv = 0.f; float xPrev = 0.f, drvLp = 0.f; sy::Over4 osF, osD; bool cInit = false; float c0[16] {}; float lph[kLfos] {}, lfade[kLfos] {}, lsh[kLfos] {}, lcur[kLfos] {}; float envM[8] {};     // envM : modulation des enveloppes (bloc precedent)
     };
     static constexpr int kKeys = 16;
     struct Key { int note; float vel; bool phys; uint64_t t; };
@@ -559,8 +623,8 @@ private:
             const float foldA = cc[10], foldS = cc[11], level = cc[12], lv1 = cc[13], l2 = cc[14], noiseA = cc[15];
             // FM audio (sens au choix) ; VCO2 est recale par VCO1 si le hard sync est actif
             // increments de phase bornes sous Nyquist (une FM extreme sur une note aigue pouvait les faire exploser -> phase hors [0,1[ -> NaN)
-            const float inc1 = std::min (0.49f, std::max (0.f, P.fmDir != 1 ? dt1 * std::pow (2.f, fmA * 2.5f * v.prev2) : dt1));
-            const float inc2 = std::min (0.49f, std::max (0.f, P.fmDir != 0 ? dt2 * std::pow (2.f, fmA * 2.5f * v.prev1) : dt2));
+            const float inc1 = std::min (0.49f, std::max (0.f, (P.fmDir != 1 && fmA > 1e-5f) ? dt1 * std::pow (2.f, fmA * 2.5f * v.prev2) : dt1));
+            const float inc2 = std::min (0.49f, std::max (0.f, (P.fmDir != 0 && fmA > 1e-5f) ? dt2 * std::pow (2.f, fmA * 2.5f * v.prev1) : dt2));
             v.ph1 += inc1;
             if (v.ph1 >= 1.f) { v.ph1 -= std::floor (v.ph1); if (P.sync) v.ph2 = v.ph1 * inc2 / std::max (inc1, 1e-6f); }
             v.ph2 += inc2; if (v.ph2 >= 1.f) v.ph2 -= std::floor (v.ph2);
@@ -573,14 +637,14 @@ private:
                 v.prev1 = m (v.ph1, inc1); v.prev2 = m (v.ph2, inc2);
             }
             float x = o1 * lv1 + o2 * l2 + o1 * o2 * ringA * 1.4f + rnd() * noiseA * 0.7f;
-            if (foldA > 0.001f) { const float xm = 0.5f * (x + v.xPrev); v.xPrev = x; x = 0.5f * (sy::fold (xm, foldA, foldS) + sy::fold (x, foldA, foldS)); }   // wavefolder (2 points : un peu moins de repliement)
-            else v.xPrev = x;
+            x = v.osF.run (x, [foldA, foldS] (float u) { return sy::fold (u, foldA, foldS); });      // wavefolder surechantillonne x4 (plus de repliement de spectre)
             const float hp = v.hp.run (x * 0.7f, gH, kH);                  // HPF puis LPF, comme sur le MS20
             // DRIVE "shiny" : on accentue le haut du spectre AVANT la saturation (les graves gonflent moins, les harmoniques brillent), puis on rend le niveau
             v.drvLp += drvC * (hp - v.drvLp);
             const float hiPart = hp - v.drvLp;
             const float dIn = hp + drvEmph * hiPart;
-            const float dx = (std::tanh (dIn * drive + 0.06f * (drive - 1.f)) - std::tanh (0.06f * (drive - 1.f))) * (1.f / (1.f + 0.12f * (drive - 1.f)));
+            const float dBias = 0.06f * (drive - 1.f), dOff = std::tanh (dBias), dNorm = 1.f / (1.f + 0.12f * (drive - 1.f));
+            const float dx = v.osD.run (dIn, [drive, dBias, dOff, dNorm] (float u) { return (sy::tanhFast (u * drive + dBias) - dOff) * dNorm; });   // saturation surechantillonnee x4
             float lp;
             if (P.ftype == 1)      lp = v.sem.run (dx, gL, kSem, morph) * 1.15f;
             else if (P.ftype == 2) lp = v.lad.run (dx * 1.2f, gL, kLad) * (1.f + 1.0f * res);
@@ -589,7 +653,7 @@ private:
             const float y = lp * a * level * v.gainV * (0.35f + 0.65f * v.vel);
             if (! (std::fabs (y) < 8.f))                                   // garde-fou : NaN, infini ou valeur folle -> on remet les etats a zero (jamais de bruit ni de blocage)
             {
-                v.hp = sy::Hp(); v.lp = sy::Lp(); v.sem = sy::Sem(); v.lad = sy::Ladder(); v.drvLp = 0.f; v.xPrev = 0.f; v.prev1 = v.prev2 = 0.f;
+                v.hp = sy::Hp(); v.lp = sy::Lp(); v.sem = sy::Sem(); v.lad = sy::Ladder(); v.drvLp = 0.f; v.xPrev = 0.f; v.prev1 = v.prev2 = 0.f; v.osF = sy::Over4(); v.osD = sy::Over4();
                 if (! std::isfinite (v.ph1)) v.ph1 = 0.f;
                 if (! std::isfinite (v.ph2)) v.ph2 = 0.f;
                 continue;

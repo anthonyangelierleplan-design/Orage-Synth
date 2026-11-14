@@ -46,3 +46,9 @@ Façade façon Korg MS20 : zones délimitées par des traits blancs sérigraphi�
 - **Filtre MS-20** : la résonance ne laisse plus fuir les aigus quand le filtre est fermé (la bande ajoutée à la sortie est refiltrée).
 - **Stabilité** : la FM extrême sur une note aiguë pouvait produire un signal invalide (NaN) ; les phases sont bornées et un garde-fou remet la voix à zéro en cas de valeur folle. Testé sur des centaines de réglages aléatoires extrêmes.
 - **Anneaux** : le point vivant suit aussi les LFO ; réassigner une source dont la quantité était à zéro lui donne 50 %.
+
+## v17 (qualité)
+- **Suréchantillonnage ×4** du wavefolder et du drive, triangle anti-replié : beaucoup moins d'aigus parasites sur les notes hautes.
+- **Coupe-continu** en sortie du synthé.
+- Petite optimisation de la FM quand elle est à zéro.
+- `KNOWLEDGE.md` : base de connaissances (architecture, journal des problèmes, règles, tests, checklist).
