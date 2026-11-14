@@ -489,7 +489,12 @@ KnobUnit::KnobUnit (juce::AudioProcessorValueTreeState& apvts, const juce::Strin
 #if ORAGE_SYNTH
     paramId = id;
     proc = dynamic_cast<OrageAudioProcessor*> (&apvts.processor);
-    if (proc != nullptr) { mapIdx = proc->mapIndex (id); slider.addMouseListener (this, false); startTimerHz (6); }
+    if (proc != nullptr)
+    {
+        mapIdx = proc->mapIndex (id); modDst = OrageAudioProcessor::modDstOfParam (id);
+        slider.addMouseListener (this, false); startTimerHz (6);
+        if (modDst > 0) slider.intercept = [this] (const juce::MouseEvent& ev, int ph) { return modInterceptor (ev, ph); };
+    }
 #endif
 }
 
@@ -498,6 +503,15 @@ void KnobUnit::timerCallback()
 #if ORAGE_SYNTH
     if (proc == nullptr) return;
     proc->flushMidiMapIfDirty();
+    if (modDst > 0)                                                            // anneaux : on suit la matrice et les sources vivantes (macros, molette)
+    {
+        OrageAudioProcessor::KnobMod km[2]; const int n = proc->knobMods (modDst, km);
+        int hs = n * 977 + (int) (slider.getValue() * 1000.0);
+        for (int k = 0; k < n; ++k) hs += km[k].src * 131 * (k + 1) + (int) (km[k].amt * 1000.f) + (int) (proc->modSourceLive (km[k].src) * 1000.f);
+        if (hs != hash || n != nMods) { hash = hs; nMods = n; repaint(); }
+        const int wantMs = n > 0 ? 40 : 160;
+        if (getTimerInterval() != wantMs) startTimer (wantMs);
+    }
     const int cc = proc->ccAt (mapIdx); const bool lr = proc->learningAt (mapIdx);
     if (cc != shownCc || lr != shownLearn || look::showMidi != shownShow) { shownCc = cc; shownLearn = lr; shownShow = look::showMidi; repaint(); }
 #endif
@@ -506,10 +520,33 @@ void KnobUnit::timerCallback()
 void KnobUnit::mouseDown (const juce::MouseEvent& e)
 {
 #if ORAGE_SYNTH
-    if (! e.mods.isPopupMenu() || proc == nullptr || mapIdx < 0) return;
-    const int cc = proc->ccAt (mapIdx), dflt = proc->defaultCcOf (paramId), mode = proc->takeoverMode.load();
-    const bool learning = proc->learningAt (mapIdx);
+    if (! e.mods.isPopupMenu() || proc == nullptr || (mapIdx < 0 && modDst <= 0)) return;
+    const int cc = mapIdx >= 0 ? proc->ccAt (mapIdx) : -1, dflt = mapIdx >= 0 ? proc->defaultCcOf (paramId) : -1, mode = proc->takeoverMode.load();
+    const bool learning = mapIdx >= 0 && proc->learningAt (mapIdx);
     juce::PopupMenu m;
+    if (modDst > 0)                                                            // modulation : sources classees par categorie, 2 par potard
+    {
+        OrageAudioProcessor::KnobMod km[2]; const int n = proc->knobMods (modDst, km);
+        auto has = [&] (int s) { for (int k = 0; k < n; ++k) if (km[k].src == s) return true; return false; };
+        auto fam = [&] (const char* title, std::vector<int> srcs)
+        {
+            juce::PopupMenu sub;
+            for (int s : srcs) sub.addItem (100 + s, kModSrcNames[s], n < 2 || has (s), has (s));
+            m.addSubMenu (juce::String::fromUTF8 (title), sub);
+        };
+        m.addSectionHeader (juce::String::fromUTF8 ("Modulation de ce potard (2 sources max)"));
+        fam ("Assigner \xc3\xa0  >  LFO", { MsLfo1, MsLfo2, MsLfo3, MsLfo4 });
+        fam ("Assigner \xc3\xa0  >  MACROS", { MsMac1, MsMac2, MsMac3, MsMac4, MsMac5, MsMac6, MsMac7, MsMac8 });
+        fam ("Assigner \xc3\xa0  >  ENVELOPPES", { MsEnv, MsAmpEnv });
+        fam ("Assigner \xc3\xa0  >  JEU", { MsVel, MsWheel, MsChanAT, MsPolyAT, MsKey, MsRandom });
+        fam ("Assigner \xc3\xa0  >  PISTES ARP", { MsArp1, MsArp2, MsArp3, MsArp4, MsArp5, MsArp6, MsArp7, MsArp8 });
+        for (int k = 0; k < n; ++k)
+            m.addItem (200 + km[k].slot, juce::String::fromUTF8 ("Supprimer : ") + kModSrcNames[km[k].src] + "  (" + juce::String (juce::roundToInt (km[k].amt * 100.f)) + " %)");
+        if (n >= 2) m.addItem (999, juce::String::fromUTF8 ("2 sources d\xc3\xa9j\xc3\xa0 : supprime-en une pour en changer"), false);
+        if (n > 0) m.addItem (998, juce::String::fromUTF8 ("Ctrl + clic gauche et glisser sur le potard : r\xc3\xa9gler l'anneau"), false);
+        if (mapIdx >= 0) m.addSeparator();
+    }
+    if (mapIdx >= 0) {
     m.addItem (1, learning ? "Annuler l'apprentissage MIDI" : juce::String (cc >= 0 ? "R\xc3\xa9" "assigner MIDI" : "Assigner MIDI") + " (bouge un potard du clavier)" + (cc >= 0 ? "  [CC " + juce::String (cc) + "]" : juce::String()));
     m.addItem (2, juce::String ("Supprimer l'assignation MIDI") + (cc >= 0 ? "  [CC " + juce::String (cc) + "]" : juce::String()), cc >= 0);
     if (dflt >= 0) m.addItem (3, "Remettre le CC d'origine (" + juce::String (dflt) + ")", cc != dflt);
@@ -518,10 +555,13 @@ void KnobUnit::mouseDown (const juce::MouseEvent& e)
     m.addItem (11, juce::String::fromUTF8 ("SCALE : rejoint le potard sans saut (conseill\xc3\xa9)"), true, mode == 0);
     m.addItem (12, juce::String::fromUTF8 ("PICKUP : attend que le potard croise la valeur"), true, mode == 1);
     m.addItem (13, juce::String::fromUTF8 ("DIRECT : saute \xc3\xa0 la position du potard"), true, mode == 2);
-    auto* pr = proc; const auto id = paramId;
-    m.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (this), [pr, id, learning] (int r)
+    }
+    auto* pr = proc; const auto id = paramId; const int dst = modDst;
+    m.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (this), [pr, id, learning, dst] (int r)
     {
-        if (r == 1) { if (learning) pr->cancelMidiLearn(); else pr->startMidiLearn (id); }
+        if (r >= 100 && r < 200) pr->assignKnobMod (dst, r - 100);
+        else if (r >= 200 && r < 300) pr->clearKnobMod (r - 200);
+        else if (r == 1) { if (learning) pr->cancelMidiLearn(); else pr->startMidiLearn (id); }
         else if (r == 2) pr->clearMidiAssign (id);
         else if (r == 3) pr->defaultMidiAssign (id);
         else if (r >= 11 && r <= 13) { pr->takeoverMode.store (r - 11); pr->markMidiMapDirty(); }
@@ -534,6 +574,79 @@ void KnobUnit::mouseDown (const juce::MouseEvent& e)
 void KnobUnit::resized() { slider.setBounds (getLocalBounds().withTrimmedBottom (16)); }
 
 void KnobUnit::setCvActive (bool a) { if (a != cvActive) { cvActive = a; repaint(); } }
+
+#if ORAGE_SYNTH
+static const juce::Colour kRingCol[2] { juce::Colour (0xff3d9bff), juce::Colour (0xff3fe0c0) };
+// Ctrl + clic gauche + glisser : regle la quantite d'une source (anneau). Zone exterieure du potard = anneau 1, centre = anneau 2.
+bool KnobUnit::modInterceptor (const juce::MouseEvent& e, int phase)
+{
+    if (proc == nullptr || modDst <= 0) return false;
+    if (phase == 0)
+    {
+        if (! e.mods.isCtrlDown() || e.mods.isPopupMenu()) return false;
+        OrageAudioProcessor::KnobMod km[2]; const int n = proc->knobMods (modDst, km);
+        if (n == 0) return true;                                                   // rien a regler : on ne tourne pas le potard par accident
+        int k = 0;
+        if (n == 2)
+        {
+            const auto c = slider.getLocalBounds().toFloat().getCentre();
+            const float r = juce::jmin ((float) slider.getWidth(), (float) slider.getHeight()) * 0.5f;
+            k = e.position.getDistanceFrom (c) >= 0.62f * r ? 0 : 1;
+        }
+        ringSlot = km[k].slot; ringStartAmt = km[k].amt; dragStartY = e.position.y;
+        dragText = juce::String (kModSrcNames[km[k].src]);
+        return true;
+    }
+    if (ringSlot < 0) return true;
+    if (phase == 1)
+    {
+        const float amt = juce::jlimit (-1.f, 1.f, ringStartAmt + (dragStartY - e.position.y) / 150.f);
+        proc->setKnobModAmt (ringSlot, amt);
+        dragText = dragText.upToFirstOccurrenceOf ("  ", false, false) + "  " + juce::String (juce::roundToInt (amt * 100.f)) + " %";
+        repaint();
+    }
+    else { ringSlot = -1; dragText = {}; repaint(); }
+    return true;
+}
+
+void KnobUnit::paintOverChildren (juce::Graphics& g)
+{
+    if (proc == nullptr || modDst <= 0) return;
+    OrageAudioProcessor::KnobMod km[2]; const int n = proc->knobMods (modDst, km);
+    if (n == 0) return;
+    const auto sb = slider.getBounds().toFloat();
+    const auto c = sb.getCentre();
+    const float r = juce::jmin (sb.getWidth(), sb.getHeight()) * 0.5f;
+    const float sa = juce::MathConstants<float>::pi * 1.2f, ea = juce::MathConstants<float>::pi * 2.8f;
+    const float base = (float) slider.valueToProportionOfLength (slider.getValue());
+    for (int k = 0; k < n; ++k)
+    {
+        const float rad = r * (k == 0 ? 1.02f : 0.9f);
+        const float sc = OrageAudioProcessor::modScaleOfDst (modDst), span = km[k].amt * sc;
+        const float end = juce::jlimit (0.f, 1.f, base + span);
+        const float a0 = sa + juce::jmin (base, end) * (ea - sa), a1 = sa + juce::jmax (base, end) * (ea - sa);
+        juce::Path p; p.addCentredArc (c.x, c.y, rad, rad, 0.f, a0, juce::jmax (a1, a0 + 0.02f), true);
+        g.setColour (juce::Colours::black.withAlpha (0.55f)); g.strokePath (p, juce::PathStrokeType (4.4f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+        g.setColour (kRingCol[k]); g.strokePath (p, juce::PathStrokeType (2.8f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+        const float live = proc->modSourceLive (km[k].src);                        // point vivant : ou le reglage est reellement en ce moment
+        if (live >= 0.f)
+        {
+            const float pos = juce::jlimit (0.f, 1.f, base + span * live), a = sa + pos * (ea - sa);
+            g.setColour (juce::Colours::white); g.fillEllipse (c.x + rad * std::sin (a) - 3.2f, c.y - rad * std::cos (a) - 3.2f, 6.4f, 6.4f);
+            g.setColour (kRingCol[k]);           g.drawEllipse (c.x + rad * std::sin (a) - 3.2f, c.y - rad * std::cos (a) - 3.2f, 6.4f, 6.4f, 1.4f);
+        }
+    }
+    if (dragText.isNotEmpty())
+    {
+        const auto box = juce::Rectangle<float> (c.x - 46.f, c.y - 9.f, 92.f, 18.f);
+        g.setColour (juce::Colours::black.withAlpha (0.82f)); g.fillRoundedRectangle (box, 4.f);
+        g.setColour (juce::Colours::white); g.setFont (font (10.5f)); g.drawText (dragText, box.toNearestInt(), juce::Justification::centred, false);
+    }
+}
+#else
+void KnobUnit::paintOverChildren (juce::Graphics&) {}
+bool KnobUnit::modInterceptor (const juce::MouseEvent&, int) { return false; }
+#endif
 
 void KnobUnit::paint (juce::Graphics& g)
 {

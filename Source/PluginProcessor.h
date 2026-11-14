@@ -58,6 +58,17 @@ public:
     void defaultRack();         // remet les modules dans l'ordre d'origine
     void clearPatchbay();       // retire tous les cables
     void setParamReal (const char* id, float realValue);
+#if ORAGE_SYNTH
+    // ---- anneaux de modulation : un potard = une destination de la matrice ; 2 sources au maximum par potard
+    static int modDstOfParam (const juce::String& paramId);                  // 0 : ce potard n'a pas de destination de matrice
+    static float modScaleOfDst (int dst);                                    // part de la plage du potard couverte par une quantite de 100 % (pour l'anneau)
+    struct KnobMod { int slot, src; float amt; };
+    int  knobMods (int dst, KnobMod out[2]) const;                           // sources deja routees vers cette destination (2 max)
+    int  assignKnobMod (int dst, int src);                                   // cree le routage (ou le reutilise) ; renvoie le slot, -1 si plus de place ; -2 si deja 2 sources
+    void setKnobModAmt (int slot, float amt);
+    void clearKnobMod (int slot);
+    float modSourceLive (int src) const;                                     // valeur courante de la source pour l'affichage (macros, molette), -1 si inconnue
+#endif
 
     juce::AudioProcessorValueTreeState apvts;
     juce::MidiKeyboardState keyboardState;  // clavier a l'ecran (version instrument)

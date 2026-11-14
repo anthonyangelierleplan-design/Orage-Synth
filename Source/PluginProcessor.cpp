@@ -910,6 +910,15 @@ void OrageAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
         buffer.clear();
         keyboardState.processNextMidiBuffer (midi, 0, total, true);     // clavier a l'ecran -> notes MIDI
         synth.setHost (bpm);
+        {   // controleurs MIDI : appliques AVANT la lecture des reglages, et une seule fois par bloc (derniere valeur) -> pas de bloc de retard, moins de messages vers l'hote
+            int lastCcV[128]; bool seen[128] = {};
+            for (const auto meta : midi)
+            {
+                const auto m = meta.getMessage();
+                if (m.isController()) { const int c = m.getControllerNumber(); lastCcV[c] = m.getControllerValue(); seen[c] = true; }
+            }
+            for (int c = 0; c < 128; ++c) if (seen[c]) handleCC (c, lastCcV[c]);
+        }
         synth.setParams (readSynth());
         {   // modulation globale (matrice, pistes) de l'arpegiateur : valeurs du bloc precedent
             const float* gm = synth.fxMod();
@@ -967,8 +976,8 @@ void OrageAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
             else if (m.isPitchWheel())   evs.push_back ({ pos, 3, 0, (float) (m.getPitchWheelValue() - 8192) / 8192.f * 2.f });
             else if (m.isAftertouch())   evs.push_back ({ pos, 5, m.getNoteNumber(), (float) m.getAfterTouchValue() / 127.f });
             else if (m.isChannelPressure()) evs.push_back ({ pos, 6, 0, (float) m.getChannelPressureValue() / 127.f });
-            else if (m.isController() && m.getControllerNumber() != 1 && handleCC (m.getControllerNumber(), m.getControllerValue())) {}
-            else if (m.isController() && m.getControllerNumber() == 1) { handleCC (1, m.getControllerValue()); evs.push_back ({ pos, 4, 0, (float) m.getControllerValue() / 127.f }); }
+            else if (m.isController() && m.getControllerNumber() != 1) {}                // deja traite en debut de bloc
+            else if (m.isController() && m.getControllerNumber() == 1) { evs.push_back ({ pos, 4, 0, (float) m.getControllerValue() / 127.f }); }
         }
         {
             orage::Arp::Ev ae[256];
@@ -1119,6 +1128,82 @@ void OrageAudioProcessor::setParamReal (const char* id, float real)
 {
     if (auto* prm = apvts.getParameter (id)) prm->setValueNotifyingHost (prm->convertTo0to1 (real));
 }
+
+#if ORAGE_SYNTH
+int OrageAudioProcessor::modDstOfParam (const juce::String& id)
+{
+    struct E { const char* id; int dst; };
+    static const E tab[] = {
+        { "s_pw1", MdPw1 }, { "s_pw2", MdPw2 }, { "s_fm", MdFm }, { "s_ring", MdRing }, { "s_lvl2", MdMix }, { "s_lvl1", MdLvl1 }, { "s_noise", MdNoise },
+        { "s_hpf", MdHpf }, { "s_hpfRes", MdHpfReso }, { "s_lpf", MdLpf }, { "s_lpfRes", MdReso }, { "s_fltEnv", MdFltEnv }, { "s_drive", MdDrive }, { "s_semMorph", MdMorph },
+        { "s_fold", MdFold }, { "s_foldSym", MdFoldSym }, { "s_glide", MdGlide }, { "s_key", MdKeyTrack },
+        { "s_aA", MdAmpA }, { "s_aD", MdAmpD }, { "s_aS", MdAmpS }, { "s_aR", MdAmpR }, { "s_fA", MdFltA }, { "s_fD", MdFltD }, { "s_fS", MdFltS }, { "s_fR", MdFltR },
+        { "s_arpRate", MdArpRate }, { "s_arpGate", MdArpGate }, { "s_arpSwing", MdArpSwing }, { "s_arpChance", MdArpChance },
+        { "s_l1Rate", MdLfo1Rate }, { "s_l2Rate", MdLfo2Rate }, { "s_l3Rate", MdLfo3Rate }, { "s_l4Rate", MdLfo4Rate },
+        { "power", MdFxPower }, { "clip", MdFxClip }, { "unc", MdFxUnc }, { "hpf", MdFxHpf }, { "lpf", MdFxLpf }, { "destroy", MdFxDestroy }, { "dRate", MdFxRate },
+        { "springMix", MdFxSpring }, { "springDecay", MdSprDecay }, { "mix", MdFxMix }, { "chaos", MdFxChaos }, { "compAmt", MdCompAmt }, { "gateThresh", MdGateThresh }, { "octAmt", MdOctAmt },
+        { "low", MdColLow }, { "mid", MdColMid }, { "high", MdColHigh },
+        { "bbdTime", MdBbdTime }, { "bbdFb", MdBbdFb }, { "bbdMix", MdBbdMix }, { "bbdTone", MdBbdTone }, { "bbdMod", MdBbdWobble },
+        { "revMix", MdRevMix }, { "revDecay", MdRevDecay }, { "revDamp", MdRevDamp }, { "revSize", MdRevSize }, { "revPre", MdRevPre }, { "revShimmer", MdRevShimmer }, { "revWidth", MdRevWidth },
+        { "stutLen", MdStutLen }, { "stutDecay", MdStutDecay }, { "stutPitch", MdStutPitch }, { "stutMix", MdStutMix } };
+    for (const auto& e : tab) if (id == e.id) return e.dst;
+    return 0;
+}
+
+float OrageAudioProcessor::modScaleOfDst (int d)
+{
+    if (d == MdHpf || d == MdLpf || d == MdReso || d == MdHpfReso || d == MdMorph || d == MdFltEnv) return 0.5f;
+    if (d == MdPw1 || d == MdPw2) return 0.45f;
+    if (d == MdColLow || d == MdColMid || d == MdColHigh) return 0.5f;
+    if ((d >= MdFxPower && d <= MdRevDamp) || (d >= MdRevSize && d <= MdOctAmt)) return 0.6f;
+    return 1.f;
+}
+
+int OrageAudioProcessor::knobMods (int dst, KnobMod out[2]) const
+{
+    int n = 0;
+    if (dst <= 0) return 0;
+    for (int i = 1; i <= kSlots && n < 2; ++i)
+    {
+        const juce::String q ("s_slot" + juce::String (i));
+        const int d = juce::roundToInt (apvts.getRawParameterValue (q + "Dst")->load()), s = juce::roundToInt (apvts.getRawParameterValue (q + "Src")->load());
+        if (d == dst && s > 0) out[n++] = { i, s, apvts.getRawParameterValue (q + "Amt")->load() };
+    }
+    return n;
+}
+
+int OrageAudioProcessor::assignKnobMod (int dst, int src)
+{
+    KnobMod cur[2]; const int n = knobMods (dst, cur);
+    for (int k = 0; k < n; ++k) if (cur[k].src == src) return cur[k].slot;           // deja routee : on la reutilise
+    if (n >= 2) return -2;
+    for (int i = 1; i <= kSlots; ++i)                                                 // premier slot libre
+    {
+        const juce::String q ("s_slot" + juce::String (i));
+        if (juce::roundToInt (apvts.getRawParameterValue (q + "Src")->load()) == 0 && juce::roundToInt (apvts.getRawParameterValue (q + "Dst")->load()) == 0)
+        {
+            setParamReal ((q + "Src").toRawUTF8(), (float) src); setParamReal ((q + "Dst").toRawUTF8(), (float) dst); setParamReal ((q + "Amt").toRawUTF8(), 0.5f);
+            return i;
+        }
+    }
+    return -1;
+}
+
+void OrageAudioProcessor::setKnobModAmt (int slot, float amt) { setParamReal (("s_slot" + juce::String (slot) + "Amt").toRawUTF8(), juce::jlimit (-1.f, 1.f, amt)); }
+
+void OrageAudioProcessor::clearKnobMod (int slot)
+{
+    const juce::String q ("s_slot" + juce::String (slot));
+    setParamReal ((q + "Src").toRawUTF8(), 0.f); setParamReal ((q + "Dst").toRawUTF8(), 0.f); setParamReal ((q + "Amt").toRawUTF8(), 0.f);
+}
+
+float OrageAudioProcessor::modSourceLive (int src) const
+{
+    for (int i = 0; i < kMacros; ++i) if (macroSrc (i) == src) return apvts.getRawParameterValue ("s_m" + juce::String (i + 1))->load();
+    if (src == MsWheel) return (float) wheelShown.load() / 127.f;
+    return -1.f;
+}
+#endif
 
 void OrageAudioProcessor::resetModules()
 {

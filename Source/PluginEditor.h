@@ -60,6 +60,11 @@ class DetentSlider : public juce::Slider
 {
 public:
     using juce::Slider::Slider;
+    std::function<bool (const juce::MouseEvent&, int)> intercept;     // phase 0 appui, 1 glisse, 2 relache : renvoie true si le geste est pris en charge (reglage d'un anneau de modulation)
+    void mouseDown (const juce::MouseEvent& e) override { grabbed = intercept && intercept (e, 0); if (! grabbed) juce::Slider::mouseDown (e); }
+    void mouseDrag (const juce::MouseEvent& e) override { if (grabbed) intercept (e, 1); else juce::Slider::mouseDrag (e); }
+    void mouseUp (const juce::MouseEvent& e) override { if (grabbed) { intercept (e, 2); grabbed = false; } else juce::Slider::mouseUp (e); }
+    bool grabbed = false;
     double detent = -1e30;                                   // valeur du cran (hors plage = aucun)
     bool showMark = false;                                   // trait orange sur la piste (curseurs lineaires)
     double snapValue (double v, DragMode mode) override
@@ -84,6 +89,7 @@ public:
     KnobUnit (juce::AudioProcessorValueTreeState&, const juce::String& id, const juce::String& text,
               const juce::String& lo, const juce::String& hi, int cvIdx = -1);
     void paint (juce::Graphics&) override;
+    void paintOverChildren (juce::Graphics&) override;                // anneaux de modulation
     void resized() override;
     void setCvActive (bool);
 
@@ -97,6 +103,8 @@ private:
     OrageAudioProcessor* proc = nullptr;
     juce::String paramId;
     int mapIdx = -1, shownCc = -1; bool shownLearn = false, shownShow = false;
+    int modDst = 0, nMods = 0, ringSlot = -1, hash = 0; float ringStartAmt = 0.f; float dragStartY = 0.f; juce::String dragText;
+    bool modInterceptor (const juce::MouseEvent&, int);
 };
 
 // ---------------------------------------------------------------- boutons-poussoirs (parametre "choice")

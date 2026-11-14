@@ -35,3 +35,8 @@ Façade façon Korg MS20 : zones délimitées par des traits blancs sérigraphi�
 - **Menus de destination/source en sous-menus** classés par module (OSCILLATORS, FILTER, ENVELOPES, LFO, ARPEGGIATOR, FX RACK > module…).
 - **Molette de modulation (CC1)** : routage par défaut molette → LPF (slot 13 de la matrice) dans chaque preset ; modifiable.
 - Anciens projets et presets restent compatibles.
+
+## v15
+- **Latence MIDI** : les contrôleurs MIDI sont appliqués au début du bloc audio (avant la lecture des réglages) et une seule fois par bloc : plus de bloc de retard, moins de messages vers l'hôte.
+- **Drive du LPF plus brillant** : accentuation des médiums-aigus avant la saturation ; le drive n'assombrit plus et gonfle moins les graves.
+- **Anneaux de modulation (2 sources par potard)** : clic droit sur un potard > « Assigner à » (LFO, macros, enveloppes, jeu, pistes arp) ; anneaux bleu et turquoise autour du potard avec un point blanc qui montre la valeur modulée en direct (macros, molette) ; Ctrl + clic gauche + glisser règle la quantité (zone extérieure du potard = anneau 1, centre = anneau 2). Utilise les slots de la matrice.

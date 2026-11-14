@@ -285,7 +285,7 @@ private:
         bool active = false; int note = 60; float vel = 1.f; uint64_t age = 0;
         bool gated = false, raw = false; int slot = -1; float uniCents = 0.f, uniPan = 0.f, gainV = 1.f;
         sy::Env aenv, fenv; float pitch = 60.f, ph1 = 0.f, ph2 = 0.f, prev1 = 0.f, prev2 = 0.f, fmT = 0.f;
-        sy::Hp hp; sy::Lp lp; sy::Sem sem; sy::Ladder lad; float pat = 0.f, patS = 0.f, rndv = 0.f; float xPrev = 0.f; float lph[kLfos] {}, lfade[kLfos] {}, lsh[kLfos] {}, lcur[kLfos] {}; float envM[8] {};     // envM : modulation des enveloppes (bloc precedent)
+        sy::Hp hp; sy::Lp lp; sy::Sem sem; sy::Ladder lad; float pat = 0.f, patS = 0.f, rndv = 0.f; float xPrev = 0.f, drvLp = 0.f; float lph[kLfos] {}, lfade[kLfos] {}, lsh[kLfos] {}, lcur[kLfos] {}; float envM[8] {};     // envM : modulation des enveloppes (bloc precedent)
     };
     static constexpr int kKeys = 16;
     struct Key { int note; float vel; bool phys; uint64_t t; };
@@ -527,6 +527,7 @@ private:
         const float kSem = 1.75f * std::pow (1.f - res, 1.3f) + 0.06f, kLad = 4.05f * res;
         const float foldA = std::min (1.f, std::max (0.f, P.fold + md[MdFold])), foldS = std::min (1.f, std::max (-1.f, P.foldSym + md[MdFoldSym]));
         const float drive = 1.f + std::min (1.f, std::max (0.f, P.drive + md[MdDrive])) * 5.f;
+        const float drvC = 1.f - std::exp (-6.2831853f * 1200.f / fs), drvEmph = 4.5f * (drive - 1.f) / 5.f;      // emphase au-dessus de ~1,2 kHz, proportionnelle au drive
 
         const float level = std::min (2.f, std::max (0.f, 1.f + md[MdLevel]));
         const float pan = std::min (1.f, std::max (-1.f, md[MdPan] + v.uniPan));
@@ -553,7 +554,11 @@ private:
             if (foldA > 0.001f) { const float xm = 0.5f * (x + v.xPrev); v.xPrev = x; x = 0.5f * (sy::fold (xm, foldA, foldS) + sy::fold (x, foldA, foldS)); }   // wavefolder (2 points : un peu moins de repliement)
             else v.xPrev = x;
             const float hp = v.hp.run (x * 0.7f, gH, kH);                  // HPF puis LPF, comme sur le MS20
-            const float dx = std::tanh (hp * drive);
+            // DRIVE "shiny" : on accentue le haut du spectre AVANT la saturation (les graves gonflent moins, les harmoniques brillent), puis on rend le niveau
+            v.drvLp += drvC * (hp - v.drvLp);
+            const float hiPart = hp - v.drvLp;
+            const float dIn = hp + drvEmph * hiPart;
+            const float dx = (std::tanh (dIn * drive + 0.06f * (drive - 1.f)) - std::tanh (0.06f * (drive - 1.f))) * (1.f / (1.f + 0.12f * (drive - 1.f)));
             float lp;
             if (P.ftype == 1)      lp = v.sem.run (dx, gL, kSem, morph) * 1.15f;
             else if (P.ftype == 2) lp = v.lad.run (dx * 1.2f, gL, kLad) * (1.f + 1.0f * res);
