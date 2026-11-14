@@ -15,6 +15,7 @@ Les chiffres viennent des tests automatiques, pas d'une écoute : l'oreille rest
 - Après modification d'un en-tête : recompiler TOUS les objets (un objet périmé = plantage `free(): invalid pointer`).
 
 ## Journal des problèmes (symptôme → cause → correction)
+- v18 — Résonance MS-20 trop « générique » → filtre modélisé par réponse, pas par circuit → MS-10 écrit depuis le schéma (équations nodales, trapèze + Newton 1D réduit à la tension de diode), tables de cutoff/compensation issues de l'auto-oscillation SIMULÉE (pas de formule), calibré sur enregistrements réels.
 - v17 — Aigus parasites wavefolder/drive sur notes hautes → repliement de spectre → suréchantillonnage ×4 (demi-bandes 23 et 11 taps), triangle polyBLAMP.
 - v17 — Composante continue en sortie → saturation asymétrique → coupe-continu 6 Hz en sortie du synthé.
 - v16 — Escalier sur le cutoff → réglages lus par blocs sans lissage, CC MIDI à 128 pas → 2 lisseurs en cascade (5,5 ms chacun) + coefficients interpolés par échantillon.
@@ -76,7 +77,16 @@ Les chiffres viennent des tests automatiques, pas d'une écoute : l'oreille rest
 8. Push sur les deux dépôts, deux builds verts.
 9. Compte rendu : mesuré, non vérifié, à juger à l'oreille.
 
+## Méthode : modéliser un filtre d'après son schéma
+1. Schéma → inconnues (nœuds) et équations de courant ; OTA : I = Gp·Vs·tanh(v/Vs) ; condensateurs en trapèze (h = 2·G·v − h_ancien).
+2. Réduire à une inconnue (ici la tension de diode) → Newton 1D, départ extrapolé, ≤ 10 itérations, garde-fou non fini → reset.
+3. Cutoff : table construite à partir de la fréquence d'auto-oscillation simulée (inclut la pré-déformation bilinéaire), jamais d'une formule théorique.
+4. Valider sur enregistrements : réponse harmonique relative au filtre ouvert, ajustement du cutoff par trame, erreur RMS ancien/nouveau.
+5. Mesurer CPU en vrai plugin, fuzz de réglages extrêmes, presets.
+
 ## Reste à faire sur Orage
+- Ladder (schéma CEM3320 Pro-One) et SEM (schéma Oberheim) à modéliser de la même façon ; enregistrements du matériel réel bienvenus (MS-10 à 80 % / 90 % aussi).
+- Écouter le MS-10 circuit ; décider du roll-off aigu et d'un réglage d'asymétrie.
 - À l'oreille : lissage 20 ms, MS-20 adouci, drive brillant, wavefolder.
 - Dans Ableton : menu « Assigner à », anneaux à la souris, sous-menus.
 - Wavefolder à fond sur notes très aiguës : reste −20 dB (×8 possible).

@@ -47,6 +47,11 @@ Façade façon Korg MS20 : zones délimitées par des traits blancs sérigraphi�
 - **Stabilité** : la FM extrême sur une note aiguë pouvait produire un signal invalide (NaN) ; les phases sont bornées et un garde-fou remet la voix à zéro en cas de valeur folle. Testé sur des centaines de réglages aléatoires extrêmes.
 - **Anneaux** : le point vivant suit aussi les LFO ; réassigner une source dont la quantité était à zéro lui donne 50 %.
 
+## v18 (filtre MS-10 modélisé d'après le circuit)
+- **Nouveau type de filtre « MS-10 CIRCUIT »** (4ᵉ choix du sélecteur, les anciens filtres sont conservés et les états sauvegardés restent compatibles) : modèle du circuit Korg 35 du MS-10 (deux étages OTA-C, rétroaction par l'ampli à diodes 1N4148 et le potard PEAK), résolu à chaque échantillon (intégration trapézoïdale + Newton), sans tableau de réponse en fréquence.
+- **Calibré sur de vraies mesures** d'un MS-10 de 1978 (résonance 0 / 30 / 60 / 100 % et auto-oscillation) : bosse de résonance, fréquence d'auto-oscillation (écart < 1 % dans le moteur), amplitude et harmoniques 2 et 3.
+- **Limites connues** : seulement 3 positions de résonance mesurées (le comportement entre 60 % et 100 % est interpolé) ; l'affaiblissement des aigus au-delà de 7-9 kHz vu sur l'enregistrement n'est pas modélisé ; pas encore écouté ; crête max plus haute que le MS-20 à fond (1,74 contre 1,11 en pire cas, 5 voix) ; CPU environ 1,6× celui de l'ancien MS-20.
+
 ## v17 (qualité)
 - **Suréchantillonnage ×4** du wavefolder et du drive, triangle anti-replié : beaucoup moins d'aigus parasites sur les notes hautes.
 - **Coupe-continu** en sortie du synthé.

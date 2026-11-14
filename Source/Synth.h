@@ -51,7 +51,7 @@ struct SynthParams
     int fmDir = 0, fmRatio = 0, fmWave = 0;   // FM : sens (0 VCO2>VCO1, 1 VCO1>VCO2, 2 croisee), rapport de frequence (0 libre), onde du modulateur (0 = celle du VCO)
     float fmFine = 0.f, fmAtt = 0.f, fmDec = 0.4f, fmEnvAmt = 0.f, fmVel = 0.f, fmAT = 0.f;     // FM : desaccord fin, enveloppe de profondeur, vitesse, aftertouch
     float uniDetune = 0.3f;                   // ecart de desaccord des voix empilees
-    int ftype = 0;                            // filtre passe-bas : 0 MS20, 1 SEM, 2 Ladder
+    int ftype = 0;                            // filtre passe-bas : 0 MS20, 1 SEM, 2 Ladder, 3 MS-10 (circuit)
     float semMorph = 0.f;                     // SEM : LP -> notch -> HP
     float fold = 0.f, foldSym = 0.f;           // wavefolder : quantite, symetrie
     float master = 0.7f;
@@ -195,6 +195,110 @@ inline float tanhFast (float x)
     const float x2 = x * x;
     return x * (135135.f + x2 * (17325.f + x2 * (378.f + x2))) / (135135.f + x2 * (62370.f + x2 * (3150.f + x2 * 28.f)));
 }
+// ---- MS-10 : modele du CIRCUIT du VCF Korg35 (schemas Korg MS-10 / Haible), valide sur des enregistrements d'un MS-10 de 1978
+// deux etages RC a transconductance (OTA, tanh) 3,3 nF / 1 nF, attenuation d'entree 1/101, ampli de sortie 270k/4,7k (gain 58) limite par des diodes 1N4148,
+// retour PEAK par 2,2k + 5,6k + 1 nF vers le noeud intermediaire. Integration trapezoidale + Newton 4x4 : le retour est implicite (pas de retard d'un echantillon).
+inline double tanhSmall (double x)                                  // tanh : serie pour |x| < 0.5 (signal faible devant l'echelle de l'OTA), Pade rapide sinon
+{
+    if (std::fabs (x) < 0.5) { const double x2 = x * x; return x * (1.0 + x2 * (-1.0 / 3 + x2 * (2.0 / 15 + x2 * (-17.0 / 315 + x2 * (62.0 / 2835 - x2 * (1382.0 / 155925)))))); }
+    return (double) tanhFast ((float) x);
+}
+inline double atanhFast (double z)                                  // atanh : serie pour |z| < 0.3 (le cas courant : signal faible devant l'echelle de l'OTA), logarithme sinon
+{
+    const double a = std::fabs (z);
+    if (a < 0.15) { const double z2 = z * z; return z * (1.0 + z2 * (1.0 / 3 + z2 * (1.0 / 5 + z2 * (1.0 / 7)))); }
+    if (a < 0.4) { const double z2 = z * z; return z * (1.0 + z2 * (1.0 / 3 + z2 * (1.0 / 5 + z2 * (1.0 / 7 + z2 * (1.0 / 9 + z2 * (1.0 / 11 + z2 * (1.0 / 13 + z2 * (1.0 / 15 + z2 * (1.0 / 17))))))))); }
+    return 0.5 * std::log ((1.0 + z) / (1.0 - z));
+}
+struct Ms10Cst
+{
+    double Gc6 = 0, Gc3 = 0, Gc5 = 0, kdc = 0;
+    void prepare (double fs) { const double T = 1.0 / fs; Gc6 = 2 * 3.3e-9 / T; Gc3 = 2 * 1e-9 / T; Gc5 = 2 * 1e-9 / T; kdc = 1.0 - std::exp (-6.2831853 * 3.4 / fs); }
+};
+struct Ms10Tab
+{
+    static constexpr int N = 34;
+    double lRp[N], lOm[N], lRa[N], kF[N];
+    Ms10Tab()
+    {
+        static const double kRp[N] = {1000,1258.93,1584.89,1995.26,2511.89,3162.28,3981.07,5011.87,6309.57,7943.28,10000,12589.3,15848.9,19952.6,25118.9,31622.8,39810.7,50118.7,63095.7,79432.8,100000,125893,158489,199526,251189,316228,398107,501187,630957,794328,1e+06,1.25893e+06,1.58489e+06,1.99526e+06};
+        static const double kOm[N] = {124095,118186,102951,96000,80963.9,70034.1,60589.5,52329.5,44846.7,38201.2,32343,27211.2,22748.4,18899.1,15608.1,12819.6,10477,8525.03,6910.58,5583.98,4500.37,3619.51,2906.44,2331.28,1868.67,1497.49,1200.23,962.555,772.729,621.259,500.481,404.213,327.482,266.319};
+        static const double kFt[N] = {1.9000,1.9000,1.7491,1.6235,1.5077,1.4054,1.3183,1.2463,1.1883,1.1424,1.1067,1.0794,1.0586,1.0431,1.0316,1.0231,1.0169,1.0124,1.0091,1.0068,1.0050,1.0037,1.0028,1.0021,1.0016,1.0012,1.0009,1.0006,1.0004,1.0003,1.0002,1.0001,1.0001,1.0000};
+        for (int i = 0; i < N; ++i) { lRp[i] = std::log (kRp[N - 1 - i]); lOm[i] = std::log (kOm[N - 1 - i]); lRa[i] = std::log (kRp[i]); kF[i] = kFt[i]; }
+    }
+    static const Ms10Tab& get() { static const Ms10Tab t; return t; }
+    double rpFor (double om) const                                  // resistance des etages pour une pulsation analogique (la frequence d'auto-oscillation = le cutoff)
+    {
+        const double l = std::log (std::max (om, 1.0));
+        if (l <= lOm[0]) return std::exp (lRp[0] + (lOm[0] - l));
+        if (l >= lOm[N - 1]) return std::exp (lRp[N - 1]);
+        int i = 0; while (i < N - 2 && lOm[i + 1] < l) ++i;
+        const double t = (l - lOm[i]) / (lOm[i + 1] - lOm[i]); return std::exp (lRp[i] + t * (lRp[i + 1] - lRp[i]));
+    }
+    double kFor (double rp) const                                   // compense la perte de gain de boucle dans les aigus
+    {
+        const double l = std::log (rp); if (l <= lRa[0]) return kF[0]; if (l >= lRa[N - 1]) return kF[N - 1];
+        int i = 0; while (i < N - 2 && lRa[i + 1] < l) ++i;
+        const double t = (l - lRa[i]) / (lRa[i + 1] - lRa[i]); return kF[i] + t * (kF[i + 1] - kF[i]);
+    }
+    static double potOf (double res)                                // reglage de resonance (0..1) -> position electrique du potard PEAK, calee sur les mesures (30 % : +2,5 dB, 60 % : +6 dB, 100 % : oscille)
+    {
+        static const double x[] = { 0.0, 0.15, 0.30, 0.45, 0.60, 0.75, 0.88, 1.0 }, y[] = { 0.0, 0.36, 0.47, 0.52, 0.57, 0.60, 0.64, 0.75 };
+        if (res <= 0.0) return 0.0; if (res >= 1.0) return y[7];
+        int i = 0; while (i < 6 && x[i + 1] < res) ++i;
+        return y[i] + (res - x[i]) / (x[i + 1] - x[i]) * (y[i + 1] - y[i]);
+    }
+    void controls (double om, double res, const Ms10Cst& c, float& Gp, float& pk, float& Ge) const
+    {
+        const double Rp = rpFor (om), p = potOf (res), Rs = 2200.0 + 5600.0 + 10000.0 * p * (1.0 - p);
+        Gp = (float) (1.0 / Rp); pk = (float) (0.2 * p * kFor (Rp)); Ge = (float) (1.0 / (Rs + 1.0 / c.Gc5));
+    }
+};
+#ifdef MS10_COUNT
+inline long g_ms10It = 0;
+#endif
+struct Ms10
+{
+    double Vm = 0, Vo = 0, Vf = 0, Vd = 0, Vd1 = 0, h6 = 0, h3 = 0, h5 = 0, vdc = 0; uint32_t rng = 2463534242u;
+    void reset() { Vm = Vo = Vf = Vd = Vd1 = h6 = h3 = h5 = vdc = 0; }
+    // Le systeme (4 inconnues : noeud intermediaire m, sortie o, sortie de l'ampli f, tension de diode d) se ramene a UNE inconnue d :
+    //   f = d + Rd.Id(d) ; o = vdc + R63 (f/R64 + Id) ; m = o + Vs.atanh ((Gc3 o - h3) / (Gp Vs)) ; il reste l'equation du noeud m, resolue par Newton 1D.
+    float run (float xin, float Gpf, float pkf, float Gef, const Ms10Cst& C)
+    {
+        constexpr double kSc = 0.4, att = 1.0 / 101.0, R63 = 4700.0, R64 = 270000.0, Is = 2e-8, nVt = 0.07, da = 0.3, Rd = 2200.0, Vs = 0.1, makeup = 1.15;
+        const double Gp = Gpf, pk = pkf, Ge = Gef;
+        rng ^= rng << 13; rng ^= rng >> 17; rng ^= rng << 5;                                   // bruit minuscule : amorce l'auto-oscillation, comme le bruit du vrai circuit
+        const double vi = xin * kSc * att + ((double) rng * (1.0 / 4294967296.0) - 0.5) * 2e-7;
+        const double g5 = h5 / C.Gc5, GpVs = Gp * Vs, iGpVs = 1.0 / GpVs, kG = C.Gc3 / Gp, iVs = 1.0 / Vs, iNv = 1.0 / nVt;
+        double d = 2.0 * Vd - Vd1, m = Vm, o = Vo, f = Vf;      // depart : extrapolation lineaire de la tension de diode
+        for (int it = 0; it < 10; ++it)
+        {
+            const double ex = (double) expf ((float) std::min (d * iNv, 40.0)), en = 1.0 / ex;
+            const double Id = Is * ((1 + da) * ex - (1 - da) * en), dId = Is * iNv * ((1 + da) * ex + (1 - da) * en);
+            f = d + Rd * Id;                         const double f1 = 1.0 + Rd * dId;
+            o = vdc + R63 * (f / R64 + Id);          const double o1 = R63 * (f1 / R64 + dId);
+            const double I2 = C.Gc3 * o - h3;
+            const double z = std::max (-0.999999, std::min (0.999999, I2 * iGpVs)), w = 1.0 - z * z;
+            m = o + Vs * atanhFast (z);
+            const double m1 = o1 * (1.0 + kG / w);
+            const double t1 = tanhSmall ((vi - m) * iVs), I1 = GpVs * t1, dI1 = Gp * (1.0 - t1 * t1);
+            const double F = I1 - I2 - C.Gc6 * m + h6 + Ge * (pk * (o + f) - m - g5);
+            const double dF = -dI1 * m1 - C.Gc3 * o1 - C.Gc6 * m1 + Ge * (pk * (o1 + f1) - m1);
+            double step = -F / dF; const double as = std::fabs (step); if (as > 0.1) step *= 0.1 / as;
+            d += step;
+#ifdef MS10_COUNT
+            ++g_ms10It;
+#endif
+            if (as < 4e-7) break;
+        }
+        const double Va = o + f;
+        if (! std::isfinite (Va)) { reset(); return 0.f; }
+        const double iF = Ge * (pk * Va - m - g5);
+        h6 = 2 * C.Gc6 * m - h6; h3 = 2 * C.Gc3 * o - h3; h5 += 2 * iF;
+        Vm = m; Vo = o; Vf = f; Vd1 = Vd; Vd = d; vdc += (o - vdc) * C.kdc;
+        return (float) (Va * (makeup / (att * (1.0 + R64 / R63) * kSc)));
+    }
+};
 // ---- surechantillonnage x4 autour d'une non-linearite (2 etages demi-bande) : les harmoniques creees au-dessus de Nyquist sont filtrees au lieu de se replier
 template <int L> struct HalfBand                                    // L impair avec (L-1)/2 impair (11, 15, 23...) : un tap sur deux est nul, on ne calcule que les autres
 {
@@ -257,7 +361,7 @@ class Synth
 public:
     void prepare (float sampleRate)
     {
-        fs = sampleRate;
+        fs = sampleRate; msC.prepare (fs); sy::Ms10Tab::get();
         for (auto& v : voices) v = Voice();
         for (int i = 0; i < kLfos; ++i) { gPhase[i] = 0.f; gSh[i] = 0.f; gCur[i] = 0.f; }
         counter = 0; seed = 12345u;
@@ -356,13 +460,14 @@ private:
     static constexpr float SynthParams::* kSm[] = { &SynthParams::lpf, &SynthParams::lpfRes, &SynthParams::hpf, &SynthParams::hpfRes, &SynthParams::drive, &SynthParams::semMorph, &SynthParams::fold, &SynthParams::foldSym,
         &SynthParams::fm, &SynthParams::ring, &SynthParams::lvl1, &SynthParams::lvl2, &SynthParams::noise, &SynthParams::pw1, &SynthParams::pw2, &SynthParams::fltEnv, &SynthParams::keytrack, &SynthParams::master };
     static constexpr int kSmN = (int) (sizeof (kSm) / sizeof (kSm[0]));
+    sy::Ms10Cst msC;
     SynthParams Tg; float sm[kSmN] {}, sm1[kSmN] {}; float dcL = 0.f, dcR = 0.f; bool smInit = false;
     struct Voice
     {
         bool active = false; int note = 60; float vel = 1.f; uint64_t age = 0;
         bool gated = false, raw = false; int slot = -1; float uniCents = 0.f, uniPan = 0.f, gainV = 1.f;
         sy::Env aenv, fenv; float pitch = 60.f, ph1 = 0.f, ph2 = 0.f, prev1 = 0.f, prev2 = 0.f, fmT = 0.f;
-        sy::Hp hp; sy::Lp lp; sy::Sem sem; sy::Ladder lad; float pat = 0.f, patS = 0.f, rndv = 0.f; float xPrev = 0.f, drvLp = 0.f; sy::Over4 osF, osD; bool cInit = false; float c0[16] {}; float lph[kLfos] {}, lfade[kLfos] {}, lsh[kLfos] {}, lcur[kLfos] {}; float envM[8] {};     // envM : modulation des enveloppes (bloc precedent)
+        sy::Hp hp; sy::Lp lp; sy::Sem sem; sy::Ladder lad; sy::Ms10 ms; float pat = 0.f, patS = 0.f, rndv = 0.f; float xPrev = 0.f, drvLp = 0.f; sy::Over4 osF, osD; bool cInit = false; float c0[20] {}; float lph[kLfos] {}, lfade[kLfos] {}, lsh[kLfos] {}, lcur[kLfos] {}; float envM[8] {};     // envM : modulation des enveloppes (bloc precedent)
     };
     static constexpr int kKeys = 16;
     struct Key { int note; float vel; bool phys; uint64_t t; };
@@ -611,14 +716,15 @@ private:
         const float gl = std::sqrt (0.5f * (1.f - pan)), gr = std::sqrt (0.5f * (1.f + pan));
         const float dt1 = f1 / fs, dt2 = f2 / fs;
         // valeurs de controle : calculees une fois par bloc de 16 echantillons, puis INTERPOLEES echantillon par echantillon (pas de marches)
-        float c1[16] = { gL, gH, kL, kH, kSem, kLad, res, morph, drive, drvEmph, foldA, foldS, level, lv1, l2, noiseA };
-        if (! v.cInit) { for (int q = 0; q < 16; ++q) v.c0[q] = c1[q]; v.cInit = true; }
-        float cd[16]; for (int q = 0; q < 16; ++q) cd[q] = (c1[q] - v.c0[q]) / (float) len;
-        float cc[16]; for (int q = 0; q < 16; ++q) cc[q] = v.c0[q];
+        float c1[20] = { gL, gH, kL, kH, kSem, kLad, res, morph, drive, drvEmph, foldA, foldS, level, lv1, l2, noiseA, 0.f, 0.f, 0.f, 0.f };
+        if (P.ftype == 3) sy::Ms10Tab::get().controls (2.0 * fs * (double) gL, (double) res, msC, c1[16], c1[17], c1[18]);       // MS-10 : resistance des etages, retour PEAK
+        if (! v.cInit) { for (int q = 0; q < 20; ++q) v.c0[q] = c1[q]; v.cInit = true; }
+        float cd[20]; for (int q = 0; q < 20; ++q) cd[q] = (c1[q] - v.c0[q]) / (float) len;
+        float cc[20]; for (int q = 0; q < 20; ++q) cc[q] = v.c0[q];
 
         for (int i = 0; i < len; ++i)
         {
-            for (int q = 0; q < 16; ++q) cc[q] += cd[q];
+            for (int q = 0; q < 20; ++q) cc[q] += cd[q];
             const float gL = cc[0], gH = cc[1], kL = cc[2], kH = cc[3], kSem = cc[4], kLad = cc[5], res = cc[6], morph = cc[7], drive = cc[8], drvEmph = cc[9];
             const float foldA = cc[10], foldS = cc[11], level = cc[12], lv1 = cc[13], l2 = cc[14], noiseA = cc[15];
             // FM audio (sens au choix) ; VCO2 est recale par VCO1 si le hard sync est actif
@@ -648,19 +754,20 @@ private:
             float lp;
             if (P.ftype == 1)      lp = v.sem.run (dx, gL, kSem, morph) * 1.15f;
             else if (P.ftype == 2) lp = v.lad.run (dx * 1.2f, gL, kLad) * (1.f + 1.0f * res);
+            else if (P.ftype == 3) lp = v.ms.run (dx, cc[16], cc[17], cc[18], msC);
             else                   lp = v.lp.run (dx, gL, kL, res);
             const float a = v.aenv.tick (aA2, aD2, aS2, aR2, fs);
             const float y = lp * a * level * v.gainV * (0.35f + 0.65f * v.vel);
             if (! (std::fabs (y) < 8.f))                                   // garde-fou : NaN, infini ou valeur folle -> on remet les etats a zero (jamais de bruit ni de blocage)
             {
-                v.hp = sy::Hp(); v.lp = sy::Lp(); v.sem = sy::Sem(); v.lad = sy::Ladder(); v.drvLp = 0.f; v.xPrev = 0.f; v.prev1 = v.prev2 = 0.f; v.osF = sy::Over4(); v.osD = sy::Over4();
+                v.hp = sy::Hp(); v.lp = sy::Lp(); v.sem = sy::Sem(); v.lad = sy::Ladder(); v.ms.reset(); v.drvLp = 0.f; v.xPrev = 0.f; v.prev1 = v.prev2 = 0.f; v.osF = sy::Over4(); v.osD = sy::Over4();
                 if (! std::isfinite (v.ph1)) v.ph1 = 0.f;
                 if (! std::isfinite (v.ph2)) v.ph2 = 0.f;
                 continue;
             }
             L[i] += y * gl; R[i] += y * gr;
         }
-        for (int q = 0; q < 16; ++q) v.c0[q] = c1[q];
+        for (int q = 0; q < 20; ++q) v.c0[q] = c1[q];
         if (v.aenv.st == sy::Env::Idle) v.active = false;
     }
 };
