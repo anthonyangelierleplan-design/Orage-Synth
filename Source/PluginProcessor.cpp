@@ -180,14 +180,15 @@ struct Factory { const char* name; const char* category; void (*apply) (OrageAud
 const char* const kCategories[] = { "Pad", "Bass", "Lead", "Pluck / Keys", "Arp / Seq", "FX / Texture", "Rack FX" };
 
 void fInit (OrageAudioProcessor&) {}
-
-// anciens reglages par defaut des modules FX : les presets d'usine ont ete ecrits avec ces valeurs
+// reglages par defaut d'origine des modules FX : seuls les presets "Rack FX" ont ete ecrits avec ces valeurs
 void legacyFxDefaults (OrageAudioProcessor& p)
 {
     p.setParamReal ("octAmt", 0.5f); p.setParamReal ("power", 0.65f); p.setParamReal ("clip", 0.35f);
     p.setParamReal ("hpfPeak", 0.15f); p.setParamReal ("lpfPeak", 0.15f); p.setParamReal ("compType", 1); p.setParamReal ("compAmt", 0.35f);
     p.setParamReal ("springMix", 0.15f); p.setParamReal ("bbdFb", 0.4f);
 }
+
+
 
 void fWaters (OrageAudioProcessor& p)
 {
@@ -228,64 +229,6 @@ void fGated (OrageAudioProcessor& p)
 }
 #if ORAGE_SYNTH
 
-void sLead (OrageAudioProcessor& p)
-{
-    p.setParamReal ("s_wave1", 0); p.setParamReal ("s_wave2", 0); p.setParamReal ("s_sync", 1); p.setParamReal ("s_tune2", 7);
-    p.setParamReal ("s_lvl1", 0.7f); p.setParamReal ("s_lvl2", 0.5f); p.setParamReal ("s_lpf", 0.6f); p.setParamReal ("s_lpfRes", 0.55f);
-    p.setParamReal ("s_slot1Src", MsLfo1); p.setParamReal ("s_slot1Dst", MdPitch2); p.setParamReal ("s_slot1Amt", 0.35f);
-    p.setParamReal ("s_l1Rate", 0.35f); p.setParamReal ("s_l1Wave", 0);
-    p.setParamReal ("power", 0.45f); p.setParamReal ("compType", 1);
-}
-void sBass (OrageAudioProcessor& p)
-{
-    p.setParamReal ("s_wave1", 1); p.setParamReal ("s_wave2", 0); p.setParamReal ("s_oct1", 1); p.setParamReal ("s_oct2", 1);
-    p.setParamReal ("s_lvl2", 0.6f); p.setParamReal ("s_tune2", 0.15f); p.setParamReal ("s_lpf", 0.4f); p.setParamReal ("s_fltEnv", 0.7f);
-    p.setParamReal ("s_lpfRes", 0.4f); p.setParamReal ("s_fD", 0.3f); p.setParamReal ("s_fS", 0.05f); p.setParamReal ("s_aS", 0.9f);
-    p.setParamReal ("s_slot1Src", MsMac1); p.setParamReal ("s_slot1Dst", MdLpf); p.setParamReal ("s_slot1Amt", 0.8f);
-    p.setParamReal ("power", 0.9f); p.setParamReal ("material", 2); p.setParamReal ("clip", 0.55f); p.setParamReal ("unc", 0.2f);
-    p.setParamReal ("lightning", 0.3f); p.setParamReal ("compType", 1); p.setParamReal ("compAmt", 0.5f);
-}
-void sFm (OrageAudioProcessor& p)
-{
-    p.setParamReal ("s_wave1", 2); p.setParamReal ("s_wave2", 2); p.setParamReal ("s_fm", 0.55f); p.setParamReal ("s_tune2", 12);
-    p.setParamReal ("s_lvl1", 0.8f); p.setParamReal ("s_lpf", 0.8f); p.setParamReal ("s_lpfRes", 0.1f);
-    p.setParamReal ("s_slot1Src", MsEnv); p.setParamReal ("s_slot1Dst", MdFm); p.setParamReal ("s_slot1Amt", 0.6f);
-    p.setParamReal ("s_aD", 0.35f); p.setParamReal ("s_aS", 0.4f);
-}
-void sMs20Bass (OrageAudioProcessor& p)
-{
-    p.setParamReal ("s_wave1", 0); p.setParamReal ("s_oct1", 1); p.setParamReal ("s_wave2", 1); p.setParamReal ("s_oct2", 1); p.setParamReal ("s_lvl2", 0.5f);
-    p.setParamReal ("s_hpf", 0.2f); p.setParamReal ("s_hpfRes", 0.8f);                      // le pic du HPF gonfle les basses
-    p.setParamReal ("s_lpf", 0.45f); p.setParamReal ("s_lpfRes", 0.7f); p.setParamReal ("s_fltEnv", 0.55f); p.setParamReal ("s_drive", 0.45f);
-    p.setParamReal ("s_fD", 0.3f); p.setParamReal ("s_fS", 0.1f); p.setParamReal ("s_aS", 0.9f);
-    p.setParamReal ("power", 0.5f); p.setParamReal ("compType", 1); p.setParamReal ("compAmt", 0.45f);
-}
-void sFoldLead (OrageAudioProcessor& p)
-{
-    p.setParamReal ("s_wave1", 2); p.setParamReal ("s_wave2", 0); p.setParamReal ("s_lvl2", 0.35f); p.setParamReal ("s_tune2", 0.1f);
-    p.setParamReal ("s_fold", 0.55f); p.setParamReal ("s_foldSym", 0.2f); p.setParamReal ("s_lpf", 0.75f); p.setParamReal ("s_lpfRes", 0.4f);
-    p.setParamReal ("s_slot1Src", MsEnv); p.setParamReal ("s_slot1Dst", MdFold); p.setParamReal ("s_slot1Amt", 0.5f);
-    p.setParamReal ("s_slot2Src", MsLfo1); p.setParamReal ("s_slot2Dst", MdFold); p.setParamReal ("s_slot2Amt", 0.25f);
-    p.setParamReal ("s_l1Rate", 0.3f);
-    p.setParamReal ("bbdMix", 0.3f); p.setParamReal ("bbdTime", 0.55f); p.setParamReal ("bbdFb", 0.45f);
-}
-void sArpBbd (OrageAudioProcessor& p)
-{
-    p.setParamReal ("s_wave1", 0); p.setParamReal ("s_wave2", 1); p.setParamReal ("s_lvl2", 0.4f); p.setParamReal ("s_tune2", 7);
-    p.setParamReal ("s_lpf", 0.55f); p.setParamReal ("s_lpfRes", 0.5f); p.setParamReal ("s_fltEnv", 0.5f); p.setParamReal ("s_fD", 0.18f); p.setParamReal ("s_fS", 0.f);
-    p.setParamReal ("s_aD", 0.25f); p.setParamReal ("s_aS", 0.2f);
-    p.setParamReal ("s_arpOn", 1); p.setParamReal ("s_arpMode", 2); p.setParamReal ("s_arpOct", 1); p.setParamReal ("s_arpRate", 0.68f);
-    p.setParamReal ("bbdMix", 0.45f); p.setParamReal ("bbdSync", 5); p.setParamReal ("bbdFb", 0.55f); p.setParamReal ("bbdPing", 1);
-    p.setParamReal ("s_slot1Src", MsLfo1); p.setParamReal ("s_slot1Dst", MdBbdMix); p.setParamReal ("s_slot1Amt", 0.3f);
-}
-void sRing (OrageAudioProcessor& p)
-{
-    p.setParamReal ("s_wave1", 0); p.setParamReal ("s_wave2", 1); p.setParamReal ("s_ring", 0.8f); p.setParamReal ("s_tune2", 5.5f);
-    p.setParamReal ("s_lvl1", 0.3f); p.setParamReal ("s_lpf", 0.7f);
-    p.setParamReal ("s_slot1Src", MsLfo2); p.setParamReal ("s_slot1Dst", MdPw2); p.setParamReal ("s_slot1Amt", 0.8f);
-    p.setParamReal ("s_l2Rate", 0.3f); p.setParamReal ("s_l2Wave", 1);
-    p.setParamReal ("destroy", 0.4f); p.setParamReal ("dSync", 7);
-}
 
 using KV = std::pair<const char*, float>;
 void S (OrageAudioProcessor& p, std::initializer_list<KV> l) { for (auto& kv : l) p.setParamReal (kv.first, kv.second); }
@@ -315,225 +258,11 @@ void applyMacroSet (OrageAudioProcessor& p, const juce::String& cat)
 }
 
 // ---- PADS
-void pAurora (OrageAudioProcessor& p)
-{
-    S (p, { {"output",-8},{"s_wave1",0},{"s_wave2",0},{"s_tune2",0.14f},{"s_lvl1",0.6f},{"s_lvl2",0.5f},{"s_ftype",1},{"s_lpf",0.58f},{"s_lpfRes",0.25f},{"s_fltEnv",0.1f},
-            {"s_aA",0.72f},{"s_aD",0.6f},{"s_aS",0.9f},{"s_aR",0.85f},{"s_l1Rate",0.12f},{"s_drive",0.1f},{"power",0.2f},{"clip",0.1f},{"unc",0.1f},{"compAmt",0.2f},
-            {"revMix",0.45f},{"revDecay",0.75f},{"revSize",0.7f},{"revShimmer",0.45f},{"revDamp",0.45f},{"revPre",0.2f} });
-    M (p, 1, MsLfo1, MdLpf, 0.2f); M (p, 2, MsPolyAT, MdLpf, 0.5f); M (p, 3, MsWheel, MdRevMix, 0.3f);
-}
-void pCathedral (OrageAudioProcessor& p)
-{
-    S (p, { {"output",-8},{"s_wave1",0},{"s_wave2",1},{"s_oct2",1},{"s_lvl1",0.6f},{"s_lvl2",0.4f},{"s_tune2",0.1f},{"s_ftype",2},{"s_lpf",0.5f},{"s_lpfRes",0.3f},{"s_fltEnv",0.15f},
-            {"s_aA",0.7f},{"s_aS",0.9f},{"s_aR",0.9f},{"power",0.2f},{"clip",0.1f},{"compAmt",0.2f},
-            {"revMix",0.5f},{"revDecay",0.9f},{"revSize",0.9f},{"revPre",0.3f},{"revDamp",0.5f},{"revShimmer",0.15f},{"revMod",0.4f} });
-    M (p, 1, MsWheel, MdRevMix, 0.35f); M (p, 2, MsPolyAT, MdLpf, 0.4f);
-}
-void pFrozen (OrageAudioProcessor& p)
-{
-    S (p, { {"output",-12},{"s_wave1",2},{"s_wave2",2},{"s_tune2",0.08f},{"s_lvl1",0.7f},{"s_lvl2",0.5f},{"s_oct2",3},{"s_ftype",1},{"s_lpf",0.45f},{"s_lpfRes",0.2f},{"s_fltEnv",0.05f},
-            {"s_aA",0.8f},{"s_aS",1.f},{"s_aR",0.92f},{"s_l3Rate",0.1f},{"power",0.15f},{"clip",0.05f},
-            {"revMix",0.6f},{"revDecay",1.f},{"revSize",1.f},{"revShimmer",0.6f},{"revDamp",0.35f},{"revPre",0.15f} });
-    M (p, 1, MsLfo3, MdPan, 0.5f); M (p, 2, MsPolyAT, MdRevMix, 0.3f);
-}
-void pStrings (OrageAudioProcessor& p)
-{
-    S (p, { {"output",-8},{"s_wave1",0},{"s_wave2",0},{"s_tune2",0.2f},{"s_lvl1",0.6f},{"s_lvl2",0.6f},{"s_noise",0.02f},{"s_ftype",1},{"s_semMorph",0.f},{"s_lpf",0.62f},{"s_lpfRes",0.2f},
-            {"s_aA",0.62f},{"s_aS",0.9f},{"s_aR",0.78f},{"power",0.25f},{"clip",0.1f},{"compAmt",0.3f},
-            {"bbdTime",0.12f},{"bbdFb",0.1f},{"bbdMod",1.f},{"bbdMix",0.3f},{"bbdPing",0},{"revMix",0.3f},{"revDecay",0.65f} });
-    M (p, 1, MsVel, MdLpf, 0.2f); M (p, 2, MsLfo2, MdPitch, 0.01f); S (p, { {"s_l2Rate",0.3f} });
-}
-void pDark (OrageAudioProcessor& p)
-{
-    S (p, { {"output",-9},{"s_wave1",0},{"s_oct1",1},{"s_wave2",1},{"s_lvl2",0.5f},{"s_tune2",0.12f},{"s_ftype",2},{"s_lpf",0.3f},{"s_lpfRes",0.5f},{"s_fltEnv",0.35f},{"s_fA",0.8f},{"s_fD",0.8f},{"s_fS",0.5f},
-            {"s_aA",0.7f},{"s_aS",0.9f},{"s_aR",0.85f},{"s_l2Rate",0.1f},{"power",0.35f},{"clip",0.2f},
-            {"revMix",0.4f},{"revDecay",0.85f},{"revDamp",0.7f},{"revSize",0.8f} });
-    M (p, 1, MsLfo2, MdPw2, 0.6f); M (p, 2, MsPolyAT, MdLpf, 0.5f);
-}
-void pHydra (OrageAudioProcessor& p)
-{
-    S (p, { {"output",-8},{"s_wave1",2},{"s_wave2",0},{"s_lvl2",0.3f},{"s_tune2",0.1f},{"s_fold",0.1f},{"s_ftype",2},{"s_lpf",0.5f},{"s_lpfRes",0.25f},
-            {"s_aA",0.6f},{"s_aS",0.9f},{"s_aR",0.8f},{"power",0.25f},{"revMix",0.4f},{"revDecay",0.7f},{"revShimmer",0.3f} });
-    M (p, 1, MsPolyAT, MdFold, 0.6f); M (p, 2, MsPolyAT, MdLpf, 0.4f); M (p, 3, MsMac1, MdRevDecay, 0.3f);
-}
-void pMoonSync (OrageAudioProcessor& p)
-{
-    S (p, { {"output",-8},{"s_wave1",0},{"s_wave2",0},{"s_sync",1},{"s_tune2",5},{"s_lvl1",0.5f},{"s_lvl2",0.5f},{"s_ftype",1},{"s_semMorph",0.f},{"s_lpf",0.6f},{"s_lpfRes",0.3f},
-            {"s_aA",0.65f},{"s_aS",0.9f},{"s_aR",0.85f},{"s_l1Rate",0.1f},{"power",0.25f},{"revMix",0.45f},{"revDecay",0.75f},{"revShimmer",0.25f} });
-    M (p, 1, MsLfo1, MdPitch2, 0.35f); M (p, 2, MsPolyAT, MdLpf, 0.4f);
-}
-void pBreath (OrageAudioProcessor& p)
-{
-    S (p, { {"output",-8},{"s_wave1",0},{"s_lvl1",0.6f},{"s_noise",0.15f},{"s_ftype",1},{"s_semMorph",0.3f},{"s_lpf",0.55f},{"s_lpfRes",0.5f},
-            {"s_aA",0.8f},{"s_aS",0.9f},{"s_aR",0.85f},{"s_l1Rate",0.15f},{"power",0.2f},{"revMix",0.5f},{"revDecay",0.8f},{"revSize",0.8f} });
-    M (p, 1, MsLfo1, MdMorph, 0.7f); M (p, 2, MsPolyAT, MdNoise, 0.3f);
-}
 // ---- BASS
-void bSub (OrageAudioProcessor& p)
-{
-    S (p, { {"s_wave1",1},{"s_oct1",1},{"s_pw1",0.5f},{"s_wave2",2},{"s_oct2",0},{"s_lvl2",0.6f},{"s_ftype",2},{"s_lpf",0.35f},{"s_lpfRes",0.3f},{"s_fltEnv",0.4f},{"s_fD",0.3f},{"s_fS",0.1f},
-            {"s_aS",0.9f},{"s_aR",0.2f},{"power",0.5f},{"compAmt",0.4f} });
-}
-void bAcid (OrageAudioProcessor& p)
-{
-    S (p, { {"s_wave1",0},{"s_oct1",1},{"s_lvl1",0.8f},{"s_ftype",2},{"s_lpf",0.28f},{"s_lpfRes",0.85f},{"s_fltEnv",0.6f},{"s_fD",0.22f},{"s_fS",0.f},{"s_drive",0.5f},{"s_glide",0.15f},
-            {"s_aS",0.7f},{"s_aR",0.15f},{"power",0.5f},{"compAmt",0.5f} });
-    M (p, 1, MsVel, MdFltEnv, 0.5f);
-}
-void bReese (OrageAudioProcessor& p)
-{
-    S (p, { {"s_wave1",0},{"s_oct1",1},{"s_wave2",0},{"s_oct2",1},{"s_tune2",0.18f},{"s_lvl2",0.8f},{"s_ftype",1},{"s_lpf",0.4f},{"s_lpfRes",0.2f},{"s_l1Rate",0.2f},{"s_aS",0.9f},{"s_aR",0.2f},
-            {"power",0.6f},{"compAmt",0.4f},{"s_drive",0.3f} });
-    M (p, 1, MsLfo1, MdLpf, 0.25f);
-}
-void bGrowl (OrageAudioProcessor& p)
-{
-    S (p, { {"s_wave1",2},{"s_oct1",1},{"s_wave2",2},{"s_oct2",1},{"s_fm",0.5f},{"s_ring",0.2f},{"s_lvl2",0.5f},{"s_lpf",0.55f},{"s_lpfRes",0.6f},{"s_drive",0.5f},
-            {"s_l1Rate",0.5f},{"s_l1Sync",6},{"s_aS",0.9f},{"s_aR",0.2f},{"power",0.65f},{"clip",0.4f} });
-    M (p, 1, MsLfo1, MdFm, 0.5f); M (p, 2, MsLfo1, MdLpf, 0.3f);
-}
-void bPluck (OrageAudioProcessor& p)
-{
-    S (p, { {"s_wave1",0},{"s_oct1",1},{"s_ftype",0},{"s_lpf",0.28f},{"s_lpfRes",0.4f},{"s_fltEnv",0.8f},{"s_fD",0.15f},{"s_fS",0.f},{"s_aD",0.3f},{"s_aS",0.4f},{"s_aR",0.2f},
-            {"power",0.4f},{"compAmt",0.4f} });
-}
 // ---- LEADS
-void lSem (OrageAudioProcessor& p)
-{
-    S (p, { {"s_wave1",0},{"s_wave2",0},{"s_tune2",0.1f},{"s_lvl2",0.6f},{"s_ftype",1},{"s_lpf",0.65f},{"s_lpfRes",0.6f},{"s_glide",0.12f},{"s_l1Rate",0.55f},{"s_l1Fade",0.5f},{"s_l1Trig",1},
-            {"s_aA",0.3f},{"s_aS",0.9f},{"s_aR",0.45f},{"power",0.35f},{"bbdMix",0.25f},{"bbdTime",0.5f},{"bbdFb",0.35f},{"revMix",0.2f},{"revDecay",0.5f} });
-    M (p, 1, MsLfo1, MdPitch, 0.02f); M (p, 2, MsPolyAT, MdLpf, 0.4f);
-}
-void lLadder (OrageAudioProcessor& p)
-{
-    S (p, { {"s_wave1",0},{"s_wave2",0},{"s_sync",1},{"s_tune2",7},{"s_lvl2",0.5f},{"s_ftype",2},{"s_lpf",0.7f},{"s_lpfRes",0.75f},{"s_glide",0.2f},{"s_drive",0.6f},{"s_aS",0.9f},{"s_aR",0.3f},
-            {"power",0.45f},{"revMix",0.15f} });
-    M (p, 1, MsEnv, MdPitch2, 0.4f);
-}
-void lSine (OrageAudioProcessor& p)
-{
-    S (p, { {"s_wave1",2},{"s_lvl1",0.8f},{"s_ftype",1},{"s_lpf",0.85f},{"s_lpfRes",0.1f},{"s_glide",0.1f},{"s_l1Rate",0.5f},{"s_l1Fade",0.6f},{"s_l1Trig",1},{"s_aA",0.25f},{"s_aS",0.95f},{"s_aR",0.4f},
-            {"power",0.2f},{"revMix",0.3f},{"revDecay",0.6f},{"revShimmer",0.1f} });
-    M (p, 1, MsLfo1, MdPitch, 0.015f); M (p, 2, MsPolyAT, MdFm, 0.0f);
-}
-void lPwm (OrageAudioProcessor& p)
-{
-    S (p, { {"s_wave1",1},{"s_wave2",1},{"s_tune2",0.15f},{"s_lvl2",0.5f},{"s_lpf",0.6f},{"s_lpfRes",0.4f},{"s_l2Rate",0.25f},{"s_l2Wave",1},{"s_aS",0.9f},{"s_aR",0.3f},{"power",0.4f},
-            {"bbdMix",0.3f},{"bbdSync",5},{"bbdFb",0.4f} });
-    M (p, 1, MsLfo2, MdPw1, 0.7f); M (p, 2, MsLfo2, MdPw2, -0.7f);
-}
-void lWail (OrageAudioProcessor& p)
-{
-    S (p, { {"s_wave1",0},{"s_wave2",0},{"s_tune2",0.1f},{"s_lvl2",0.5f},{"s_ftype",0},{"s_lpf",0.5f},{"s_lpfRes",0.7f},{"s_drive",0.4f},{"s_glide",0.1f},{"s_aS",0.9f},{"s_aR",0.35f},{"power",0.4f},{"revMix",0.25f} });
-    M (p, 1, MsPolyAT, MdLpf, 0.6f); M (p, 2, MsPolyAT, MdPitch, 0.02f); M (p, 3, MsVel, MdLevel, 0.2f);
-}
 // ---- PLUCK / KEYS
-void kGlass (OrageAudioProcessor& p)
-{
-    S (p, { {"s_wave1",2},{"s_wave2",2},{"s_oct2",3},{"s_lvl2",0.3f},{"s_ftype",1},{"s_lpf",0.5f},{"s_fltEnv",0.5f},{"s_fD",0.2f},{"s_fS",0.f},{"s_aD",0.3f},{"s_aS",0.f},{"s_aR",0.5f},
-            {"power",0.2f},{"revMix",0.3f},{"revDecay",0.6f},{"revShimmer",0.15f} });
-}
-void kLadder (OrageAudioProcessor& p)
-{
-    S (p, { {"s_wave1",0},{"s_wave2",1},{"s_lvl2",0.3f},{"s_tune2",0.1f},{"s_ftype",2},{"s_lpf",0.4f},{"s_lpfRes",0.3f},{"s_fltEnv",0.5f},{"s_fD",0.35f},{"s_fS",0.2f},{"s_aD",0.5f},{"s_aS",0.4f},{"s_aR",0.35f},
-            {"power",0.3f},{"revMix",0.2f} });
-    M (p, 1, MsVel, MdFltEnv, 0.6f);
-}
-void kMarimba (OrageAudioProcessor& p)
-{
-    S (p, { {"s_wave1",2},{"s_wave2",2},{"s_oct2",3},{"s_ring",0.5f},{"s_lvl1",0.7f},{"s_lvl2",0.3f},{"s_lpf",0.6f},{"s_fltEnv",0.3f},{"s_fD",0.15f},{"s_fS",0.f},{"s_aD",0.22f},{"s_aS",0.f},{"s_aR",0.3f},
-            {"power",0.2f},{"revMix",0.25f},{"revDecay",0.5f} });
-}
-void kClav (OrageAudioProcessor& p)
-{
-    S (p, { {"s_wave1",1},{"s_pw1",0.3f},{"s_hpf",0.3f},{"s_hpfRes",0.5f},{"s_lpf",0.6f},{"s_lpfRes",0.4f},{"s_fltEnv",0.6f},{"s_fD",0.12f},{"s_fS",0.f},{"s_drive",0.4f},{"s_aD",0.25f},{"s_aS",0.f},{"s_aR",0.2f},
-            {"power",0.4f} });
-    M (p, 1, MsVel, MdLevel, 0.3f);
-}
 // ---- ARP / SEQ
-void aRain (OrageAudioProcessor& p)
-{
-    S (p, { {"s_wave1",2},{"s_wave2",0},{"s_lvl2",0.3f},{"s_tune2",12},{"s_ftype",1},{"s_lpf",0.55f},{"s_lpfRes",0.3f},{"s_fltEnv",0.5f},{"s_fD",0.2f},{"s_fS",0.f},{"s_aD",0.25f},{"s_aS",0.f},{"s_aR",0.4f},
-            {"s_arpOn",1},{"s_arpMode",0},{"s_arpOct",1},{"s_arpRate",0.68f},{"bbdMix",0.35f},{"bbdSync",5},{"bbdFb",0.5f},{"revMix",0.35f},{"revDecay",0.7f},{"revShimmer",0.2f},{"power",0.25f} });
-}
-void aTrance (OrageAudioProcessor& p)
-{
-    S (p, { {"s_wave1",0},{"s_wave2",0},{"s_tune2",0.12f},{"s_lvl2",0.6f},{"s_ftype",2},{"s_lpf",0.5f},{"s_lpfRes",0.5f},{"s_fltEnv",0.5f},{"s_fD",0.18f},{"s_fS",0.f},{"s_aD",0.25f},{"s_aS",0.5f},{"s_aR",0.2f},
-            {"s_arpOn",1},{"s_arpMode",0},{"s_arpOct",0},{"s_arpRate",0.79f},{"s_assign",2},{"s_uniDetune",0.35f},{"revMix",0.2f},{"power",0.4f} });
-}
-void aRandom (OrageAudioProcessor& p)
-{
-    S (p, { {"s_wave1",2},{"s_wave2",2},{"s_fm",0.4f},{"s_tune2",7},{"s_ftype",1},{"s_lpf",0.6f},{"s_fltEnv",0.4f},{"s_fD",0.25f},{"s_fS",0.f},{"s_aD",0.3f},{"s_aS",0.1f},{"s_aR",0.4f},
-            {"s_arpOn",1},{"s_arpMode",2},{"s_arpOct",2},{"s_arpRate",0.61f},{"s_assign",3},{"bbdMix",0.4f},{"bbdPing",1},{"bbdSync",5},{"revMix",0.4f},{"revDecay",0.7f},{"power",0.25f} });
-    M (p, 1, MsRandom, MdLpf, 0.3f);
-}
-void aBassSeq (OrageAudioProcessor& p)
-{
-    S (p, { {"s_wave1",0},{"s_oct1",1},{"s_wave2",1},{"s_oct2",1},{"s_lvl2",0.4f},{"s_ftype",2},{"s_lpf",0.3f},{"s_lpfRes",0.6f},{"s_fltEnv",0.6f},{"s_fD",0.2f},{"s_fS",0.f},{"s_aD",0.25f},{"s_aS",0.4f},{"s_aR",0.15f},
-            {"s_arpOn",1},{"s_arpMode",2},{"s_arpOct",1},{"s_arpRate",0.72f},{"s_assign",1},{"power",0.5f},{"compAmt",0.4f} });
-}
 // ---- KEY ASSIGN / MONOPOLY
-void lUnison (OrageAudioProcessor& p)
-{
-    S (p, { {"output",-9},{"s_wave1",0},{"s_wave2",0},{"s_tune2",0.1f},{"s_lvl2",0.7f},{"s_ftype",2},{"s_lpf",0.5f},{"s_lpfRes",0.3f},{"s_fltEnv",0.3f},{"s_fD",0.3f},{"s_fS",0.4f},
-            {"s_assign",2},{"s_uniDetune",0.4f},{"s_glide",0.08f},{"s_aS",0.9f},{"s_aR",0.25f},{"power",0.35f},{"revMix",0.15f} });
-    M (p, 1, MsPolyAT, MdLpf, 0.3f);
-}
-void pChordMem (OrageAudioProcessor& p)
-{
-    S (p, { {"output",-9},{"s_wave1",2},{"s_wave2",0},{"s_tune2",0.12f},{"s_lvl2",0.5f},{"s_ftype",1},{"s_lpf",0.5f},{"s_lpfRes",0.2f},{"s_aA",0.4f},{"s_aS",0.9f},{"s_aR",0.7f},
-            {"s_assign",4},{"s_uniDetune",0.5f},{"s_l1Rate",0.1f},{"revMix",0.3f},{"revDecay",0.7f},{"power",0.2f} });
-    M (p, 1, MsLfo1, MdLpf, 0.2f);
-}
-void pShare (OrageAudioProcessor& p)
-{
-    S (p, { {"output",-9},{"s_wave1",0},{"s_wave2",1},{"s_lvl2",0.5f},{"s_tune2",0.1f},{"s_ftype",1},{"s_lpf",0.55f},{"s_lpfRes",0.2f},{"s_aA",0.5f},{"s_aS",0.9f},{"s_aR",0.8f},
-            {"s_assign",3},{"s_uniDetune",0.4f},{"revMix",0.3f},{"revDecay",0.7f},{"power",0.2f} });
-}
-void pSolina (OrageAudioProcessor& p)
-{
-    S (p, { {"output",-9},{"s_wave1",0},{"s_wave2",0},{"s_tune2",0.12f},{"s_lvl2",0.8f},{"s_ftype",1},{"s_lpf",0.62f},{"s_lpfRes",0.1f},{"s_fltEnv",0.05f},
-            {"s_aA",0.45f},{"s_aS",0.95f},{"s_aR",0.5f},{"s_l1Rate",0.14f},{"bbdMix",0.55f},{"bbdTime",0.12f},{"bbdFb",0.2f},{"revMix",0.2f},{"revDecay",0.55f},{"power",0.2f} });
-    M (p, 1, MsLfo1, MdPitch2, 0.03f); M (p, 2, MsPolyAT, MdLpf, 0.3f);
-}
-void pVangelisStr (OrageAudioProcessor& p)
-{
-    S (p, { {"output",-9},{"s_wave1",0},{"s_wave2",1},{"s_lvl2",0.5f},{"s_tune2",0.1f},{"s_ftype",1},{"s_lpf",0.5f},{"s_lpfRes",0.25f},{"s_fltEnv",0.2f},
-            {"s_aA",0.62f},{"s_aD",0.6f},{"s_aS",0.9f},{"s_aR",0.75f},{"s_l1Rate",0.1f},{"bbdMix",0.3f},{"bbdTime",0.4f},{"bbdFb",0.35f},
-            {"revMix",0.4f},{"revDecay",0.75f},{"revSize",0.8f},{"revDamp",0.5f},{"power",0.2f} });
-    M (p, 1, MsLfo1, MdLpf, 0.15f); M (p, 2, MsWheel, MdLpf, 0.4f); M (p, 3, MsPolyAT, MdRevMix, 0.3f);
-}
-void pFloydStr (OrageAudioProcessor& p)
-{
-    S (p, { {"output",-9},{"s_wave1",0},{"s_wave2",0},{"s_tune2",0.15f},{"s_lvl2",0.7f},{"s_ftype",1},{"s_lpf",0.42f},{"s_lpfRes",0.15f},{"s_drive",0.15f},
-            {"s_aA",0.55f},{"s_aS",0.95f},{"s_aR",0.7f},{"s_l1Rate",0.12f},{"power",0.3f},{"clip",0.15f},{"bbdMix",0.3f},{"bbdTime",0.3f},{"bbdFb",0.25f},
-            {"revMix",0.35f},{"revDecay",0.7f},{"revDamp",0.6f} });
-    M (p, 1, MsPolyAT, MdLpf, 0.3f);
-}
-void pZimmerLow (OrageAudioProcessor& p)
-{
-    S (p, { {"output",-9},{"s_wave1",0},{"s_wave2",0},{"s_oct1",1},{"s_oct2",1},{"s_tune2",0.1f},{"s_lvl2",0.8f},{"s_ftype",1},{"s_lpf",0.4f},{"s_lpfRes",0.15f},{"s_fltEnv",0.2f},
-            {"s_assign",2},{"s_uniDetune",0.35f},{"s_aA",0.7f},{"s_aS",0.95f},{"s_aR",0.7f},{"bbdMix",0.2f},{"revMix",0.35f},{"revDecay",0.8f},{"revSize",0.85f},{"power",0.2f} });
-    M (p, 1, MsPolyAT, MdLpf, 0.4f); M (p, 2, MsWheel, MdRevMix, 0.3f);
-}
-void pTapeStr (OrageAudioProcessor& p)
-{
-    S (p, { {"output",-9},{"s_wave1",0},{"s_wave2",0},{"s_tune2",0.18f},{"s_lvl2",0.7f},{"s_ftype",1},{"s_lpf",0.45f},{"s_lpfRes",0.1f},
-            {"s_aA",0.4f},{"s_aS",0.9f},{"s_aR",0.55f},{"s_l1Rate",0.08f},{"s_l2Rate",0.3f},{"power",0.35f},{"clip",0.2f},{"unc",0.15f},
-            {"bbdMix",0.4f},{"bbdTime",0.2f},{"bbdFb",0.3f},{"revMix",0.25f},{"revDecay",0.6f} });
-    M (p, 1, MsLfo1, MdPitch2, 0.04f); M (p, 2, MsLfo2, MdLpf, 0.08f);
-}
-void pBowedFm (OrageAudioProcessor& p)
-{
-    S (p, { {"output",-10},{"s_wave1",2},{"s_wave2",2},{"s_fm",0.2f},{"s_tune2",12.05f},{"s_lvl1",0.7f},{"s_lvl2",0.3f},{"s_ftype",1},{"s_lpf",0.6f},{"s_lpfRes",0.15f},
-            {"s_aA",0.5f},{"s_aS",0.9f},{"s_aR",0.6f},{"s_l1Rate",0.12f},{"revMix",0.35f},{"revDecay",0.7f},{"power",0.2f} });
-    M (p, 1, MsLfo1, MdFm, 0.1f); M (p, 2, MsPolyAT, MdFm, 0.3f); M (p, 3, MsWheel, MdLpf, 0.3f);
-}
-void aMonopoly (OrageAudioProcessor& p)
-{
-    S (p, { {"output",-9},{"s_wave1",0},{"s_wave2",0},{"s_tune2",0.12f},{"s_lvl2",0.6f},{"s_ftype",2},{"s_lpf",0.4f},{"s_lpfRes",0.5f},{"s_fltEnv",0.5f},{"s_fD",0.2f},{"s_fS",0.1f},{"s_aD",0.25f},{"s_aS",0.5f},{"s_aR",0.2f},
-            {"s_arpOn",2},{"s_arpMode",2},{"s_arpOct",2},{"s_assign",3},{"s_arpRate",0.65f},{"bbdMix",0.3f},{"bbdSync",5},{"revMix",0.2f},{"power",0.3f} });
-}
 // ---- sequenceur : motif de pas ("0" silence, "1" note, "2" accent), ratchets ("1".."4") et pistes de modulation
 void setSteps (OrageAudioProcessor& p, const char* st, const char* rt = nullptr)
 {
@@ -550,50 +279,6 @@ void setLane (OrageAudioProcessor& p, int lane, int dst, float amt, float glide,
     p.setParamReal ((q + "Len").toRawUTF8(), (float) (vals.size() - 1));
     int i = 0; for (float v : vals) if (i < orage::kArpSteps) p.arpPat.lane[lane][i++] = v;
 }
-void aAcid (OrageAudioProcessor& p)
-{
-    S (p, { {"output",-9},{"s_wave1",0},{"s_wave2",0},{"s_tune2",0.08f},{"s_lvl2",0.5f},{"s_ftype",2},{"s_lpf",0.3f},{"s_lpfRes",0.55f},{"s_fltEnv",0.2f},{"s_fD",0.2f},{"s_fS",0.05f},{"s_aD",0.3f},{"s_aS",0.4f},{"s_aR",0.1f},{"s_drive",0.4f},
-            {"s_arpOn",1},{"s_arpMode",0},{"s_arpOct",1},{"s_assign",1},{"s_arpRate",0.68f},{"s_arpGate",0.45f},{"s_arpSwing",0.25f},{"power",0.3f},{"revMix",0.1f} });
-    setSteps (p, "1121101211211012");
-    setLane (p, 0, MdLpf, 0.55f, 0.2f, { 0.1f, 0.5f, 0.3f, 0.9f, 0.2f, 0.7f, 0.4f, 1.0f, 0.15f, 0.6f, 0.3f, 0.8f, 0.25f, 0.55f, 0.35f, 0.95f });
-    setLane (p, 1, MdReso, 0.3f, 0.f, { 0.f, 0.f, 1.f, 0.f, 0.f, 1.f, 0.f, 0.f });
-}
-void aStutterSeq (OrageAudioProcessor& p)
-{
-    S (p, { {"output",-9},{"s_wave1",0},{"s_wave2",1},{"s_tune2",0.1f},{"s_lvl2",0.4f},{"s_ftype",1},{"s_lpf",0.55f},{"s_lpfRes",0.35f},{"s_fltEnv",0.4f},{"s_fD",0.25f},{"s_fS",0.1f},{"s_aD",0.3f},{"s_aS",0.3f},{"s_aR",0.2f},
-            {"s_arpOn",1},{"s_arpMode",2},{"s_arpOct",1},{"s_assign",0},{"s_arpRate",0.62f},{"s_arpGate",0.6f},{"revMix",0.2f},{"revDecay",0.55f},{"power",0.2f},
-            {"stutDiv",0},{"stutMode",0},{"stutFeel",0},{"stutLen",0.85f},{"stutDecay",0.15f},{"stutMix",1.f} });
-    setSteps (p, "1111111111111111");
-    // piste 1 : ENGAGE (quels pas declenchent le stutter) ; piste 2 : DIVISION (0.5 = 1/8, 0.67 = 1/16, 0.83 = 1/32) ; piste 3 : MODE (0 repeat, 0.33 reverse, 0.67 gate, 1 offbeat)
-    setLane (p, 0, MdStutOn,   1.f, 0.f, { 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.f, 1.f, 0.f, 0.f });
-    setLane (p, 1, MdStutDiv,  1.f, 0.f, { 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.67f, 0.67f, 0.5f, 0.5f, 0.5f, 0.5f, 0.83f, 0.67f, 0.5f, 0.5f });
-    setLane (p, 2, MdStutMode, 1.f, 0.f, { 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.33f, 0.67f, 0.f, 0.f });
-}
-void aFmSeq (OrageAudioProcessor& p)
-{
-    S (p, { {"output",-9},{"s_wave1",2},{"s_wave2",2},{"s_tune2",12},{"s_lvl2",0.5f},{"s_ftype",1},{"s_lpf",0.65f},{"s_lpfRes",0.2f},{"s_aD",0.35f},{"s_aS",0.35f},{"s_aR",0.3f},
-            {"s_arpOn",1},{"s_arpMode",2},{"s_arpOct",1},{"s_assign",0},{"s_arpRate",0.62f},{"s_arpGate",0.6f},{"bbdMix",0.3f},{"bbdSync",5},{"revMix",0.25f},{"power",0.2f} });
-    setSteps (p, "1111111111111111");
-    setLane (p, 0, MdFm, 0.7f, 0.15f, { 0.f, 0.3f, 0.6f, 1.f, 0.6f, 0.3f, 0.1f, 0.8f });
-    setLane (p, 1, MdPitch2, 0.05f, 0.f, { 0.f, 0.f, 0.5f, 0.f, 1.f, 0.f });
-}
-void aRatchet (OrageAudioProcessor& p)
-{
-    S (p, { {"output",-9},{"s_wave1",1},{"s_wave2",0},{"s_tune2",0.1f},{"s_lvl2",0.4f},{"s_ftype",1},{"s_lpf",0.5f},{"s_lpfRes",0.3f},{"s_fltEnv",0.5f},{"s_fD",0.2f},{"s_fS",0.f},{"s_aD",0.18f},{"s_aS",0.f},{"s_aR",0.15f},
-            {"s_arpOn",1},{"s_arpMode",4},{"s_arpOct",2},{"s_assign",0},{"s_arpRate",0.6f},{"s_arpGate",0.35f},{"s_arpChance",0.8f},{"revMix",0.3f},{"revDecay",0.6f},{"power",0.2f} });
-    setSteps (p, "2101112110121011", "1121142111211421");
-    setLane (p, 0, MdRevMix, 0.5f, 0.f, { 0.1f, 0.1f, 0.4f, 0.1f, 0.9f });
-}
-void aPolymeter (OrageAudioProcessor& p)
-{
-    S (p, { {"output",-10},{"s_wave1",0},{"s_wave2",1},{"s_lvl2",0.5f},{"s_tune2",7},{"s_ftype",1},{"s_lpf",0.45f},{"s_lpfRes",0.25f},{"s_aA",0.2f},{"s_aD",0.5f},{"s_aS",0.5f},{"s_aR",0.6f},
-            {"s_arpOn",2},{"s_arpMode",0},{"s_arpOct",2},{"s_assign",0},{"s_arpRate",0.52f},{"s_arpGate",0.8f},{"revMix",0.35f},{"revDecay",0.7f},{"revShimmer",0.15f},{"power",0.2f} });
-    setSteps (p, "1111111111111111");
-    setLane (p, 0, MdLpf, 0.5f, 0.5f, { 0.1f, 0.4f, 0.8f, 0.5f, 1.f });
-    setLane (p, 1, MdFold, 0.4f, 0.3f, { 0.f, 0.6f, 0.2f, 0.9f, 0.1f, 0.5f, 0.3f });
-    setLane (p, 2, MdPan, 0.5f, 0.4f, { 0.f, 1.f, 0.5f });
-    setLane (p, 3, MdFm, 0.35f, 0.f, { 0.f, 0.f, 1.f, 0.f, 0.f, 0.5f, 0.f, 0.f, 0.8f });
-}
 void setSeq (OrageAudioProcessor& p, std::initializer_list<int> notes, const char* ties = nullptr)
 {
     int i = 0;
@@ -601,89 +286,431 @@ void setSeq (OrageAudioProcessor& p, std::initializer_list<int> notes, const cha
     p.setParamReal ("s_arpLen", (float) (i - 1));
     p.setParamReal ("s_arpType", 1);
 }
-void bSeqAcid (OrageAudioProcessor& p)
+// ---- FM
+// ---- FX / TEXTURE
+// ---- presets v18 : refonte complete avec les filtres circuit (MS-10, Ladder CEM3320, SEM)
+void v18_Velvet_Dawn (OrageAudioProcessor& p)
 {
-    S (p, { {"output",-9},{"s_wave1",0},{"s_wave2",0},{"s_tune2",0.06f},{"s_lvl2",0.5f},{"s_ftype",2},{"s_lpf",0.32f},{"s_lpfRes",0.6f},{"s_fltEnv",0.45f},{"s_fD",0.18f},{"s_fS",0.05f},{"s_aD",0.3f},{"s_aS",0.3f},{"s_aR",0.08f},{"s_drive",0.4f},
-            {"s_arpOn",1},{"s_assign",1},{"s_arpRate",0.7f},{"s_arpGate",0.5f},{"s_arpSwing",0.2f},{"power",0.3f} });
+    S (p, { {"s_wave1",0},{"s_wave2",0},{"s_tune2",0.12f},{"s_lvl1",0.6f},{"s_lvl2",0.55f},{"s_ftype",5},{"s_lpf",0.58f},{"s_lpfRes",0.22f},{"s_fltEnv",0.1f},{"s_drive",0.05f},{"s_aA",0.72f},{"s_aD",0.6f},{"s_aS",0.9f},{"s_aR",0.85f},{"s_l1Rate",0.12f},{"power",0.1f},{"bbdTime",0.12f},{"bbdMod",1},{"bbdMix",0.3f},{"bbdFb",0.1f},{"bbdPing",0},{"revMix",0.4f},{"revDecay",0.78f},{"revSize",0.7f},{"revDamp",0.45f},{"output",-13} });
+    M (p, 1, MsLfo1, MdLpf, 0.1f);
+    M (p, 2, MsPolyAT, MdLpf, 0.25f);
+}
+void v18_Glass_Cathedral (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",0},{"s_wave2",1},{"s_oct2",3},{"s_lvl1",0.6f},{"s_lvl2",0.35f},{"s_tune2",0.1f},{"s_ftype",4},{"s_lpf",0.52f},{"s_lpfRes",0.3f},{"s_fltEnv",0.12f},{"s_aA",0.7f},{"s_aS",0.9f},{"s_aR",0.9f},{"revMix",0.55f},{"revDecay",0.92f},{"revSize",0.9f},{"revPre",0.25f},{"revDamp",0.5f},{"revShimmer",0.3f},{"revMod",0.4f},{"output",-6} });
+    M (p, 1, MsWheel, MdRevMix, 0.3f);
+    M (p, 2, MsPolyAT, MdLpf, 0.3f);
+}
+void v18_Ocean_Floor (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",0},{"s_oct1",1},{"s_wave2",1},{"s_lvl2",0.45f},{"s_tune2",0.1f},{"s_ftype",4},{"s_lpf",0.3f},{"s_lpfRes",0.4f},{"s_fltEnv",0.4f},{"s_fA",0.8f},{"s_fD",0.8f},{"s_fS",0.5f},{"s_aA",0.75f},{"s_aS",0.9f},{"s_aR",0.88f},{"s_l2Rate",0.1f},{"power",0.2f},{"revMix",0.45f},{"revDecay",0.88f},{"revDamp",0.7f},{"revSize",0.85f},{"output",-13.2f} });
+    M (p, 1, MsLfo2, MdPw2, 0.35f);
+    M (p, 2, MsPolyAT, MdLpf, 0.3f);
+}
+void v18_Tidal_Choir (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",0},{"s_wave2",0},{"s_tune2",0.08f},{"s_lvl1",0.55f},{"s_lvl2",0.5f},{"s_noise",0.06f},{"s_ftype",5},{"s_semMorph",0.3f},{"s_lpf",0.5f},{"s_lpfRes",0.55f},{"s_aA",0.7f},{"s_aS",0.9f},{"s_aR",0.85f},{"s_l1Rate",0.14f},{"s_l2Rate",0.09f},{"revMix",0.5f},{"revDecay",0.85f},{"revSize",0.85f},{"revShimmer",0.2f},{"output",-9.1f} });
+    M (p, 1, MsLfo1, MdMorph, 0.25f);
+    M (p, 2, MsLfo2, MdLpf, 0.1f);
+}
+void v18_Amber_Strings (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",0},{"s_wave2",0},{"s_tune2",0.2f},{"s_lvl1",0.6f},{"s_lvl2",0.6f},{"s_noise",0.02f},{"s_ftype",5},{"s_lpf",0.62f},{"s_lpfRes",0.18f},{"s_aA",0.6f},{"s_aS",0.9f},{"s_aR",0.75f},{"bbdTime",0.12f},{"bbdFb",0.1f},{"bbdMod",1},{"bbdMix",0.35f},{"bbdPing",0},{"revMix",0.3f},{"revDecay",0.65f},{"compType",1},{"compAmt",0.25f},{"power",0.15f},{"s_l2Rate",0.3f},{"output",-10.6f} });
+    M (p, 1, MsVel, MdLpf, 0.1f);
+    M (p, 2, MsLfo2, MdPitch, 0.008f);
+}
+void v18_Cold_Aurora (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",2},{"s_wave2",1},{"s_oct2",3},{"s_lvl1",0.7f},{"s_lvl2",0.3f},{"s_tune2",0.07f},{"s_ftype",3},{"s_lpf",0.6f},{"s_lpfRes",0.3f},{"s_fltEnv",0.08f},{"s_aA",0.8f},{"s_aS",1},{"s_aR",0.9f},{"s_l3Rate",0.1f},{"revMix",0.55f},{"revDecay",0.95f},{"revSize",1},{"revShimmer",0.55f},{"revDamp",0.35f},{"revPre",0.15f},{"output",-9.2f} });
+    M (p, 1, MsLfo3, MdPan, 0.4f);
+    M (p, 2, MsPolyAT, MdRevMix, 0.25f);
+}
+void v18_Dust_Bowl (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",0},{"s_wave2",0},{"s_oct2",1},{"s_tune2",0.15f},{"s_lvl2",0.6f},{"s_noise",0.12f},{"s_ftype",4},{"s_lpf",0.4f},{"s_lpfRes",0.3f},{"s_drive",0.35f},{"s_aA",0.55f},{"s_aS",0.9f},{"s_aR",0.7f},{"power",0.3f},{"bbdTime",0.4f},{"bbdFb",0.3f},{"bbdMix",0.25f},{"bbdTone",0.4f},{"bbdMod",0.5f},{"revMix",0.35f},{"revDecay",0.7f},{"compType",1},{"compAmt",0.3f},{"output",-10} });
+    M (p, 1, MsLfo1, MdLpf, 0.06f);
+}
+void v18_Moon_Sync (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",0},{"s_wave2",0},{"s_sync",1},{"s_tune2",5},{"s_lvl1",0.5f},{"s_lvl2",0.5f},{"s_ftype",5},{"s_lpf",0.6f},{"s_lpfRes",0.3f},{"s_aA",0.65f},{"s_aS",0.9f},{"s_aR",0.85f},{"s_l1Rate",0.1f},{"revMix",0.45f},{"revDecay",0.78f},{"revShimmer",0.25f},{"output",-8.6f} });
+    M (p, 1, MsLfo1, MdPitch2, 0.35f);
+    M (p, 2, MsPolyAT, MdLpf, 0.3f);
+}
+void v18_Warm_Brass_Pad (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",0},{"s_wave2",0},{"s_tune2",0.1f},{"s_lvl1",0.65f},{"s_lvl2",0.55f},{"s_ftype",4},{"s_lpf",0.38f},{"s_lpfRes",0.25f},{"s_fltEnv",0.45f},{"s_fA",0.35f},{"s_fD",0.5f},{"s_fS",0.6f},{"s_aA",0.4f},{"s_aS",0.9f},{"s_aR",0.55f},{"power",0.2f},{"compType",1},{"compAmt",0.3f},{"revMix",0.25f},{"revDecay",0.6f},{"output",-9.5f} });
+    M (p, 1, MsVel, MdFltEnv, 0.2f);
+}
+void v18_Hollow_Wind (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",2},{"s_lvl1",0.4f},{"s_noise",0.3f},{"s_ftype",5},{"s_semMorph",0.45f},{"s_lpf",0.55f},{"s_lpfRes",0.6f},{"s_aA",0.8f},{"s_aS",0.95f},{"s_aR",0.9f},{"s_l1Rate",0.15f},{"s_l2Rate",0.07f},{"revMix",0.5f},{"revDecay",0.88f},{"revSize",0.9f},{"output",-2.1f} });
+    M (p, 1, MsLfo1, MdMorph, 0.2f);
+    M (p, 2, MsLfo2, MdLpf, 0.15f);
+    M (p, 3, MsPolyAT, MdNoise, 0.3f);
+}
+void v18_Slow_Motion_Chord (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",2},{"s_wave2",0},{"s_tune2",0.12f},{"s_lvl2",0.5f},{"s_ftype",5},{"s_lpf",0.5f},{"s_lpfRes",0.2f},{"s_assign",4},{"s_uniDetune",0.5f},{"s_aA",0.55f},{"s_aS",0.9f},{"s_aR",0.75f},{"s_l1Rate",0.1f},{"revMix",0.35f},{"revDecay",0.72f},{"power",0.15f},{"output",-9.8f} });
+    M (p, 1, MsLfo1, MdLpf, 0.1f);
+}
+void v18_Giant_Space (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",0},{"s_oct1",1},{"s_wave2",0},{"s_oct2",3},{"s_lvl2",0.4f},{"s_tune2",0.09f},{"s_ftype",4},{"s_lpf",0.45f},{"s_lpfRes",0.3f},{"s_aA",0.85f},{"s_aS",1},{"s_aR",0.95f},{"revMix",0.65f},{"revDecay",0.96f},{"revSize",1},{"revShimmer",0.4f},{"revDamp",0.4f},{"revPre",0.2f},{"power",0.1f},{"output",-13.7f} });
+    M (p, 1, MsLfo1, MdPan, 0.3f);
+}
+void v18_Pulse_Silk (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",1},{"s_wave2",1},{"s_tune2",0.15f},{"s_lvl1",0.5f},{"s_lvl2",0.5f},{"s_ftype",5},{"s_lpf",0.62f},{"s_lpfRes",0.25f},{"s_l2Rate",0.22f},{"s_l2Wave",1},{"s_aA",0.5f},{"s_aS",0.9f},{"s_aR",0.7f},{"bbdTime",0.12f},{"bbdMod",1},{"bbdMix",0.3f},{"bbdFb",0.1f},{"bbdPing",0},{"revMix",0.35f},{"revDecay",0.7f},{"output",-7.9f} });
+    M (p, 1, MsLfo2, MdPw1, 0.4f);
+    M (p, 2, MsLfo2, MdPw2, -0.4f);
+}
+void v18_Blue_Hour (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",0},{"s_wave2",0},{"s_tune2",0.14f},{"s_lvl2",0.6f},{"s_ftype",3},{"s_lpf",0.5f},{"s_lpfRes",0.25f},{"s_fltEnv",0.15f},{"s_fA",0.6f},{"s_aA",0.6f},{"s_aS",0.9f},{"s_aR",0.8f},{"bbdMix",0.3f},{"bbdSync",6},{"bbdFb",0.35f},{"bbdPing",1},{"revMix",0.45f},{"revDecay",0.8f},{"power",0.1f},{"output",-11.9f} });
+    M (p, 1, MsLfo1, MdLpf, 0.08f);
+}
+void v18_Ladder_Sub (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",2},{"s_oct1",1},{"s_wave2",1},{"s_oct2",1},{"s_lvl2",0.5f},{"s_ftype",4},{"s_lpf",0.33f},{"s_lpfRes",0.3f},{"s_fltEnv",0.4f},{"s_fD",0.3f},{"s_fS",0.1f},{"s_aS",0.9f},{"s_aR",0.15f},{"power",0.4f},{"compType",1},{"compAmt",0.35f},{"output",-3.6f} });
+}
+void v18_Pro_Pluck_Bass (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",0},{"s_oct1",1},{"s_ftype",4},{"s_lpf",0.3f},{"s_lpfRes",0.45f},{"s_fltEnv",0.75f},{"s_fD",0.18f},{"s_fS",0},{"s_aD",0.3f},{"s_aS",0.5f},{"s_aR",0.12f},{"power",0.35f},{"compType",1},{"compAmt",0.4f},{"output",-3} });
+    M (p, 1, MsVel, MdFltEnv, 0.25f);
+}
+void v18_Acid_MS_10 (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",0},{"s_oct1",1},{"s_lvl1",0.8f},{"s_ftype",3},{"s_lpf",0.28f},{"s_lpfRes",0.85f},{"s_fltEnv",0.6f},{"s_fD",0.22f},{"s_fS",0},{"s_drive",0.5f},{"s_glide",0.15f},{"s_assign",1},{"s_aS",0.7f},{"s_aR",0.12f},{"power",0.35f},{"compType",1},{"compAmt",0.45f},{"output",-3.6f} });
+    M (p, 1, MsVel, MdFltEnv, 0.3f);
+}
+void v18_Reese_Deep (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",0},{"s_oct1",1},{"s_wave2",0},{"s_oct2",1},{"s_tune2",0.18f},{"s_lvl2",0.85f},{"s_ftype",5},{"s_lpf",0.4f},{"s_lpfRes",0.2f},{"s_l1Rate",0.2f},{"s_aS",0.9f},{"s_aR",0.15f},{"power",0.5f},{"compType",1},{"compAmt",0.4f},{"s_drive",0.3f},{"output",-4.2f} });
+    M (p, 1, MsLfo1, MdLpf, 0.12f);
+}
+void v18_Growl_FM (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",2},{"s_oct1",1},{"s_wave2",2},{"s_oct2",1},{"s_fm",0.5f},{"s_ring",0.15f},{"s_lvl2",0.5f},{"s_ftype",3},{"s_lpf",0.55f},{"s_lpfRes",0.6f},{"s_drive",0.5f},{"s_l1Rate",0.5f},{"s_l1Sync",6},{"s_aS",0.9f},{"s_aR",0.15f},{"power",0.55f},{"clip",0.3f},{"compType",1},{"compAmt",0.35f},{"output",-4.8f} });
+    M (p, 1, MsLfo1, MdFm, 0.35f);
+    M (p, 2, MsLfo1, MdLpf, 0.15f);
+}
+void v18_Fat_Moog (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",0},{"s_oct1",1},{"s_wave2",1},{"s_oct2",1},{"s_lvl2",0.5f},{"s_pw2",0.45f},{"s_ftype",4},{"s_lpf",0.38f},{"s_lpfRes",0.55f},{"s_fltEnv",0.55f},{"s_fD",0.25f},{"s_fS",0.15f},{"s_drive",0.35f},{"s_glide",0.1f},{"s_assign",1},{"s_aS",0.85f},{"s_aR",0.15f},{"power",0.3f},{"compType",1},{"compAmt",0.4f},{"output",-2.5f} });
+    M (p, 1, MsVel, MdFltEnv, 0.2f);
+}
+void v18_Sync_Snarl (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",0},{"s_oct1",1},{"s_wave2",0},{"s_oct2",1},{"s_sync",1},{"s_tune2",8},{"s_lvl2",0.6f},{"s_ftype",3},{"s_lpf",0.5f},{"s_lpfRes",0.4f},{"s_fltEnv",0.35f},{"s_fD",0.25f},{"s_fS",0.2f},{"s_assign",1},{"s_aS",0.9f},{"s_aR",0.15f},{"power",0.5f},{"compType",1},{"compAmt",0.35f},{"output",-3.7f} });
+    M (p, 1, MsEnv, MdPitch2, 0.5f);
+}
+void v18_Wobble_Dub (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",0},{"s_oct1",1},{"s_wave2",0},{"s_oct2",1},{"s_tune2",0.1f},{"s_lvl2",0.5f},{"s_ftype",4},{"s_lpf",0.32f},{"s_lpfRes",0.6f},{"s_l1Rate",0.5f},{"s_l1Sync",7},{"s_l1Wave",1},{"s_assign",1},{"s_aS",0.9f},{"s_aR",0.15f},{"power",0.4f},{"compType",1},{"compAmt",0.4f},{"output",-3.7f} });
+    M (p, 1, MsLfo1, MdLpf, 0.16f);
+}
+void v18_Sub_Drop (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",2},{"s_oct1",0},{"s_wave2",1},{"s_oct2",1},{"s_lvl2",0.3f},{"s_ftype",4},{"s_lpf",0.3f},{"s_lpfRes",0.15f},{"s_fltEnv",0.1f},{"s_aD",0.7f},{"s_aS",0.6f},{"s_aR",0.2f},{"s_fD",0.3f},{"s_fS",0.2f},{"power",0.2f},{"compType",1},{"compAmt",0.3f},{"output",5.2f} });
+    M (p, 1, MsAmpEnv, MdPitch, 0.09f);
+}
+void v18_Hoover_Low (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",0},{"s_oct1",1},{"s_wave2",0},{"s_oct2",1},{"s_tune2",0.3f},{"s_lvl2",0.8f},{"s_ftype",5},{"s_semMorph",0.05f},{"s_lpf",0.52f},{"s_lpfRes",0.35f},{"s_assign",2},{"s_uniDetune",0.6f},{"s_glide",0.08f},{"s_aS",0.9f},{"s_aR",0.2f},{"power",0.45f},{"compType",1},{"compAmt",0.35f},{"output",-5.1f} });
+    M (p, 1, MsEnv, MdPitch, 0.06f);
+}
+void v18_Fold_Bass (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",2},{"s_oct1",1},{"s_wave2",2},{"s_oct2",1},{"s_lvl2",0.5f},{"s_fold",0.45f},{"s_foldSym",0.2f},{"s_ftype",4},{"s_lpf",0.5f},{"s_lpfRes",0.3f},{"s_fltEnv",0.3f},{"s_fD",0.3f},{"s_fS",0.2f},{"s_aS",0.9f},{"s_aR",0.15f},{"power",0.3f},{"compType",1},{"compAmt",0.35f},{"output",-6.3f} });
+    M (p, 1, MsEnv, MdFold, 0.4f);
+}
+void v18_Square_Bass_78 (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",1},{"s_oct1",1},{"s_pw1",0.5f},{"s_lvl1",0.8f},{"s_ftype",3},{"s_lpf",0.38f},{"s_lpfRes",0.35f},{"s_fltEnv",0.5f},{"s_fD",0.22f},{"s_fS",0.1f},{"s_aD",0.35f},{"s_aS",0.6f},{"s_aR",0.1f},{"power",0.25f},{"compType",1},{"compAmt",0.4f},{"output",-3.6f} });
+}
+void v18_Dirty_Rubber (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",0},{"s_oct1",1},{"s_wave2",0},{"s_oct2",1},{"s_tune2",0.1f},{"s_lvl2",0.5f},{"s_ftype",5},{"s_lpf",0.3f},{"s_lpfRes",0.7f},{"s_fltEnv",0.7f},{"s_fD",0.25f},{"s_fS",0.05f},{"s_drive",0.6f},{"s_aS",0.8f},{"s_aR",0.12f},{"power",0.5f},{"clip",0.3f},{"compType",1},{"compAmt",0.45f},{"output",-5} });
+    M (p, 1, MsVel, MdFltEnv, 0.2f);
+}
+void v18_Ladder_Squelch (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",0},{"s_oct1",1},{"s_lvl1",0.85f},{"s_ftype",4},{"s_lpf",0.25f},{"s_lpfRes",0.82f},{"s_fltEnv",0.65f},{"s_fD",0.2f},{"s_fS",0},{"s_drive",0.3f},{"s_glide",0.12f},{"s_assign",1},{"s_aS",0.7f},{"s_aR",0.1f},{"power",0.3f},{"compType",1},{"compAmt",0.4f},{"output",-5} });
+    M (p, 1, MsVel, MdFltEnv, 0.3f);
+}
+void v18_Seq_Bass_Line (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",0},{"s_oct1",1},{"s_wave2",0},{"s_oct2",1},{"s_tune2",0.06f},{"s_lvl2",0.5f},{"s_ftype",3},{"s_lpf",0.32f},{"s_lpfRes",0.6f},{"s_fltEnv",0.45f},{"s_fD",0.18f},{"s_fS",0.05f},{"s_aD",0.3f},{"s_aS",0.3f},{"s_aR",0.08f},{"s_drive",0.4f},{"s_arpOn",1},{"s_assign",1},{"s_arpRate",0.7f},{"s_arpGate",0.5f},{"s_arpSwing",0.2f},{"power",0.3f},{"compType",1},{"compAmt",0.4f},{"output",-5.4f} });
     setSteps (p, "2112112121121121");
     setSeq (p, { 36, 36, 48, 36, 39, 36, 51, 36, 34, 34, 46, 34, 41, 36, 48, 43 }, "0000100000001000");
-    setLane (p, 0, MdLpf, 0.5f, 0.15f, { 0.2f, 0.4f, 0.9f, 0.3f, 0.5f, 0.2f, 1.0f, 0.4f });
+    setLane (p, 0, MdLpf, 0.5f, 0.15f, { 0.2f, 0.4f, 0.9f, 0.3f, 0.5f, 0.2f, 1, 0.4f });
 }
-void aSeqPluck (OrageAudioProcessor& p)
+void v18_Solo_SEM (OrageAudioProcessor& p)
 {
-    S (p, { {"output",-9},{"s_wave1",1},{"s_wave2",0},{"s_tune2",0.1f},{"s_lvl2",0.4f},{"s_ftype",1},{"s_lpf",0.5f},{"s_lpfRes",0.25f},{"s_fltEnv",0.5f},{"s_fD",0.22f},{"s_fS",0.f},{"s_aD",0.2f},{"s_aS",0.f},{"s_aR",0.2f},
-            {"s_arpOn",1},{"s_arpRate",0.66f},{"s_arpGate",0.4f},{"bbdMix",0.3f},{"bbdSync",5},{"revMix",0.25f},{"power",0.2f} });
-    setSteps (p, "2101121021011210", "0000000000000000");
+    S (p, { {"s_wave1",0},{"s_wave2",0},{"s_tune2",0.1f},{"s_lvl2",0.6f},{"s_ftype",5},{"s_lpf",0.65f},{"s_lpfRes",0.6f},{"s_glide",0.12f},{"s_l1Rate",0.55f},{"s_l1Fade",0.5f},{"s_l1Trig",1},{"s_aA",0.3f},{"s_aS",0.9f},{"s_aR",0.45f},{"power",0.2f},{"bbdMix",0.25f},{"bbdTime",0.5f},{"bbdFb",0.35f},{"revMix",0.2f},{"revDecay",0.5f},{"output",-8.6f} });
+    M (p, 1, MsLfo1, MdPitch, 0.02f);
+    M (p, 2, MsPolyAT, MdLpf, 0.3f);
+}
+void v18_Screaming_MS_10 (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",0},{"s_wave2",0},{"s_tune2",0.08f},{"s_lvl2",0.5f},{"s_ftype",3},{"s_lpf",0.6f},{"s_lpfRes",0.7f},{"s_drive",0.45f},{"s_glide",0.15f},{"s_fltEnv",0.2f},{"s_fD",0.4f},{"s_fS",0.4f},{"s_aS",0.9f},{"s_aR",0.3f},{"power",0.35f},{"bbdMix",0.25f},{"bbdTime",0.5f},{"bbdFb",0.35f},{"revMix",0.2f},{"output",-12.2f} });
+    M (p, 1, MsPolyAT, MdLpf, 0.2f);
+    M (p, 2, MsWheel, MdReso, 0.15f);
+}
+void v18_Ladder_Sync_Lead (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",0},{"s_wave2",0},{"s_sync",1},{"s_tune2",7},{"s_lvl2",0.5f},{"s_ftype",4},{"s_lpf",0.7f},{"s_lpfRes",0.55f},{"s_glide",0.18f},{"s_drive",0.4f},{"s_aS",0.9f},{"s_aR",0.3f},{"power",0.4f},{"revMix",0.15f},{"output",-10.5f} });
+    M (p, 1, MsEnv, MdPitch2, 0.4f);
+}
+void v18_Soft_Sine_Lead (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",2},{"s_lvl1",0.85f},{"s_ftype",5},{"s_lpf",0.85f},{"s_lpfRes",0.1f},{"s_glide",0.1f},{"s_l1Rate",0.5f},{"s_l1Fade",0.6f},{"s_l1Trig",1},{"s_aA",0.25f},{"s_aS",0.95f},{"s_aR",0.4f},{"power",0.1f},{"revMix",0.3f},{"revDecay",0.6f},{"revShimmer",0.1f},{"output",-3.8f} });
+    M (p, 1, MsLfo1, MdPitch, 0.015f);
+}
+void v18_Pulse_Width_Lead (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",1},{"s_wave2",1},{"s_tune2",0.15f},{"s_lvl2",0.5f},{"s_ftype",5},{"s_lpf",0.62f},{"s_lpfRes",0.4f},{"s_l2Rate",0.25f},{"s_l2Wave",1},{"s_aS",0.9f},{"s_aR",0.3f},{"power",0.3f},{"bbdMix",0.3f},{"bbdSync",6},{"bbdFb",0.4f},{"output",-10.6f} });
+    M (p, 1, MsLfo2, MdPw1, 0.5f);
+    M (p, 2, MsLfo2, MdPw2, -0.5f);
+}
+void v18_Wavefold_Lead (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",2},{"s_wave2",0},{"s_lvl2",0.35f},{"s_tune2",0.1f},{"s_fold",0.5f},{"s_foldSym",0.2f},{"s_ftype",3},{"s_lpf",0.75f},{"s_lpfRes",0.4f},{"s_aS",0.9f},{"s_aR",0.3f},{"s_l1Rate",0.3f},{"bbdMix",0.3f},{"bbdTime",0.55f},{"bbdFb",0.45f},{"revMix",0.15f},{"output",-2.3f} });
+    M (p, 1, MsEnv, MdFold, 0.5f);
+    M (p, 2, MsLfo1, MdFold, 0.25f);
+}
+void v18_Unison_Monster (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",0},{"s_wave2",0},{"s_tune2",0.1f},{"s_lvl2",0.7f},{"s_ftype",4},{"s_lpf",0.55f},{"s_lpfRes",0.3f},{"s_fltEnv",0.3f},{"s_fD",0.3f},{"s_fS",0.4f},{"s_assign",2},{"s_uniDetune",0.4f},{"s_glide",0.08f},{"s_aS",0.9f},{"s_aR",0.25f},{"power",0.3f},{"revMix",0.15f},{"output",-8.3f} });
+    M (p, 1, MsPolyAT, MdLpf, 0.2f);
+}
+void v18_FM_Brass_Lead (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",0},{"s_wave2",2},{"s_fm",0.3f},{"s_lvl2",0.4f},{"s_tune2",0.05f},{"s_ftype",4},{"s_lpf",0.6f},{"s_lpfRes",0.2f},{"s_fltEnv",0.35f},{"s_fA",0.2f},{"s_fD",0.4f},{"s_fS",0.5f},{"s_aA",0.15f},{"s_aS",0.9f},{"s_aR",0.3f},{"power",0.25f},{"revMix",0.2f},{"output",-5.1f} });
+    M (p, 1, MsEnv, MdFm, 0.25f);
+    M (p, 2, MsVel, MdFm, 0.15f);
+}
+void v18_Whistle (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",2},{"s_lvl1",0.85f},{"s_ftype",5},{"s_semMorph",0.5f},{"s_lpf",0.72f},{"s_lpfRes",0.72f},{"s_glide",0.1f},{"s_l1Rate",0.5f},{"s_l1Fade",0.5f},{"s_l1Trig",1},{"s_aA",0.2f},{"s_aS",0.95f},{"s_aR",0.4f},{"revMix",0.3f},{"revDecay",0.65f},{"output",-0.1f} });
+    M (p, 1, MsLfo1, MdPitch, 0.012f);
+    M (p, 2, MsPolyAT, MdMorph, 0.25f);
+}
+void v18_Glide_Mono (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",0},{"s_wave2",1},{"s_lvl2",0.4f},{"s_tune2",0.1f},{"s_ftype",3},{"s_lpf",0.6f},{"s_lpfRes",0.45f},{"s_glide",0.3f},{"s_assign",1},{"s_fltEnv",0.3f},{"s_fD",0.4f},{"s_fS",0.4f},{"s_aS",0.9f},{"s_aR",0.3f},{"power",0.3f},{"bbdMix",0.2f},{"bbdTime",0.45f},{"bbdFb",0.3f},{"revMix",0.15f},{"output",-11.1f} });
+    M (p, 1, MsVel, MdLpf, 0.1f);
+}
+void v18_Aftertouch_Wail (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",0},{"s_wave2",0},{"s_tune2",0.1f},{"s_lvl2",0.5f},{"s_ftype",3},{"s_lpf",0.5f},{"s_lpfRes",0.7f},{"s_drive",0.4f},{"s_glide",0.1f},{"s_aS",0.9f},{"s_aR",0.35f},{"power",0.35f},{"revMix",0.25f},{"output",-13} });
+    M (p, 1, MsPolyAT, MdLpf, 0.3f);
+    M (p, 2, MsPolyAT, MdReso, -0.1f);
+}
+void v18_Hard_Sync_Sweep (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",0},{"s_wave2",0},{"s_sync",1},{"s_tune2",5},{"s_lvl1",0.6f},{"s_lvl2",0.5f},{"s_ftype",3},{"s_lpf",0.65f},{"s_lpfRes",0.4f},{"s_l1Rate",0.4f},{"s_l1Wave",2},{"s_aS",0.9f},{"s_aR",0.3f},{"power",0.4f},{"bbdMix",0.2f},{"bbdTime",0.5f},{"revMix",0.15f},{"output",-11.3f} });
+    M (p, 1, MsLfo1, MdPitch2, 0.4f);
+}
+void v18_Cry_Baby (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",0},{"s_lvl1",0.8f},{"s_ftype",5},{"s_semMorph",0},{"s_lpf",0.4f},{"s_lpfRes",0.7f},{"s_fltEnv",0.5f},{"s_fA",0.1f},{"s_fD",0.5f},{"s_fS",0.3f},{"s_aS",0.9f},{"s_aR",0.3f},{"power",0.2f},{"revMix",0.2f},{"output",-6.7f} });
+    M (p, 1, MsWheel, MdLpf, 0.3f);
+    M (p, 2, MsVel, MdFltEnv, 0.2f);
+}
+void v18_Ring_Lead (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",0},{"s_wave2",2},{"s_ring",0.5f},{"s_tune2",7},{"s_lvl1",0.6f},{"s_lvl2",0.4f},{"s_ftype",5},{"s_lpf",0.7f},{"s_lpfRes",0.35f},{"s_aS",0.9f},{"s_aR",0.3f},{"power",0.25f},{"bbdMix",0.2f},{"bbdTime",0.5f},{"revMix",0.2f},{"output",-9} });
+    M (p, 1, MsLfo1, MdPitch, 0.01f);
+}
+void v18_Glass_Pluck (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",2},{"s_wave2",2},{"s_oct2",3},{"s_lvl2",0.4f},{"s_ftype",3},{"s_lpf",0.5f},{"s_lpfRes",0.3f},{"s_fltEnv",0.7f},{"s_fD",0.15f},{"s_fS",0},{"s_aD",0.35f},{"s_aS",0},{"s_aR",0.3f},{"revMix",0.3f},{"revDecay",0.65f},{"revShimmer",0.2f},{"output",1.9f} });
+    M (p, 1, MsVel, MdFltEnv, 0.2f);
+}
+void v18_Ladder_Keys (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",0},{"s_wave2",1},{"s_lvl2",0.4f},{"s_tune2",0.1f},{"s_ftype",4},{"s_lpf",0.4f},{"s_lpfRes",0.35f},{"s_fltEnv",0.5f},{"s_fD",0.3f},{"s_fS",0.3f},{"s_aD",0.45f},{"s_aS",0.3f},{"s_aR",0.25f},{"power",0.2f},{"revMix",0.2f},{"compType",1},{"compAmt",0.25f},{"output",-5.1f} });
+    M (p, 1, MsVel, MdFltEnv, 0.3f);
+}
+void v18_Marimba_Ring (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",2},{"s_wave2",2},{"s_ring",0.7f},{"s_tune2",12},{"s_lvl1",0.7f},{"s_lvl2",0.3f},{"s_ftype",5},{"s_lpf",0.6f},{"s_lpfRes",0.1f},{"s_aD",0.28f},{"s_aS",0},{"s_aR",0.2f},{"revMix",0.25f},{"revDecay",0.5f},{"output",0.7f} });
+}
+void v18_FM_E_Piano (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",2},{"s_wave2",2},{"s_fm",0.35f},{"s_fmRatio",3},{"s_lvl1",0.7f},{"s_fmDec",0.4f},{"s_fmEnvAmt",0.5f},{"s_ftype",5},{"s_lpf",0.75f},{"s_lpfRes",0.1f},{"s_aD",0.5f},{"s_aS",0.3f},{"s_aR",0.3f},{"revMix",0.2f},{"revDecay",0.55f},{"bbdMix",0.2f},{"bbdTime",0.12f},{"bbdMod",1},{"bbdFb",0.1f},{"bbdPing",0},{"output",0.9f} });
+    M (p, 1, MsVel, MdFm, 0.2f);
+}
+void v18_FM_Bell (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",2},{"s_wave2",2},{"s_fm",0.5f},{"s_fmRatio",11},{"s_lvl1",0.7f},{"s_fmDec",0.55f},{"s_fmEnvAmt",0.6f},{"s_ftype",5},{"s_lpf",0.85f},{"s_lpfRes",0.05f},{"s_aD",0.65f},{"s_aS",0},{"s_aR",0.5f},{"revMix",0.4f},{"revDecay",0.8f},{"revShimmer",0.25f},{"output",0.4f} });
+}
+void v18_Electric_Clav (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",1},{"s_pw1",0.35f},{"s_lvl1",0.8f},{"s_ftype",3},{"s_lpf",0.4f},{"s_lpfRes",0.5f},{"s_fltEnv",0.8f},{"s_fD",0.12f},{"s_fS",0},{"s_aD",0.22f},{"s_aS",0},{"s_aR",0.12f},{"power",0.2f},{"output",-4.1f} });
+    M (p, 1, MsVel, MdFltEnv, 0.3f);
+}
+void v18_Harpsichord (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",0},{"s_wave2",1},{"s_oct2",3},{"s_lvl2",0.3f},{"s_ftype",5},{"s_lpf",0.68f},{"s_lpfRes",0.2f},{"s_fltEnv",0.3f},{"s_fD",0.1f},{"s_fS",0.1f},{"s_aD",0.25f},{"s_aS",0},{"s_aR",0.15f},{"revMix",0.2f},{"revDecay",0.45f},{"output",2.1f} });
+}
+void v18_Wurly_Drive (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",2},{"s_wave2",0},{"s_lvl2",0.25f},{"s_ftype",5},{"s_lpf",0.62f},{"s_lpfRes",0.15f},{"s_drive",0.45f},{"s_l2Rate",0.5f},{"s_aD",0.55f},{"s_aS",0.45f},{"s_aR",0.25f},{"power",0.25f},{"bbdMix",0.2f},{"bbdTime",0.1f},{"bbdMod",1},{"bbdFb",0.1f},{"bbdPing",0},{"revMix",0.15f},{"output",-6.5f} });
+    M (p, 1, MsLfo2, MdLevel, 0.12f);
+    M (p, 2, MsVel, MdDrive, 0.25f);
+}
+void v18_Kalimba (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",2},{"s_oct1",3},{"s_lvl1",0.8f},{"s_wave2",2},{"s_oct2",2},{"s_lvl2",0.2f},{"s_ftype",5},{"s_lpf",0.7f},{"s_lpfRes",0.05f},{"s_aD",0.3f},{"s_aS",0},{"s_aR",0.35f},{"revMix",0.35f},{"revDecay",0.6f},{"output",2.2f} });
+}
+void v18_Brass_Stab (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",0},{"s_wave2",0},{"s_tune2",0.12f},{"s_lvl2",0.6f},{"s_ftype",4},{"s_lpf",0.38f},{"s_lpfRes",0.25f},{"s_fltEnv",0.6f},{"s_fA",0.15f},{"s_fD",0.25f},{"s_fS",0.5f},{"s_aA",0.1f},{"s_aD",0.4f},{"s_aS",0.6f},{"s_aR",0.2f},{"power",0.2f},{"compType",1},{"compAmt",0.3f},{"revMix",0.2f},{"output",-5.2f} });
+    M (p, 1, MsVel, MdFltEnv, 0.25f);
+}
+void v18_Vibes (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",2},{"s_wave2",2},{"s_oct2",3},{"s_lvl2",0.3f},{"s_ftype",5},{"s_lpf",0.7f},{"s_lpfRes",0.1f},{"s_l2Rate",0.45f},{"s_aD",0.55f},{"s_aS",0},{"s_aR",0.5f},{"revMix",0.3f},{"revDecay",0.65f},{"output",-0.2f} });
+    M (p, 1, MsLfo2, MdLevel, 0.2f);
+}
+void v18_Pluck_Pad_Hybrid (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",0},{"s_wave2",1},{"s_lvl2",0.5f},{"s_tune2",0.1f},{"s_ftype",4},{"s_lpf",0.35f},{"s_lpfRes",0.4f},{"s_fltEnv",0.55f},{"s_fD",0.4f},{"s_fS",0.2f},{"s_aA",0.1f},{"s_aD",0.6f},{"s_aS",0.4f},{"s_aR",0.5f},{"revMix",0.35f},{"revDecay",0.75f},{"bbdMix",0.25f},{"bbdSync",6},{"bbdFb",0.35f},{"bbdPing",1},{"output",-4.8f} });
+}
+void v18_Trance_Gate_Arp (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",0},{"s_wave2",0},{"s_tune2",0.12f},{"s_lvl2",0.6f},{"s_ftype",4},{"s_lpf",0.5f},{"s_lpfRes",0.5f},{"s_fltEnv",0.5f},{"s_fD",0.18f},{"s_fS",0},{"s_aD",0.25f},{"s_aS",0.5f},{"s_aR",0.2f},{"s_arpOn",1},{"s_arpMode",0},{"s_arpOct",0},{"s_arpRate",0.79f},{"s_assign",2},{"s_uniDetune",0.35f},{"revMix",0.2f},{"power",0.25f},{"output",-6.1f} });
+}
+void v18_Arp_Rain (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",2},{"s_wave2",2},{"s_oct2",3},{"s_lvl2",0.4f},{"s_ftype",5},{"s_lpf",0.6f},{"s_lpfRes",0.3f},{"s_fltEnv",0.4f},{"s_fD",0.2f},{"s_fS",0},{"s_aD",0.3f},{"s_aS",0.1f},{"s_aR",0.4f},{"s_arpOn",1},{"s_arpMode",4},{"s_arpOct",2},{"s_arpRate",0.7f},{"s_arpGate",0.4f},{"bbdMix",0.4f},{"bbdSync",6},{"bbdFb",0.5f},{"bbdPing",1},{"revMix",0.35f},{"revDecay",0.75f},{"output",4.6f} });
+}
+void v18_Acid_Lanes (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",0},{"s_wave2",0},{"s_tune2",0.08f},{"s_lvl2",0.5f},{"s_ftype",3},{"s_lpf",0.3f},{"s_lpfRes",0.55f},{"s_fltEnv",0.2f},{"s_fD",0.2f},{"s_fS",0.05f},{"s_aD",0.3f},{"s_aS",0.4f},{"s_aR",0.1f},{"s_drive",0.4f},{"s_arpOn",1},{"s_arpMode",0},{"s_arpOct",1},{"s_assign",1},{"s_arpRate",0.68f},{"s_arpGate",0.45f},{"s_arpSwing",0.25f},{"power",0.3f},{"revMix",0.1f},{"output",-4.8f} });
+    setSteps (p, "1121101211211012");
+    setLane (p, 0, MdLpf, 0.55f, 0.2f, { 0.1f, 0.5f, 0.3f, 0.9f, 0.2f, 0.7f, 0.4f, 1, 0.15f, 0.6f, 0.3f, 0.8f, 0.25f, 0.55f, 0.35f, 0.95f });
+    setLane (p, 1, MdReso, 0.3f, 0, { 0, 0, 1, 0, 0, 1, 0, 0 });
+}
+void v18_Pulse_Climb (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",1},{"s_wave2",0},{"s_lvl2",0.4f},{"s_tune2",0.1f},{"s_ftype",4},{"s_lpf",0.45f},{"s_lpfRes",0.4f},{"s_fltEnv",0.5f},{"s_fD",0.2f},{"s_fS",0},{"s_aD",0.25f},{"s_aS",0.1f},{"s_aR",0.2f},{"s_arpOn",1},{"s_arpMode",2},{"s_arpOct",2},{"s_arpRate",0.64f},{"s_arpGate",0.5f},{"revMix",0.25f},{"revDecay",0.6f},{"power",0.2f},{"output",-1.5f} });
+    M (p, 1, MsLfo1, MdPw1, 0.3f);
+}
+void v18_Random_Dreams (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",2},{"s_wave2",2},{"s_fm",0.4f},{"s_tune2",7},{"s_ftype",5},{"s_lpf",0.6f},{"s_fltEnv",0.4f},{"s_fD",0.25f},{"s_fS",0},{"s_aD",0.3f},{"s_aS",0.1f},{"s_aR",0.4f},{"s_arpOn",1},{"s_arpMode",2},{"s_arpOct",2},{"s_arpRate",0.61f},{"s_assign",3},{"bbdMix",0.4f},{"bbdPing",1},{"bbdSync",6},{"revMix",0.4f},{"revDecay",0.7f},{"power",0.2f},{"output",-0.7f} });
+}
+void v18_Seq_Pluck (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",1},{"s_wave2",0},{"s_tune2",0.1f},{"s_lvl2",0.4f},{"s_ftype",5},{"s_lpf",0.5f},{"s_lpfRes",0.25f},{"s_fltEnv",0.5f},{"s_fD",0.22f},{"s_fS",0},{"s_aD",0.2f},{"s_aS",0},{"s_aR",0.2f},{"s_arpOn",1},{"s_arpRate",0.66f},{"s_arpGate",0.4f},{"bbdMix",0.3f},{"bbdSync",6},{"revMix",0.25f},{"power",0.2f},{"output",-2.1f} });
+    setSteps (p, "2101121021011210");
     setSeq (p, { 60, 67, 72, 64, 71, 67, 76, 62, 69, 74, 65, 72, 67, 79, 64, 71 });
-    setLane (p, 0, MdRevMix, 0.4f, 0.f, { 0.1f, 0.1f, 0.8f, 0.1f });
+    setLane (p, 0, MdRevMix, 0.4f, 0, { 0.1f, 0.1f, 0.8f, 0.1f });
 }
-// ---- FM
-void kFmBell (OrageAudioProcessor& p)
+void v18_Ratchet_Pluck (OrageAudioProcessor& p)
 {
-    S (p, { {"output",-9},{"s_wave1",2},{"s_wave2",2},{"s_lvl2",0},{"s_ftype",1},{"s_lpf",0.85f},{"s_lpfRes",0.1f},{"s_fltEnv",0.f},{"s_aA",0.f},{"s_aD",0.65f},{"s_aS",0.f},{"s_aR",0.5f},
-            {"s_fmRatio",10},{"s_fmWave",1},{"s_fm",0.28f},{"s_fmEnvAmt",0.55f},{"s_fmDec",0.55f},{"s_fmVel",0.3f},{"revMix",0.3f},{"revDecay",0.6f},{"power",0.1f} });
+    S (p, { {"s_wave1",1},{"s_wave2",0},{"s_tune2",0.1f},{"s_lvl2",0.4f},{"s_ftype",3},{"s_lpf",0.5f},{"s_lpfRes",0.35f},{"s_fltEnv",0.5f},{"s_fD",0.2f},{"s_fS",0},{"s_aD",0.18f},{"s_aS",0},{"s_aR",0.15f},{"s_arpOn",1},{"s_arpMode",4},{"s_arpOct",2},{"s_assign",0},{"s_arpRate",0.6f},{"s_arpGate",0.35f},{"s_arpChance",0.8f},{"revMix",0.3f},{"revDecay",0.6f},{"power",0.2f},{"output",-1} });
+    setSteps (p, "2101112110121011", "1121142111211421");
+    setLane (p, 0, MdRevMix, 0.5f, 0, { 0.1f, 0.1f, 0.4f, 0.1f, 0.9f });
 }
-void kFmEp (OrageAudioProcessor& p)
+void v18_Polymeter_Drift (OrageAudioProcessor& p)
 {
-    S (p, { {"output",-9},{"s_wave1",2},{"s_wave2",2},{"s_lvl2",0},{"s_ftype",1},{"s_lpf",0.8f},{"s_lpfRes",0.1f},{"s_fltEnv",0.f},{"s_aA",0.f},{"s_aD",0.55f},{"s_aS",0.1f},{"s_aR",0.35f},
-            {"s_fmRatio",3},{"s_fmWave",1},{"s_fm",0.12f},{"s_fmEnvAmt",0.5f},{"s_fmDec",0.35f},{"s_fmVel",0.5f},{"bbdMix",0.2f},{"bbdSync",5},{"revMix",0.2f},{"power",0.12f} });
+    S (p, { {"s_wave1",0},{"s_wave2",1},{"s_lvl2",0.5f},{"s_tune2",7},{"s_ftype",5},{"s_lpf",0.45f},{"s_lpfRes",0.25f},{"s_aA",0.2f},{"s_aD",0.5f},{"s_aS",0.5f},{"s_aR",0.6f},{"s_arpOn",2},{"s_arpMode",0},{"s_arpOct",2},{"s_arpRate",0.52f},{"s_arpGate",0.8f},{"revMix",0.35f},{"revDecay",0.7f},{"revShimmer",0.15f},{"power",0.2f},{"output",-8.5f} });
+    setLane (p, 0, MdLpf, 0.3f, 0.2f, { 0.2f, 0.7f, 0.4f, 0.9f, 0.3f });
+    setLane (p, 1, MdPan, 0.5f, 0, { 0, 1, 0.5f, 0.2f, 0.8f, 0.4f, 0.9f });
+    setLane (p, 2, MdReso, 0.2f, 0, { 0, 0.5f, 0, 1, 0, 0.3f, 0, 0.8f, 0.2f });
 }
-void lFmBrass (OrageAudioProcessor& p)
+void v18_Bass_Sequence (OrageAudioProcessor& p)
 {
-    S (p, { {"output",-9},{"s_wave1",0},{"s_wave2",2},{"s_lvl2",0},{"s_ftype",1},{"s_lpf",0.7f},{"s_lpfRes",0.15f},{"s_fltEnv",0.2f},{"s_aA",0.12f},{"s_aD",0.5f},{"s_aS",0.8f},{"s_aR",0.2f},{"s_glide",0.05f},
-            {"s_fmRatio",3},{"s_fmWave",1},{"s_fm",0.1f},{"s_fmEnvAmt",0.45f},{"s_fmAtt",0.45f},{"s_fmDec",0.5f},{"s_fmVel",0.4f},{"s_fmAT",0.4f},{"power",0.2f},{"revMix",0.15f} });
+    S (p, { {"s_wave1",0},{"s_oct1",1},{"s_wave2",1},{"s_oct2",1},{"s_lvl2",0.4f},{"s_ftype",4},{"s_lpf",0.34f},{"s_lpfRes",0.5f},{"s_fltEnv",0.5f},{"s_fD",0.2f},{"s_fS",0.05f},{"s_aD",0.3f},{"s_aS",0.4f},{"s_aR",0.1f},{"s_arpOn",1},{"s_assign",1},{"s_arpRate",0.66f},{"s_arpGate",0.55f},{"power",0.3f},{"compType",1},{"compAmt",0.35f},{"output",-3.6f} });
+    setSteps (p, "2112112121121121");
+    setSeq (p, { 33, 33, 45, 33, 36, 33, 48, 33, 31, 31, 43, 31, 38, 33, 45, 40 }, "0000100000001000");
+    setLane (p, 0, MdLpf, 0.45f, 0.15f, { 0.3f, 0.5f, 0.8f, 0.4f, 0.6f, 0.3f, 0.9f, 0.5f });
 }
-void pFmMetal (OrageAudioProcessor& p)
+void v18_Stutter_Sequencer (OrageAudioProcessor& p)
 {
-    S (p, { {"output",-10},{"s_wave1",2},{"s_wave2",2},{"s_lvl2",0.15f},{"s_ftype",1},{"s_lpf",0.6f},{"s_lpfRes",0.2f},{"s_aA",0.45f},{"s_aD",0.6f},{"s_aS",0.8f},{"s_aR",0.9f},
-            {"s_fmRatio",11},{"s_fmWave",2},{"s_fmDir",2},{"s_fm",0.3f},{"s_fmEnvAmt",0.25f},{"s_fmAtt",0.6f},{"s_fmDec",0.8f},{"s_fmFine",0.12f},{"s_fmAT",0.5f},
-            {"revMix",0.4f},{"revDecay",0.75f},{"revShimmer",0.1f},{"power",0.15f} });
+    S (p, { {"s_wave1",0},{"s_wave2",1},{"s_tune2",0.1f},{"s_lvl2",0.4f},{"s_ftype",5},{"s_lpf",0.55f},{"s_lpfRes",0.35f},{"s_fltEnv",0.4f},{"s_fD",0.25f},{"s_fS",0.1f},{"s_aD",0.3f},{"s_aS",0.3f},{"s_aR",0.2f},{"s_arpOn",1},{"s_arpMode",2},{"s_arpOct",1},{"s_assign",0},{"s_arpRate",0.62f},{"s_arpGate",0.6f},{"revMix",0.2f},{"revDecay",0.55f},{"power",0.15f},{"stutDiv",0},{"stutMode",0},{"stutFeel",0},{"stutLen",0.85f},{"stutDecay",0.15f},{"stutMix",1},{"output",0.1f} });
+    setSteps (p, "1111111111111111");
+    setLane (p, 0, MdStutOn, 1, 0, { 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0 });
+    setLane (p, 1, MdStutDiv, 1, 0, { 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.67f, 0.67f, 0.5f, 0.5f, 0.5f, 0.5f, 0.83f, 0.67f, 0.5f, 0.5f });
+    setLane (p, 2, MdStutMode, 1, 0, { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.33f, 0.67f, 0, 0 });
 }
-// ---- FX / TEXTURE
-void xWind (OrageAudioProcessor& p)
+void v18_Wind_Machine (OrageAudioProcessor& p)
 {
-    S (p, { {"s_lvl1",0.f},{"s_noise",0.8f},{"s_ftype",2},{"s_lpf",0.4f},{"s_lpfRes",0.6f},{"s_l4Rate",0.3f},{"s_l4Wave",4},{"s_l4Slew",0.5f},{"s_aA",0.7f},{"s_aS",1.f},{"s_aR",0.8f},{"power",0.2f},
-            {"revMix",0.5f},{"revDecay",0.8f} });
-    M (p, 1, MsLfo4, MdLpf, 0.5f); M (p, 2, MsPolyAT, MdLpf, 0.3f);
+    S (p, { {"s_lvl1",0},{"s_noise",1},{"s_ftype",4},{"s_lpf",0.55f},{"s_lpfRes",0.5f},{"s_l4Rate",0.3f},{"s_l4Wave",4},{"s_l4Slew",0.5f},{"s_aA",0.6f},{"s_aS",1},{"s_aR",0.8f},{"revMix",0.5f},{"revDecay",0.8f},{"output",5.9f} });
+    M (p, 1, MsLfo4, MdLpf, 0.12f);
+    M (p, 2, MsPolyAT, MdLpf, 0.15f);
 }
-void xMetal (OrageAudioProcessor& p)
+void v18_Metal_Rain (OrageAudioProcessor& p)
 {
-    S (p, { {"output",-8},{"s_wave1",0},{"s_wave2",1},{"s_tune2",5.5f},{"s_ring",0.9f},{"s_fm",0.4f},{"s_lvl1",0.3f},{"s_lpf",0.75f},{"s_l3Rate",0.4f},{"s_l3Wave",4},{"s_aD",0.4f},{"s_aS",0.2f},{"s_aR",0.5f},{"power",0.3f},
-            {"revMix",0.4f},{"revDecay",0.7f},{"revShimmer",0.5f} });
+    S (p, { {"s_wave1",0},{"s_wave2",1},{"s_tune2",5.5f},{"s_ring",0.9f},{"s_fm",0.4f},{"s_lvl1",0.3f},{"s_ftype",3},{"s_lpf",0.75f},{"s_lpfRes",0.4f},{"s_l3Rate",0.5f},{"s_aD",0.3f},{"s_aS",0.2f},{"s_aR",0.5f},{"revMix",0.4f},{"revDecay",0.7f},{"revShimmer",0.5f},{"output",6} });
     M (p, 1, MsLfo3, MdPitch2, 0.4f);
 }
-void xAlien (OrageAudioProcessor& p)
+void v18_Alien_Choir (OrageAudioProcessor& p)
 {
-    S (p, { {"output",-10},{"s_wave1",2},{"s_wave2",2},{"s_fm",0.4f},{"s_tune2",7},{"s_lvl2",0.5f},{"s_ftype",1},{"s_lpf",0.6f},{"s_lpfRes",0.5f},{"s_l1Rate",0.2f},{"s_aA",0.6f},{"s_aS",0.9f},{"s_aR",0.8f},{"power",0.3f},
-            {"revMix",0.5f},{"revDecay",0.85f},{"revSize",0.9f},{"revShimmer",0.35f} });
-    M (p, 1, MsLfo1, MdMorph, 0.8f); M (p, 2, MsLfo1, MdFm, 0.3f);
+    S (p, { {"s_wave1",2},{"s_wave2",2},{"s_fm",0.4f},{"s_tune2",7},{"s_lvl2",0.5f},{"s_ftype",5},{"s_semMorph",0.4f},{"s_lpf",0.6f},{"s_lpfRes",0.6f},{"s_aA",0.6f},{"s_aS",0.9f},{"s_aR",0.8f},{"revMix",0.5f},{"revDecay",0.85f},{"revSize",0.9f},{"revShimmer",0.35f},{"output",-5.9f} });
+    M (p, 1, MsLfo1, MdMorph, 0.25f);
+    M (p, 2, MsLfo1, MdFm, 0.15f);
 }
-void xThunder (OrageAudioProcessor& p)
+void v18_Thunder_Drone (OrageAudioProcessor& p)
 {
-    S (p, { {"output",-9},{"s_wave1",0},{"s_oct1",0},{"s_wave2",1},{"s_oct2",0},{"s_lvl2",0.5f},{"s_noise",0.3f},{"s_ftype",2},{"s_lpf",0.25f},{"s_lpfRes",0.4f},{"s_aA",0.5f},{"s_aS",1.f},{"s_aR",0.85f},
-            {"power",0.8f},{"material",2},{"lightning",0.3f},{"revMix",0.55f},{"revDecay",0.9f},{"revDamp",0.6f} });
-    M (p, 1, MsMac1, MdDrive, 0.6f); M (p, 2, MsMac1, MdLpf, 0.5f);
+    S (p, { {"s_wave1",0},{"s_oct1",0},{"s_wave2",1},{"s_oct2",0},{"s_lvl2",0.5f},{"s_noise",0.3f},{"s_ftype",4},{"s_lpf",0.25f},{"s_lpfRes",0.4f},{"s_aA",0.5f},{"s_aS",1},{"s_aR",0.8f},{"power",0.6f},{"material",2},{"lightning",0.2f},{"revMix",0.5f},{"revDecay",0.9f},{"revDamp",0.6f},{"output",-18.8f} });
+    M (p, 1, MsMac1, MdDrive, 0.3f);
+}
+void v18_Ring_Wobble (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",0},{"s_wave2",1},{"s_ring",0.8f},{"s_tune2",5.5f},{"s_lvl1",0.3f},{"s_ftype",3},{"s_lpf",0.7f},{"s_lpfRes",0.3f},{"s_l2Rate",0.3f},{"s_l2Wave",1},{"destroy",0.3f},{"dSync",7},{"revMix",0.25f},{"output",-2.5f} });
+    M (p, 1, MsLfo2, MdPw2, 0.6f);
+}
+void v18_Sample_And_Hold_Cloud (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",2},{"s_wave2",0},{"s_lvl2",0.3f},{"s_tune2",7},{"s_ftype",5},{"s_lpf",0.5f},{"s_lpfRes",0.55f},{"s_l1Wave",4},{"s_l1Rate",0.45f},{"s_aA",0.4f},{"s_aS",0.9f},{"s_aR",0.7f},{"revMix",0.45f},{"revDecay",0.8f},{"bbdMix",0.35f},{"bbdSync",6},{"bbdFb",0.5f},{"bbdPing",1},{"output",-6.7f} });
+    M (p, 1, MsLfo1, MdLpf, 0.2f);
+    M (p, 2, MsLfo1, MdPitch, 0.04f);
+}
+void v18_Noise_Riser (OrageAudioProcessor& p)
+{
+    S (p, { {"s_lvl1",0.1f},{"s_noise",0.7f},{"s_ftype",4},{"s_lpf",0.2f},{"s_lpfRes",0.7f},{"s_fltEnv",0.9f},{"s_fA",0.95f},{"s_fD",0.9f},{"s_fS",1},{"s_aA",0.5f},{"s_aS",1},{"s_aR",0.5f},{"revMix",0.4f},{"revDecay",0.7f},{"output",4.4f} });
+    M (p, 1, MsEnv, MdReso, 0.05f);
+}
+void v18_Dark_Drone (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",0},{"s_oct1",1},{"s_wave2",0},{"s_oct2",0},{"s_tune2",0.07f},{"s_lvl2",0.7f},{"s_ftype",4},{"s_lpf",0.28f},{"s_lpfRes",0.5f},{"s_fltEnv",0.1f},{"s_aA",0.8f},{"s_aS",1},{"s_aR",0.9f},{"s_l1Rate",0.06f},{"power",0.3f},{"revMix",0.55f},{"revDecay",0.95f},{"revDamp",0.7f},{"revSize",1},{"output",-12.9f} });
+    M (p, 1, MsLfo1, MdLpf, 0.1f);
+    M (p, 2, MsLfo1, MdPan, 0.3f);
+}
+void v18_Cosmic_Radio (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",2},{"s_wave2",1},{"s_ring",0.4f},{"s_fm",0.3f},{"s_tune2",11},{"s_ftype",3},{"s_lpf",0.65f},{"s_lpfRes",0.5f},{"s_l1Wave",4},{"s_l1Rate",0.55f},{"s_aA",0.3f},{"s_aS",0.9f},{"s_aR",0.6f},{"destroy",0.35f},{"dSync",7},{"dGrain",0.5f},{"revMix",0.45f},{"revDecay",0.8f},{"revShimmer",0.3f},{"output",-6.5f} });
+    M (p, 1, MsLfo1, MdFm, 0.2f);
+    M (p, 2, MsLfo1, MdRing, 0.2f);
 }
 #endif
 const Factory kFactory[] = {
     { "Init", "", fInit },
 #if ORAGE_SYNTH
-    { "Aurora Glass", "Pad", pAurora }, { "Cathedral Choir", "Pad", pCathedral }, { "Frozen Lake", "Pad", pFrozen }, { "Warm Strings", "Pad", pStrings },
-    { "Dark Matter", "Pad", pDark }, { "Hydra Swell", "Pad", pHydra }, { "Moonlit Sync", "Pad", pMoonSync }, { "Breath Of Orage", "Pad", pBreath },
-    { "Sub Ladder", "Bass", bSub }, { "Acid Squelch", "Bass", bAcid }, { "Reese Detune", "Bass", bReese }, { "Growl FM", "Bass", bGrowl }, { "Pluck Bass", "Bass", bPluck },
-    { "Justice Bass Synth", "Bass", sBass }, { "MS20 Bass Boost", "Bass", sMs20Bass },
-    { "Solo SEM", "Lead", lSem }, { "Ladder Screamer", "Lead", lLadder }, { "Soft Sine Lead", "Lead", lSine }, { "Pulse Width Lead", "Lead", lPwm }, { "Aftertouch Wail", "Lead", lWail },
-    { "Hard Sync Lead", "Lead", sLead }, { "Wavefold Lead", "Lead", sFoldLead },
-    { "Glass Pluck", "Pluck / Keys", kGlass }, { "Ladder Keys", "Pluck / Keys", kLadder }, { "Marimba Ring", "Pluck / Keys", kMarimba }, { "Electric Clav", "Pluck / Keys", kClav }, { "FM Bell Pluck", "Pluck / Keys", sFm },
-    { "Arp Rain", "Arp / Seq", aRain }, { "Trance Gate Arp", "Arp / Seq", aTrance }, { "Random Dreams", "Arp / Seq", aRandom }, { "Bass Sequence", "Arp / Seq", aBassSeq }, { "Arp Echo BBD", "Arp / Seq", sArpBbd },
-    { "Seq Acid Line", "Bass", bSeqAcid }, { "Seq Pluck", "Arp / Seq", aSeqPluck },
-    { "FM Bell", "Pluck / Keys", kFmBell }, { "FM E-Piano", "Pluck / Keys", kFmEp }, { "FM Brass", "Lead", lFmBrass }, { "FM Metal Pad", "Pad", pFmMetal },
-    { "Unison Monster", "Lead", lUnison }, { "Chord Memory Pad", "Pad", pChordMem }, { "Share Strings", "Pad", pShare }, { "Monopoly Arp", "Arp / Seq", aMonopoly },
-    { "Acid Lanes", "Arp / Seq", aAcid }, { "FM Sequence", "Arp / Seq", aFmSeq }, { "Ratchet Pluck", "Arp / Seq", aRatchet }, { "Polymeter Drift", "Arp / Seq", aPolymeter },
-    { "Wind Machine", "FX / Texture", xWind }, { "Metal Rain", "FX / Texture", xMetal }, { "Alien Choir", "FX / Texture", xAlien }, { "Thunder Drone", "FX / Texture", xThunder }, { "Ring Wobble", "FX / Texture", sRing },
-    { "Solina Ensemble", "Pad", pSolina }, { "Vangelis Strings", "Pad", pVangelisStr }, { "Floyd Strings", "Pad", pFloydStr },
-    { "Zimmer Low Strings", "Pad", pZimmerLow }, { "Tape Strings", "Pad", pTapeStr }, { "Bowed FM", "Pad", pBowedFm },
-    { "Stutter Sequencer", "Arp / Seq", aStutterSeq },
+    { "Velvet Dawn", "Pad", v18_Velvet_Dawn }, { "Glass Cathedral", "Pad", v18_Glass_Cathedral }, { "Ocean Floor", "Pad", v18_Ocean_Floor }, { "Tidal Choir", "Pad", v18_Tidal_Choir },
+    { "Amber Strings", "Pad", v18_Amber_Strings }, { "Cold Aurora", "Pad", v18_Cold_Aurora }, { "Dust Bowl", "Pad", v18_Dust_Bowl }, { "Moon Sync", "Pad", v18_Moon_Sync },
+    { "Warm Brass Pad", "Pad", v18_Warm_Brass_Pad }, { "Hollow Wind", "Pad", v18_Hollow_Wind }, { "Slow Motion Chord", "Pad", v18_Slow_Motion_Chord }, { "Giant Space", "Pad", v18_Giant_Space },
+    { "Pulse Silk", "Pad", v18_Pulse_Silk }, { "Blue Hour", "Pad", v18_Blue_Hour }, { "Ladder Sub", "Bass", v18_Ladder_Sub }, { "Pro Pluck Bass", "Bass", v18_Pro_Pluck_Bass },
+    { "Acid MS-10", "Bass", v18_Acid_MS_10 }, { "Reese Deep", "Bass", v18_Reese_Deep }, { "Growl FM", "Bass", v18_Growl_FM }, { "Fat Moog", "Bass", v18_Fat_Moog },
+    { "Sync Snarl", "Bass", v18_Sync_Snarl }, { "Wobble Dub", "Bass", v18_Wobble_Dub }, { "Sub Drop", "Bass", v18_Sub_Drop }, { "Hoover Low", "Bass", v18_Hoover_Low },
+    { "Fold Bass", "Bass", v18_Fold_Bass }, { "Square Bass 78", "Bass", v18_Square_Bass_78 }, { "Dirty Rubber", "Bass", v18_Dirty_Rubber }, { "Ladder Squelch", "Bass", v18_Ladder_Squelch },
+    { "Seq Bass Line", "Bass", v18_Seq_Bass_Line }, { "Solo SEM", "Lead", v18_Solo_SEM }, { "Screaming MS-10", "Lead", v18_Screaming_MS_10 }, { "Ladder Sync Lead", "Lead", v18_Ladder_Sync_Lead },
+    { "Soft Sine Lead", "Lead", v18_Soft_Sine_Lead }, { "Pulse Width Lead", "Lead", v18_Pulse_Width_Lead }, { "Wavefold Lead", "Lead", v18_Wavefold_Lead }, { "Unison Monster", "Lead", v18_Unison_Monster },
+    { "FM Brass Lead", "Lead", v18_FM_Brass_Lead }, { "Whistle", "Lead", v18_Whistle }, { "Glide Mono", "Lead", v18_Glide_Mono }, { "Aftertouch Wail", "Lead", v18_Aftertouch_Wail },
+    { "Hard Sync Sweep", "Lead", v18_Hard_Sync_Sweep }, { "Cry Baby", "Lead", v18_Cry_Baby }, { "Ring Lead", "Lead", v18_Ring_Lead }, { "Glass Pluck", "Pluck / Keys", v18_Glass_Pluck },
+    { "Ladder Keys", "Pluck / Keys", v18_Ladder_Keys }, { "Marimba Ring", "Pluck / Keys", v18_Marimba_Ring }, { "FM E-Piano", "Pluck / Keys", v18_FM_E_Piano }, { "FM Bell", "Pluck / Keys", v18_FM_Bell },
+    { "Electric Clav", "Pluck / Keys", v18_Electric_Clav }, { "Harpsichord", "Pluck / Keys", v18_Harpsichord }, { "Wurly Drive", "Pluck / Keys", v18_Wurly_Drive }, { "Kalimba", "Pluck / Keys", v18_Kalimba },
+    { "Brass Stab", "Pluck / Keys", v18_Brass_Stab }, { "Vibes", "Pluck / Keys", v18_Vibes }, { "Pluck Pad Hybrid", "Pluck / Keys", v18_Pluck_Pad_Hybrid }, { "Trance Gate Arp", "Arp / Seq", v18_Trance_Gate_Arp },
+    { "Arp Rain", "Arp / Seq", v18_Arp_Rain }, { "Acid Lanes", "Arp / Seq", v18_Acid_Lanes }, { "Pulse Climb", "Arp / Seq", v18_Pulse_Climb }, { "Random Dreams", "Arp / Seq", v18_Random_Dreams },
+    { "Seq Pluck", "Arp / Seq", v18_Seq_Pluck }, { "Ratchet Pluck", "Arp / Seq", v18_Ratchet_Pluck }, { "Polymeter Drift", "Arp / Seq", v18_Polymeter_Drift }, { "Bass Sequence", "Arp / Seq", v18_Bass_Sequence },
+    { "Stutter Sequencer", "Arp / Seq", v18_Stutter_Sequencer }, { "Wind Machine", "FX / Texture", v18_Wind_Machine }, { "Metal Rain", "FX / Texture", v18_Metal_Rain }, { "Alien Choir", "FX / Texture", v18_Alien_Choir },
+    { "Thunder Drone", "FX / Texture", v18_Thunder_Drone }, { "Ring Wobble", "FX / Texture", v18_Ring_Wobble }, { "Sample And Hold Cloud", "FX / Texture", v18_Sample_And_Hold_Cloud }, { "Noise Riser", "FX / Texture", v18_Noise_Riser },
+    { "Dark Drone", "FX / Texture", v18_Dark_Drone }, { "Cosmic Radio", "FX / Texture", v18_Cosmic_Radio },
 #endif
     { "Waters Of Nazareth (depart)", "Rack FX", fWaters },
     { "Gated Fuzz Wall", "Rack FX", fGated },
@@ -1150,12 +1177,8 @@ int OrageAudioProcessor::modDstOfParam (const juce::String& id)
     return 0;
 }
 
-float OrageAudioProcessor::modScaleOfDst (int d)
+float OrageAudioProcessor::modScaleOfDst (int)          // 100 % = tour complet du potard (la matrice compense l'echelle native du moteur, cf. modNative)
 {
-    if (d == MdHpf || d == MdLpf || d == MdReso || d == MdHpfReso || d == MdMorph || d == MdFltEnv) return 0.5f;
-    if (d == MdPw1 || d == MdPw2) return 0.45f;
-    if (d == MdColLow || d == MdColMid || d == MdColHigh) return 0.5f;
-    if ((d >= MdFxPower && d <= MdRevDamp) || (d >= MdRevSize && d <= MdOctAmt)) return 0.6f;
     return 1.f;
 }
 
@@ -1239,7 +1262,7 @@ void OrageAudioProcessor::loadFactoryPreset (int i)
     engine.clearPatch();
     engine.bypassMask.store (0);
     if (i == 0) engine.setRack ({}); else engine.setDefaultRack();      // Init = rack vide ; les autres presets utilisent tous les modules
-    if (i != 0) legacyFxDefaults (*this);
+    if (i != 0 && juce::String (kFactory[i].category) == "Rack FX") legacyFxDefaults (*this);
     kFactory[i].apply (*this);
 #if ORAGE_SYNTH
     if (i != 0) applyMacroSet (*this, kFactory[i].category);

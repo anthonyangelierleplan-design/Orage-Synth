@@ -1,0 +1,3 @@
+Presets d'usine du synthe (v18) : presets.py = table de donnees (un preset = parametres + matrice + arpegiateur), gen.py = genere le C++ (fonctions v18_* et table kFactory),
+calc.py = calcule le niveau de sortie de chaque preset a partir des mesures (RMS cible par categorie, crete cible 0,4 pour les plucks et arpeges), output.json = niveaux obtenus.
+Boucle : gen.py -> coller dans PluginProcessor.cpp -> compiler un banc de test qui joue chaque preset (accord pour pads/claviers, une note sinon) -> calc.py -> recommencer 2 fois.

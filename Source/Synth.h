@@ -22,6 +22,16 @@ enum ModDst { MdNone, MdPitch, MdPitch2, MdPw1, MdPw2, MdFm, MdRing, MdMix, MdHp
               MdRevSize, MdRevPre, MdRevShimmer, MdRevWidth, MdBbdTone, MdBbdWobble, MdSprDecay, MdCompAmt, MdGateThresh, MdOctAmt, MdColLow, MdColMid, MdColHigh,   // effets (entrees 25..37 du moteur)
               MdArpRate, MdArpGate, MdArpSwing, MdArpChance, MdLfo1Rate, MdLfo2Rate, MdLfo3Rate, MdLfo4Rate,                // globaux du synthe (entrees 38..45)
               kNumModDst };
+// course native du potard couverte par une quantite de 100 % dans le moteur (le moteur applique 0,5 / 0,45 / 0,6 sur ces destinations) :
+// la matrice divise par ce facteur, donc 100 % = tour COMPLET du potard (l'anneau et le son sont d'accord)
+inline float modNative (int d)
+{
+    if (d == MdHpf || d == MdLpf || d == MdReso || d == MdHpfReso || d == MdMorph || d == MdFltEnv) return 0.5f;
+    if (d == MdPw1 || d == MdPw2) return 0.45f;
+    if (d == MdColLow || d == MdColMid || d == MdColHigh) return 0.5f;
+    if ((d >= MdFxPower && d <= MdRevDamp) || (d >= MdRevSize && d <= MdOctAmt)) return 0.6f;
+    return 1.f;
+}
 constexpr int kFxMod = 46;                // destinations FX : MdFxPower .. MdRevDamp (les 10 premieres = les entrees CV du moteur d'effets)
 inline const char* const kModSrcNames[kNumModSrc] { "-", "LFO 1", "LFO 2", "LFO 3", "LFO 4", "MACRO 1", "MACRO 2", "MACRO 3", "MACRO 4", "ENV FLT", "VELOCITY", "MOD WHEEL", "ENV AMP", "KEY TRACK", "RANDOM", "AFTERTOUCH", "POLY AT", "MACRO 5", "MACRO 6", "MACRO 7", "MACRO 8", "ARP LANE 1", "ARP LANE 2", "ARP LANE 3", "ARP LANE 4", "ARP LANE 5", "ARP LANE 6", "ARP LANE 7", "ARP LANE 8" };
 inline const char* const kModDstNames[kNumModDst] { "-", "PITCH", "PITCH VCO2", "PWM VCO1", "PWM VCO2", "FM", "RING", "MIX VCO2", "HPF", "LPF", "RESO", "LEVEL", "PAN",
@@ -679,9 +689,9 @@ private:
         src[MsAmpEnv] = ae; src[MsKey] = lastKey; src[MsRandom] = lastRnd; src[MsChanAT] = chanAT; src[MsPolyAT] = std::max (pa, chanAT);
         float acc[kFxMod] {};
         for (const auto& sl : P.slot)
-            if (sl.src > 0 && sl.amt != 0.f && fxIndex (sl.dst) >= 0) acc[fxIndex (sl.dst)] += src[sl.src] * sl.amt;
+            if (sl.src > 0 && sl.amt != 0.f && fxIndex (sl.dst) >= 0) acc[fxIndex (sl.dst)] += src[sl.src] * sl.amt / modNative (sl.dst);
         for (int i = 0; i < kLanes; ++i)
-            if (P.lane[i].amt != 0.f && fxIndex (P.lane[i].dst) >= 0) acc[fxIndex (P.lane[i].dst)] += laneC[i] * P.lane[i].amt;
+            if (P.lane[i].amt != 0.f && fxIndex (P.lane[i].dst) >= 0) acc[fxIndex (P.lane[i].dst)] += laneC[i] * P.lane[i].amt / modNative (P.lane[i].dst);
         for (int i = 0; i < kFxMod; ++i) fxOut[i] = std::min (2.f, std::max (-2.f, acc[i]));
     }
 
@@ -743,9 +753,9 @@ private:
         src[MsChanAT] = chanAT; src[MsPolyAT] = std::max (v.patS, chanAT);
         float md[kNumModDst] {};
         for (const auto& s : P.slot)
-            if (s.src > 0 && s.dst > 0 && s.amt != 0.f) md[s.dst] += src[s.src] * s.amt;
+            if (s.src > 0 && s.dst > 0 && s.amt != 0.f) md[s.dst] += src[s.src] * s.amt / modNative (s.dst);
         for (int i = 0; i < kLanes; ++i)
-            if (P.lane[i].dst > 0 && P.lane[i].amt != 0.f) md[P.lane[i].dst] += laneC[i] * P.lane[i].amt;
+            if (P.lane[i].dst > 0 && P.lane[i].amt != 0.f) md[P.lane[i].dst] += laneC[i] * P.lane[i].amt / modNative (P.lane[i].dst);
 
         for (int k = 0; k < 8; ++k) v.envM[k] = md[MdAmpA + k];
         const float aA2 = tm (P.aA, md[MdAmpA]), aD2 = tm (P.aD, md[MdAmpD]), aS2 = std::min (1.f, std::max (0.f, P.aS + md[MdAmpS])), aR2 = tm (P.aR, md[MdAmpR]);

@@ -54,6 +54,11 @@ Façade façon Korg MS20 : zones délimitées par des traits blancs sérigraphi�
 
 - **Nouveau « LADDER CEM3320 »** : modèle du circuit CEM3320 du Pro-One (4 étages OTA à tanh, retour implicite par le VCA de résonance), l'auto-oscillation suit le cutoff (< 1 %). **Nouveau « SEM CKT »** : modèle du circuit Oberheim SEM (mélangeur, deux intégrateurs CA3080, diodes D11/D12 sur le retour, morph LP > notch > HP conservé). Calibrés sur les schémas et la théorie du circuit, PAS sur des enregistrements du matériel (aucun disponible) : jugement à l'oreille. CPU 11,5 % et 10,8 % (6 voix) contre 7-9 % pour les anciens.
 
+## v18c (anneaux, FX, presets)
+- **Anneaux de modulation** : 100 % = tour complet du potard. Avant, 100 % n'agissait que sur la moitié de la course pour le filtre, la largeur d'impulsion et les EQ du rack, et sur 60 % pour les autres FX (l'anneau et le son étaient d'accord, mais pas avec le potard). La matrice compense maintenant l'échelle interne. Les réglages de modulation déjà sauvegardés dans tes anciens presets agiront donc plus fort (×2 sur le filtre).
+- **FX** : quand on allume un module du rack avec son bouton, tous ses potards repartent de leur valeur neutre (plus de potard laissé à fond). Les presets d'usine du synthé démarrent aussi tous les FX à zéro ; seuls les 6 presets « Rack FX » gardent leurs anciens réglages de départ.
+- **Refonte totale des presets du synthé : 74 presets** (Pad 14, Bass 15, Lead 14, Pluck / Keys 12, Arp / Seq 10, FX / Texture 9) écrits pour les filtres MS-10 CKT, LADDER CEM3320 et SEM CKT. Niveaux calibrés par mesure (RMS cible par catégorie, crête 0,4 pour les plucks et arpèges), 0 valeur invalide, CPU max 9 % d'un cœur. Non écoutés : à juger à l'oreille.
+
 ## v17 (qualité)
 - **Suréchantillonnage ×4** du wavefolder et du drive, triangle anti-replié : beaucoup moins d'aigus parasites sur les notes hautes.
 - **Coupe-continu** en sortie du synthé.

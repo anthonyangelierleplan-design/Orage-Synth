@@ -92,6 +92,7 @@ public:
     void paintOverChildren (juce::Graphics&) override;                // anneaux de modulation
     void resized() override;
     void setCvActive (bool);
+    const juce::String& getParamId() const { return paramId; }
 
     DetentSlider slider;
     juce::String text, loText, hiText;

@@ -15,6 +15,8 @@ Les chiffres viennent des tests automatiques, pas d'une écoute : l'oreille rest
 - Après modification d'un en-tête : recompiler TOUS les objets (un objet périmé = plantage `free(): invalid pointer`).
 
 ## Journal des problèmes (symptôme → cause → correction)
+- v18c — Anneau de modulation qui ne fait pas le tour du potard à 100 % → le moteur applique 0,5 / 0,45 / 0,6 sur certaines destinations et l'anneau en tenait compte → la matrice divise par cette échelle (modNative dans Synth.h), l'anneau affiche 100 % = course complète.
+- v18c — Potard à fond à l'allumage d'un module FX → valeurs de départ « legacy » non nulles pour tous les presets et aucun reset à l'activation → defauts à zéro, reset des potards du module quand on l'allume (bouton du module).
 - v18 — Résonance MS-20 trop « générique » → filtre modélisé par réponse, pas par circuit → MS-10 écrit depuis le schéma (équations nodales, trapèze + Newton 1D réduit à la tension de diode), tables de cutoff/compensation issues de l'auto-oscillation SIMULÉE (pas de formule), calibré sur enregistrements réels.
 - v17 — Aigus parasites wavefolder/drive sur notes hautes → repliement de spectre → suréchantillonnage ×4 (demi-bandes 23 et 11 taps), triangle polyBLAMP.
 - v17 — Composante continue en sortie → saturation asymétrique → coupe-continu 6 Hz en sortie du synthé.
@@ -84,7 +86,11 @@ Les chiffres viennent des tests automatiques, pas d'une écoute : l'oreille rest
 4. Valider sur enregistrements : réponse harmonique relative au filtre ouvert, ajustement du cutoff par trame, erreur RMS ancien/nouveau.
 5. Mesurer CPU en vrai plugin, fuzz de réglages extrêmes, presets.
 
+## Méthode : générer et calibrer des presets
+Table de données (tools/presets/presets.py) → code C++ → banc de test qui joue chaque preset → niveau de sortie calculé par catégorie (RMS pour les sons tenus, crête pour les plucks/arpèges) → 2 passes. Toujours garder une table séparée des fonctions : refaire les presets coûte alors une heure, pas une journée.
+
 ## Reste à faire sur Orage
+- Écouter les 74 presets v18 (niveaux mesurés, timbres non écoutés) ; presets Rack FX gardent encore les anciens réglages de départ.
 - Ladder CEM3320 et SEM circuit faits d'après les schémas seulement (v18) ; les caler sur des enregistrements du matériel quand le user en a (MS-10 à 80 % / 90 % aussi). Compensation de hauteur de l'auto-oscillation CEM (+7,5 % sur g) ajoutée à la main : l'OTA saturé fait baisser la fréquence.
 - Écouter le MS-10 circuit ; décider du roll-off aigu et d'un réglage d'asymétrie.
 - À l'oreille : lissage 20 ms, MS-20 adouci, drive brillant, wavefolder.

@@ -1554,7 +1554,15 @@ ModuleUnit* OrageAudioProcessorEditor::newUnit (int node, const juce::String& ti
     raw->topTrim = 33;
     u->onRemove = [this, node] { proc.engine.removeFromRack (node); refreshRack(); };
     u->isActive = [this, node] { return (proc.engine.bypassMask.load() & (1u << node)) == 0; };
-    u->onToggleActive = [this, node] { proc.engine.bypassMask.fetch_xor (1u << node); lastBypass = proc.engine.bypassMask.load(); };
+    u->onToggleActive = [this, node, raw]
+    {
+        const bool wasBypassed = (proc.engine.bypassMask.load() & (1u << node)) != 0;
+        proc.engine.bypassMask.fetch_xor (1u << node); lastBypass = proc.engine.bypassMask.load();
+        if (wasBypassed)                                                      // le module s'allume : tous ses potards repartent de leur valeur neutre (jamais un potard reste a fond)
+            for (auto* ch : raw->getChildren())
+                if (auto* k = dynamic_cast<KnobUnit*> (ch))
+                    if (auto* prm = proc.apvts.getParameter (k->getParamId())) prm->setValueNotifyingHost (prm->getDefaultValue());
+    };
     rackView.addChildComponent (*raw);
     rackUnits[node] = std::move (u);
     return raw;
