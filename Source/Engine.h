@@ -1075,7 +1075,12 @@ public:
         chaos.rng.seed (0xFACADEu); shRng.seed (0x5EEDu);
     }
 
-    void setParams (const Params& in) { p = in; }
+    void setParams (const Params& in)
+    {
+        pT = in; p = in;
+        if (! psInit) { for (int i = 0; i < kPsN; ++i) ps[i] = ps1[i] = in.*kPs[i]; psInit = true; }
+        for (int i = 0; i < kPsN; ++i) p.*kPs[i] = ps[i];
+    }
     void setExtMod (const float* v) { for (int i = 0; i < kExt; ++i) extT[i] = v[i]; }      // modulations venues de la matrice du synthe (kExt valeurs)
 
     void process (float** io, int n, int nc)
@@ -1103,6 +1108,10 @@ private:
         curPpqInc = curBpm / (60.0 * (double) fs);
         ppqNow += (double) n * curPpqInc;
 
+        {   // reglages continus lisses (2 etages, ~20 ms) : plus d'escalier quand on bouge un potard (souris ou controleur MIDI)
+            const float sc = 1.f - std::exp (-(float) n / fs / 0.0055f);
+            for (int i = 0; i < kPsN; ++i) { ps1[i] += (pT.*kPs[i] - ps1[i]) * sc; ps[i] += (ps1[i] - ps[i]) * sc; p.*kPs[i] = ps[i]; }
+        }
         for (int i = 0; i < kExt; ++i) extS[i] += (extT[i] - extS[i]) * 0.25f;          // modulations de la matrice du synthe, lissees
         chaos.tick ((float) n / fs, clamp01 (p.chaos + extS[10]));
         updateModulation (n, in0);
@@ -1498,6 +1507,12 @@ private:
     DistChannel dch[2];
     Lfo lfo1, lfo2; SampleHold sh; Rng shRng; float envV = 0.f;
     float srcVal[kNumSrc] {}, cv[kNumCv] {}, extS[kExt] {}, extT[kExt] {};
+    static constexpr float Params::* kPs[] = { &Params::octAmt, &Params::power, &Params::clip, &Params::unc, &Params::low, &Params::mid, &Params::high, &Params::hpf, &Params::hpfPeak, &Params::lpf, &Params::lpfPeak,
+        &Params::destroy, &Params::dGrain, &Params::compAmt, &Params::springMix, &Params::springDecay, &Params::springDrip, &Params::compThresh, &Params::gateThresh, &Params::gateRange,
+        &Params::bbdFb, &Params::bbdTone, &Params::bbdMod, &Params::bbdMix, &Params::revMix, &Params::revSize, &Params::revDecay, &Params::revPre, &Params::revDamp, &Params::revMod, &Params::revWidth, &Params::revShimmer, &Params::revLowCut,
+        &Params::stutDecay, &Params::stutPitch, &Params::stutMix };
+    static constexpr int kPsN = (int) (sizeof (kPs) / sizeof (kPs[0]));
+    Params pT; float ps[kPsN] {}, ps1[kPsN] {}; bool psInit = false;
     float hpC = 0, sagA = 0, sagR = 0, xeUp = 0, xeDown = 0, gainSm = 0, dcC = 0, smoothC = 0;
     float ePower = 0, eClip = 0, eUnc = 0, eDestroy = 0, eDRateHz = 1, eGrainMs = 100, eSpringMix = 0;
     float dGain = 1, gCur = 0, dRail = 1, dHard = 0, dSag = 0, dStarve = 0.05f, dFold = 0.5f, dMakeup = 1;

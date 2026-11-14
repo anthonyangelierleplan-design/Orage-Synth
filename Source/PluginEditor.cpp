@@ -631,7 +631,7 @@ void KnobUnit::paintOverChildren (juce::Graphics& g)
         g.setColour (juce::Colours::black.withAlpha (0.55f)); g.strokePath (p, juce::PathStrokeType (sw + 1.f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
         g.setColour (kRingCol[k]); g.strokePath (p, juce::PathStrokeType (sw, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
         const float live = proc->modSourceLive (km[k].src);                        // point vivant : ou le reglage est reellement en ce moment
-        if (live >= 0.f)
+        if (live > -50.f)
         {
             const float pos = juce::jlimit (0.f, 1.f, base + span * live), a = sa + pos * (ea - sa);
             g.setColour (juce::Colours::white); g.fillEllipse (c.x + rad * std::sin (a) - 2.6f, c.y - rad * std::cos (a) - 2.6f, 5.2f, 5.2f);

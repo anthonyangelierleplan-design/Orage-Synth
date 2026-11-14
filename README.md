@@ -40,3 +40,9 @@ Façade façon Korg MS20 : zones délimitées par des traits blancs sérigraphi�
 - **Latence MIDI** : les contrôleurs MIDI sont appliqués au début du bloc audio (avant la lecture des réglages) et une seule fois par bloc : plus de bloc de retard, moins de messages vers l'hôte.
 - **Drive du LPF plus brillant** : accentuation des médiums-aigus avant la saturation ; le drive n'assombrit plus et gonfle moins les graves.
 - **Anneaux de modulation (2 sources par potard)** : clic droit sur un potard > « Assigner à » (LFO, macros, enveloppes, jeu, pistes arp) ; anneaux bleu et turquoise autour du potard avec un point blanc qui montre la valeur modulée en direct (macros, molette) ; Ctrl + clic gauche + glisser règle la quantité (zone extérieure du potard = anneau 1, centre = anneau 2). Utilise les slots de la matrice.
+
+## v16 (audit du moteur)
+- **Plus d'escalier sur les réglages** : les réglages continus du synthé et du rack FX sont lissés (courbe en S, ~20 ms) et les coefficients des filtres sont interpolés échantillon par échantillon.
+- **Filtre MS-20** : la résonance ne laisse plus fuir les aigus quand le filtre est fermé (la bande ajoutée à la sortie est refiltrée).
+- **Stabilité** : la FM extrême sur une note aiguë pouvait produire un signal invalide (NaN) ; les phases sont bornées et un garde-fou remet la voix à zéro en cas de valeur folle. Testé sur des centaines de réglages aléatoires extrêmes.
+- **Anneaux** : le point vivant suit aussi les LFO ; réassigner une source dont la quantité était à zéro lui donne 50 %.

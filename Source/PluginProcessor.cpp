@@ -1175,7 +1175,11 @@ int OrageAudioProcessor::knobMods (int dst, KnobMod out[2]) const
 int OrageAudioProcessor::assignKnobMod (int dst, int src)
 {
     KnobMod cur[2]; const int n = knobMods (dst, cur);
-    for (int k = 0; k < n; ++k) if (cur[k].src == src) return cur[k].slot;           // deja routee : on la reutilise
+    for (int k = 0; k < n; ++k) if (cur[k].src == src)                                // deja routee : on la reutilise (et on lui donne une quantite si elle etait a zero, sinon rien ne s'entend)
+    {
+        if (std::fabs (cur[k].amt) < 0.01f) setKnobModAmt (cur[k].slot, 0.5f);
+        return cur[k].slot;
+    }
     if (n >= 2) return -2;
     for (int i = 1; i <= kSlots; ++i)                                                 // premier slot libre
     {
@@ -1201,7 +1205,8 @@ float OrageAudioProcessor::modSourceLive (int src) const
 {
     for (int i = 0; i < kMacros; ++i) if (macroSrc (i) == src) return apvts.getRawParameterValue ("s_m" + juce::String (i + 1))->load();
     if (src == MsWheel) return (float) wheelShown.load() / 127.f;
-    return -1.f;
+    for (int i = 0; i < kLfos; ++i) if (src == MsLfo1 + i) return synth.lfoLive (i);
+    return -99.f;                                                              // inconnue : l'anneau reste fixe
 }
 #endif
 

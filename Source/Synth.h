@@ -130,7 +130,7 @@ struct Hp
 // ---- LPF MS20 : resonance qui crie (saturation asymetrique dans la boucle + emphase de la bande)
 struct Lp
 {
-    float s1 = 0.f, s2 = 0.f;
+    float s1 = 0.f, s2 = 0.f, bp = 0.f;
     float run (float x, float g, float k, float res)
     {
         const float a1 = 1.f / (1.f + g * (g + k)), a2 = g * a1, a3 = g * a2;
@@ -139,7 +139,10 @@ struct Lp
         const float wild = 0.10f + 0.9f * res * res;
         s1 = s1 > 0.f ? s1 / (1.f + 0.10f * s1 * s1) : s1 / (1.f + wild * 0.6f * s1 * s1);   // diode : les deux alternances ne saturent pas pareil
         s2 = 2.f * v2 - s2;
-        return v2 + res * res * 1.1f * v1;                                                  // la bande passante est ajoutee a la sortie : le pic devient criard
+        // la bande passante est ajoutee a la sortie (le pic devient criard) ; elle est refiltree a ~2x le cutoff : les harmoniques de la saturation ne fuient plus dans les aigus quand le filtre est ferme
+        const float g2 = std::min (0.9f, 2.f * g), G2 = g2 / (1.f + g2);
+        bp += G2 * (v1 - bp);
+        return v2 + res * res * 1.1f * bp;
     }
 };
 // ---- SEM : SVF 12 dB, resonance douce, morph LP -> notch -> HP
@@ -204,11 +207,13 @@ public:
     void setParams (const SynthParams& p)
     {
         const int oldAssign = P.assign; const bool oldHold = P.hold != 0;
-        P = p;
+        P = p; Tg = p;
+        if (! smInit) { for (int i = 0; i < kSmN; ++i) sm[i] = sm1[i] = p.*kSm[i]; smInit = true; }
         if (P.assign != oldAssign) allNotesOff();
         else if (oldHold && ! P.hold) dropLatched();
     }
     void setChord (const int* iv, int n) { chordN = std::max (0, std::min (6, n)); for (int i = 0; i < chordN; ++i) chord[i] = iv[i]; }
+    float lfoLive (int i) const { return lfoWave (gPhase[i], P.lfo[i].wave, gCur[i]); }   // valeur courante d'un LFO global (affichage des anneaux)
     float lfoHz (int i) const { return hz (i); }                       // cadence de l'arpegiateur = LFO 2
     void setHost (double bpmIn) { bpm = bpmIn > 20.0 ? (float) bpmIn : 120.f; }
     void setWheel (float w) { wheel = w; }
@@ -260,6 +265,10 @@ public:
         {
             const int len = std::min (kCtl, n - pos);
             const float dt = (float) len / fs;
+            {   // reglages continus lisses (~20 ms) : un reglage qui saute d'un bloc hote a l'autre devient une rampe, plus d'escalier audible
+                const float sc = 1.f - std::exp (-dt / 0.0055f);                                   // deux lisseurs en cascade : une marche (souris, CC MIDI a 7 bits) devient une courbe en S sans cassure
+                for (int i = 0; i < kSmN; ++i) { sm1[i] += (Tg.*kSm[i] - sm1[i]) * sc; sm[i] += (sm1[i] - sm[i]) * sc; P.*kSm[i] = sm[i]; }
+            }
             for (int i = 0; i < kLfos; ++i)
             {
                 gPhase[i] += lfoHz[i] * dt;
@@ -280,12 +289,16 @@ public:
 
 private:
     static constexpr int kCtl = 16;
+    static constexpr float SynthParams::* kSm[] = { &SynthParams::lpf, &SynthParams::lpfRes, &SynthParams::hpf, &SynthParams::hpfRes, &SynthParams::drive, &SynthParams::semMorph, &SynthParams::fold, &SynthParams::foldSym,
+        &SynthParams::fm, &SynthParams::ring, &SynthParams::lvl1, &SynthParams::lvl2, &SynthParams::noise, &SynthParams::pw1, &SynthParams::pw2, &SynthParams::fltEnv, &SynthParams::keytrack, &SynthParams::master };
+    static constexpr int kSmN = (int) (sizeof (kSm) / sizeof (kSm[0]));
+    SynthParams Tg; float sm[kSmN] {}, sm1[kSmN] {}; bool smInit = false;
     struct Voice
     {
         bool active = false; int note = 60; float vel = 1.f; uint64_t age = 0;
         bool gated = false, raw = false; int slot = -1; float uniCents = 0.f, uniPan = 0.f, gainV = 1.f;
         sy::Env aenv, fenv; float pitch = 60.f, ph1 = 0.f, ph2 = 0.f, prev1 = 0.f, prev2 = 0.f, fmT = 0.f;
-        sy::Hp hp; sy::Lp lp; sy::Sem sem; sy::Ladder lad; float pat = 0.f, patS = 0.f, rndv = 0.f; float xPrev = 0.f, drvLp = 0.f; float lph[kLfos] {}, lfade[kLfos] {}, lsh[kLfos] {}, lcur[kLfos] {}; float envM[8] {};     // envM : modulation des enveloppes (bloc precedent)
+        sy::Hp hp; sy::Lp lp; sy::Sem sem; sy::Ladder lad; float pat = 0.f, patS = 0.f, rndv = 0.f; float xPrev = 0.f, drvLp = 0.f; bool cInit = false; float c0[16] {}; float lph[kLfos] {}, lfade[kLfos] {}, lsh[kLfos] {}, lcur[kLfos] {}; float envM[8] {};     // envM : modulation des enveloppes (bloc precedent)
     };
     static constexpr int kKeys = 16;
     struct Key { int note; float vel; bool phys; uint64_t t; };
@@ -533,15 +546,24 @@ private:
         const float pan = std::min (1.f, std::max (-1.f, md[MdPan] + v.uniPan));
         const float gl = std::sqrt (0.5f * (1.f - pan)), gr = std::sqrt (0.5f * (1.f + pan));
         const float dt1 = f1 / fs, dt2 = f2 / fs;
+        // valeurs de controle : calculees une fois par bloc de 16 echantillons, puis INTERPOLEES echantillon par echantillon (pas de marches)
+        float c1[16] = { gL, gH, kL, kH, kSem, kLad, res, morph, drive, drvEmph, foldA, foldS, level, lv1, l2, noiseA };
+        if (! v.cInit) { for (int q = 0; q < 16; ++q) v.c0[q] = c1[q]; v.cInit = true; }
+        float cd[16]; for (int q = 0; q < 16; ++q) cd[q] = (c1[q] - v.c0[q]) / (float) len;
+        float cc[16]; for (int q = 0; q < 16; ++q) cc[q] = v.c0[q];
 
         for (int i = 0; i < len; ++i)
         {
+            for (int q = 0; q < 16; ++q) cc[q] += cd[q];
+            const float gL = cc[0], gH = cc[1], kL = cc[2], kH = cc[3], kSem = cc[4], kLad = cc[5], res = cc[6], morph = cc[7], drive = cc[8], drvEmph = cc[9];
+            const float foldA = cc[10], foldS = cc[11], level = cc[12], lv1 = cc[13], l2 = cc[14], noiseA = cc[15];
             // FM audio (sens au choix) ; VCO2 est recale par VCO1 si le hard sync est actif
-            const float inc1 = P.fmDir != 1 ? dt1 * std::pow (2.f, fmA * 2.5f * v.prev2) : dt1;
-            const float inc2 = P.fmDir != 0 ? dt2 * std::pow (2.f, fmA * 2.5f * v.prev1) : dt2;
+            // increments de phase bornes sous Nyquist (une FM extreme sur une note aigue pouvait les faire exploser -> phase hors [0,1[ -> NaN)
+            const float inc1 = std::min (0.49f, std::max (0.f, P.fmDir != 1 ? dt1 * std::pow (2.f, fmA * 2.5f * v.prev2) : dt1));
+            const float inc2 = std::min (0.49f, std::max (0.f, P.fmDir != 0 ? dt2 * std::pow (2.f, fmA * 2.5f * v.prev1) : dt2));
             v.ph1 += inc1;
-            if (v.ph1 >= 1.f) { v.ph1 -= 1.f; if (P.sync) v.ph2 = v.ph1 * inc2 / std::max (inc1, 1e-6f); }
-            v.ph2 += inc2; if (v.ph2 >= 1.f) v.ph2 -= 1.f;
+            if (v.ph1 >= 1.f) { v.ph1 -= std::floor (v.ph1); if (P.sync) v.ph2 = v.ph1 * inc2 / std::max (inc1, 1e-6f); }
+            v.ph2 += inc2; if (v.ph2 >= 1.f) v.ph2 -= std::floor (v.ph2);
             const float o1 = sy::osc (P.wave1, v.ph1, std::min (0.45f, inc1), pw1);
             const float o2 = sy::osc (P.wave2, v.ph2, std::min (0.45f, inc2), pw2);
             if (P.fmWave == 0) { v.prev1 = o1; v.prev2 = o2; }
@@ -565,8 +587,16 @@ private:
             else                   lp = v.lp.run (dx, gL, kL, res);
             const float a = v.aenv.tick (aA2, aD2, aS2, aR2, fs);
             const float y = lp * a * level * v.gainV * (0.35f + 0.65f * v.vel);
+            if (! (std::fabs (y) < 8.f))                                   // garde-fou : NaN, infini ou valeur folle -> on remet les etats a zero (jamais de bruit ni de blocage)
+            {
+                v.hp = sy::Hp(); v.lp = sy::Lp(); v.sem = sy::Sem(); v.lad = sy::Ladder(); v.drvLp = 0.f; v.xPrev = 0.f; v.prev1 = v.prev2 = 0.f;
+                if (! std::isfinite (v.ph1)) v.ph1 = 0.f;
+                if (! std::isfinite (v.ph2)) v.ph2 = 0.f;
+                continue;
+            }
             L[i] += y * gl; R[i] += y * gr;
         }
+        for (int q = 0; q < 16; ++q) v.c0[q] = c1[q];
         if (v.aenv.st == sy::Env::Idle) v.active = false;
     }
 };
