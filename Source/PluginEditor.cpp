@@ -619,21 +619,23 @@ void KnobUnit::paintOverChildren (juce::Graphics& g)
     const float r = juce::jmin (sb.getWidth(), sb.getHeight()) * 0.5f;
     const float sa = juce::MathConstants<float>::pi * 1.2f, ea = juce::MathConstants<float>::pi * 2.8f;
     const float base = (float) slider.valueToProportionOfLength (slider.getValue());
+    const bool numbered = (bool) slider.getProperties()["numbered"] && sb.getWidth() >= 58.f;
+    const float sw = juce::jlimit (1.5f, 2.2f, r * 0.047f);
     for (int k = 0; k < n; ++k)
     {
-        const float rad = r * (k == 0 ? 1.02f : 0.9f);
+        const float rad = r * (numbered ? (k == 0 ? 0.705f : 0.64f) : (k == 0 ? 0.82f : 0.74f));       // entre le corps du potard et les graduations : jamais sur les chiffres ni sur les bords
         const float sc = OrageAudioProcessor::modScaleOfDst (modDst), span = km[k].amt * sc;
         const float end = juce::jlimit (0.f, 1.f, base + span);
         const float a0 = sa + juce::jmin (base, end) * (ea - sa), a1 = sa + juce::jmax (base, end) * (ea - sa);
         juce::Path p; p.addCentredArc (c.x, c.y, rad, rad, 0.f, a0, juce::jmax (a1, a0 + 0.02f), true);
-        g.setColour (juce::Colours::black.withAlpha (0.55f)); g.strokePath (p, juce::PathStrokeType (4.4f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
-        g.setColour (kRingCol[k]); g.strokePath (p, juce::PathStrokeType (2.8f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+        g.setColour (juce::Colours::black.withAlpha (0.55f)); g.strokePath (p, juce::PathStrokeType (sw + 1.f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+        g.setColour (kRingCol[k]); g.strokePath (p, juce::PathStrokeType (sw, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
         const float live = proc->modSourceLive (km[k].src);                        // point vivant : ou le reglage est reellement en ce moment
         if (live >= 0.f)
         {
             const float pos = juce::jlimit (0.f, 1.f, base + span * live), a = sa + pos * (ea - sa);
-            g.setColour (juce::Colours::white); g.fillEllipse (c.x + rad * std::sin (a) - 3.2f, c.y - rad * std::cos (a) - 3.2f, 6.4f, 6.4f);
-            g.setColour (kRingCol[k]);           g.drawEllipse (c.x + rad * std::sin (a) - 3.2f, c.y - rad * std::cos (a) - 3.2f, 6.4f, 6.4f, 1.4f);
+            g.setColour (juce::Colours::white); g.fillEllipse (c.x + rad * std::sin (a) - 2.6f, c.y - rad * std::cos (a) - 2.6f, 5.2f, 5.2f);
+            g.setColour (kRingCol[k]);           g.drawEllipse (c.x + rad * std::sin (a) - 2.6f, c.y - rad * std::cos (a) - 2.6f, 5.2f, 5.2f, 1.3f);
         }
     }
     if (dragText.isNotEmpty())
@@ -658,13 +660,13 @@ void KnobUnit::paint (juce::Graphics& g)
     const bool numbered = (bool) slider.getProperties()["numbered"] && sb.getWidth() >= 58.f;
     for (int i = 0; i <= 10; ++i)
     {
-        const float a = sa + (float) i / 10.f * (ea - sa), rad = r * (numbered ? 0.74f : 0.93f), dot = (i % 5 == 0) ? 3.2f : 2.f;
+        const float a = sa + (float) i / 10.f * (ea - sa), rad = r * (numbered ? 0.755f : 0.93f), dot = (i % 5 == 0) ? 3.2f : 2.f;
         g.setColour (look::print.withAlpha (0.88f * alpha));
         g.fillEllipse (c.x + rad * std::sin (a) - dot * 0.5f, c.y - rad * std::cos (a) - dot * 0.5f, dot, dot);
         if (numbered)                                                              // chiffres 0..10 autour du bouton, comme le MS20
         {
-            g.setFont (font (9.f));
-            g.drawText (juce::String (i), (int) (c.x + r * 0.93f * std::sin (a)) - 7, (int) (c.y - r * 0.93f * std::cos (a)) - 5, 14, 10,
+            g.setFont (font (8.6f));                                               // chiffres un peu plus pres du potard : ils ne touchent plus ceux du potard voisin
+            g.drawText (juce::String (i), (int) (c.x + r * 0.88f * std::sin (a)) - 7, (int) (c.y - r * 0.88f * std::cos (a)) - 5, 14, 10,
                         juce::Justification::centred, false);
         }
     }
