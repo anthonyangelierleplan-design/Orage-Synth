@@ -7,11 +7,11 @@
 #include "Synth.h"
 #include "Arp.h"
 
-class OrageAudioProcessor : public juce::AudioProcessor
+class OrageAudioProcessor : public juce::AudioProcessor, private juce::AsyncUpdater
 {
 public:
     OrageAudioProcessor();
-    ~OrageAudioProcessor() override = default;
+    ~OrageAudioProcessor() override { cancelPendingUpdate(); }
 
     void prepareToPlay (double sampleRate, int samplesPerBlock) override;
     void releaseResources() override {}
@@ -37,6 +37,8 @@ public:
     void setCurrentProgram (int) override {}
     const juce::String getProgramName (int) override { return {}; }
     void changeProgramName (int, const juce::String&) override {}
+
+    void handleAsyncUpdate() override { const int i = pendingProgram.exchange (-1); if (i >= 0) { loadFactoryPreset (i); presetSerial.fetch_add (1); } }
 
     void getStateInformation (juce::MemoryBlock& destData) override;
     void setStateInformation (const void* data, int sizeInBytes) override;
@@ -93,6 +95,10 @@ public:
     std::atomic<int> takeoverMode { 0 };                       // reprise de valeur : 0 SCALE (converge sans saut), 1 PICKUP (attend de croiser la valeur), 2 DIRECT (saute)
     orage::Synth synth;                     // utilise seulement par la version instrument (ORAGE_SYNTH)
     std::atomic<int> lastMidiMsg { 0 };     // dernier message MIDI recu (affichage) : kind<<16 | numero<<8 | valeur ; kind 1 note, 2 CC, 3 pitch, 4 aftertouch
+    std::atomic<int> pendingProgram { -1 };     // Program Change recu -> preset d'usine (charge sur le thread de l'interface)
+    std::atomic<int> presetSerial { 0 };        // incremente quand un preset est charge par MIDI (l'editeur se rafraichit)
+    float bendRange = 2.f;                      // etendue du pitch bend en demi-tons
+    bool pedal = false, keyDown[128] = {}, pedalHeld[128] = {};
     std::atomic<int> wheelShown { 0 };      // valeur de la molette (CC1) 0..127 pour l'affichage
     std::atomic<int> arpStepShown { -1 };   // pas courant de l'arpegiateur (affichage)
     orage::ArpPattern arpPat;               // motif de l'arpegiateur / sequenceur (pas + pistes de modulation), edite par l'interface

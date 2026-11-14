@@ -365,6 +365,7 @@ private:
     juce::Image panelTex;
     juce::Random rnd;
     float heatShown = 0.f, arcShown = 0.f;
+    int lastPresetSerial = 0;
     uint32_t lastPatchHash = 0, lastRackHash = 0, lastBypass = 0;
 
     // en-tete

@@ -100,3 +100,10 @@ Table de données (tools/presets/presets.py) → code C++ → banc de test qui j
 - Wavefolder à fond sur notes très aiguës : reste −20 dB (×8 possible).
 - Rack FX : saturations non suréchantillonnées, pas d'audit à l'écoute module par module.
 - Clics possibles sur changements à positions fixes pendant une note.
+
+## Adapter un synthé à un contrôleur MIDI (exemple Hydrasynth)
+- Une table `id de paramètre → CC` par défaut (une fonction `defaultCcOf`) ; ne sauvegarder que les écarts par rapport à elle, ainsi les anciens projets ne cassent pas et on peut changer la carte plus tard.
+- Tester l'absence de collision (deux paramètres sur un même CC) dans un test automatique.
+- Program Change : ne jamais charger un preset depuis le thread audio ; poser un atomic + `AsyncUpdater`, et un compteur que l'éditeur surveille pour se rafraîchir.
+- Pédale de sustain : retenir les note-off dans le processeur (indépendant du moteur de voix).
+- Ajouter un paramètre = toujours à la FIN de la liste des paramètres (et de sa lecture), pour rester compatible avec les états sauvegardés.

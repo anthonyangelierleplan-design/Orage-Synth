@@ -471,9 +471,12 @@ SynthPanel::SynthPanel (OrageAudioProcessor& p, int pg) : proc (p), page (pg)
         auto* u = unit ("MODULATION  (SYNC / RING)");
         auto* sy = toggle (*u, "s_sync", "HARD SYNC");
         auto* rg = knob (*u, "s_ring", "RING"); auto* gl = knob (*u, "s_glide", "PORTAMENTO");
+        juce::StringArray bends; for (int k = 1; k <= 24; ++k) bends.add ("BEND +/-" + juce::String (k));
+        auto* bd = selector (*u, "s_bendRange", bends);
         u->layoutFn = [=] (juce::Rectangle<int> r)
         {
             sy->setBounds (r.getX(), r.getY() + 6, 120, 30);
+            bd->setBounds (r.getX() + 128, r.getY() + 6, 140, 30);
             place (r.withTrimmedTop (38), { rg, gl }, 20, 100);
         };
     }

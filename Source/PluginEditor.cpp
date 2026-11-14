@@ -1954,6 +1954,7 @@ void OrageAudioProcessorEditor::timerCallback()
     heatShown += 0.2f * (proc.engine.heat.load() - heatShown);
     arcShown = juce::jmax (arcShown * 0.82f, proc.engine.arc.load());
     repaint (headerArea);
+    if (const int ps = proc.presetSerial.load(); ps != lastPresetSerial) { lastPresetSerial = ps; afterPreset(); }
     patchBay.repaintLeds();
     {
         const int v = proc.lastMidiMsg.load(), kind = v >> 16, a = (v >> 8) & 255, b = v & 255;

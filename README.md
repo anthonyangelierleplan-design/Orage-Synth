@@ -71,3 +71,10 @@ Façade façon Korg MS20 : zones délimitées par des traits blancs sérigraphi�
 - **Coupe-continu** en sortie du synthé.
 - Petite optimisation de la FM quand elle est à zéro.
 - `KNOWLEDGE.md` : base de connaissances (architecture, journal des problèmes, règles, tests, checklist).
+
+## v19 (adaptation à l'ASM Hydrasynth)
+- **Carte CC par défaut** (table « Sorted by CC Number » du manuel Hydrasynth), valable pour Orage et Orage FX : cutoff 74, résonance 71, drive 50, keytrack 51, glide 5, bruit 3, volume master 7, niveaux VCO 44/45, détune unison 95, LFO1-4 rate 72/73/76/78, enveloppe d'ampli 81-84 (ENV1), enveloppe de filtre 85-88 (ENV2), reverb mix 91 / decay 65 / damping 67, delay time 15 / feedback 14 / tone 63 / mix 92. Les macros restent sur CC 16-23. Un CC = un seul paramètre ; le MIDI learn (clic droit) redirige tout, seuls les écarts sont sauvegardés.
+- **Program Change** → preset d'usine (0 = Init), chargé sur le thread de l'interface.
+- **Pédale de sustain** (CC64) : les fins de note sont retenues tant qu'elle est enfoncée (arpégiateur compris).
+- **Étendue du pitch bend** réglable (±1 à ±24 demi-tons, défaut ±2), sélecteur dans le bloc MODULATION.
+- Test : tools/tests/midi_hydrasynth.cpp (collisions, CC74, Program Change, sustain, bend).

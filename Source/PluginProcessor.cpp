@@ -92,6 +92,7 @@ const PDef kDefs[] = {
 constexpr int kNumDefs = (int) (sizeof (kDefs) / sizeof (kDefs[0]));
 
 // ---- presets d'usine
+#include <map>
 using namespace orage;
 #if ORAGE_SYNTH
 static_assert (orage::Engine::kExt <= orage::kFxMod && orage::kLanes == orage::kArpLanes, "entrees de modulation des effets et pistes : moteur, synthe et arpegiateur doivent correspondre");
@@ -160,6 +161,7 @@ const std::vector<SynDef>& synDefs()
         F ("s_fmFine", "FM Fine", -1, 1, 0);  F ("s_fmAtt", "FM Attack", 0, 1, 0);  F ("s_fmDec", "FM Decay", 0, 1, 0.4f);
         F ("s_fmEnvAmt", "FM Env Amount", 0, 1, 0);  F ("s_fmVel", "FM Velocity", 0, 1, 0);  F ("s_fmAT", "FM Aftertouch", 0, 1, 0);
         C ("s_arpType", "Arp Type", "Arp|Seq", 0);  B ("s_seqRec", "Step Record", false);
+        { juce::StringArray br; for (int k = 1; k <= 24; ++k) br.add (juce::String (k)); C ("s_bendRange", "Pitch Bend Range", br.joinIntoString ("|"), 1); }
         return v;
     }();
     return defs;
@@ -772,7 +774,19 @@ juce::File OrageAudioProcessor::midiMapFile() const
 int OrageAudioProcessor::defaultCcOf (const juce::String& id) const
 {
     for (int k = 0; k < 8; ++k) if (id == "s_m" + juce::String (k + 1)) return 16 + k;      // macros 1..8 = CC 16..23 (macros de l'Hydrasynth)
-    return -1;
+    // Carte par defaut = table "Sorted by CC Number" de l'Hydrasynth (un CC = un seul potard ; l'apprentissage MIDI peut tout rediriger)
+    static const std::map<juce::String, int> hydra = {
+        { "s_noise", 3 }, { "s_glide", 5 }, { "s_master", 7 },
+        { "bbdFb", 14 }, { "bbdTime", 15 },
+        { "s_lvl1", 44 }, { "s_lvl2", 45 },
+        { "s_drive", 50 }, { "s_key", 51 },
+        { "bbdTone", 63 }, { "revDecay", 65 }, { "revDamp", 67 },
+        { "s_lpfRes", 71 }, { "s_l1Rate", 72 }, { "s_l2Rate", 73 }, { "s_lpf", 74 }, { "s_l3Rate", 76 }, { "s_l4Rate", 78 },
+        { "s_aA", 81 }, { "s_aD", 82 }, { "s_aS", 83 }, { "s_aR", 84 },       // ENV1 de l'Hydrasynth = enveloppe d'ampli
+        { "s_fA", 85 }, { "s_fD", 86 }, { "s_fS", 87 }, { "s_fR", 88 },       // ENV2 = enveloppe de filtre
+        { "revMix", 91 }, { "bbdMix", 92 }, { "s_uniDetune", 95 } };
+    const auto it = hydra.find (id);
+    return it != hydra.end() ? it->second : -1;
 }
 void OrageAudioProcessor::resetMidiMap()
 {
@@ -906,6 +920,7 @@ orage::SynthParams OrageAudioProcessor::readSynth()
     for (int k = 0; k < kLanes; ++k) { arpParams.laneLen[k] = n() + 1; s.lane[k].dst = n(); s.lane[k].amt = f(); s.lane[k].glide = f(); }
     s.fmDir = n(); s.fmRatio = n(); s.fmWave = n(); s.fmFine = f(); s.fmAtt = f(); s.fmDec = f(); s.fmEnvAmt = f(); s.fmVel = f(); s.fmAT = f();
     arpParams.seq = n() == 1; seqRec = b();
+    bendRange = (float) (n() + 1);
     jassert (i == rawSyn.size());
     return s;
 }
@@ -982,6 +997,18 @@ void OrageAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
         {
             const auto m = meta.getMessage();
             const int pos = juce::jlimit (0, total - 1, meta.samplePosition);
+            if (m.isProgramChange()) { pendingProgram.store (m.getProgramChangeNumber()); triggerAsyncUpdate(); continue; }
+            if (m.isController() && m.getControllerNumber() == 64)           // pedale de sustain : les fins de note sont retenues tant qu'elle est enfoncee
+            {
+                const bool dn = m.getControllerValue() >= 64;
+                if (pedal && ! dn)
+                    for (int nt = 0; nt < 128; ++nt)
+                        if (pedalHeld[nt]) { pedalHeld[nt] = false; keyDown[nt] = false; if (arpOn) arp.noteOff (nt); else evs.push_back ({ pos, 1, nt, 0.f }); }
+                pedal = dn;
+            }
+            if (m.isNoteOn()) { keyDown[m.getNoteNumber()] = true; pedalHeld[m.getNoteNumber()] = false; }
+            else if (m.isNoteOff() && pedal && keyDown[m.getNoteNumber()]) { pedalHeld[m.getNoteNumber()] = true; continue; }
+            else if (m.isNoteOff()) keyDown[m.getNoteNumber()] = false;
             if (m.isController()) { lastMidiMsg.store ((2 << 16) | (m.getControllerNumber() << 8) | m.getControllerValue()); if (m.getControllerNumber() == 1) wheelShown.store (m.getControllerValue()); }
             else if (m.isNoteOn()) lastMidiMsg.store ((1 << 16) | (m.getNoteNumber() << 8) | m.getVelocity());
             else if (m.isPitchWheel()) lastMidiMsg.store ((3 << 16) | ((m.getPitchWheelValue() >> 7) << 8) | (m.getPitchWheelValue() & 127));
@@ -999,8 +1026,8 @@ void OrageAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
                 if (arpOn) arp.noteOn (m.getNoteNumber(), m.getFloatVelocity()); else evs.push_back ({ pos, 0, m.getNoteNumber(), m.getFloatVelocity() });
             }
             else if (m.isNoteOff())      { if (chordLearn) continue; if (arpOn) arp.noteOff (m.getNoteNumber()); else evs.push_back ({ pos, 1, m.getNoteNumber(), 0.f }); }
-            else if (m.isAllNotesOff() || m.isAllSoundOff()) { arp.allOff(); evs.push_back ({ pos, 2, 0, 0.f }); }
-            else if (m.isPitchWheel())   evs.push_back ({ pos, 3, 0, (float) (m.getPitchWheelValue() - 8192) / 8192.f * 2.f });
+            else if (m.isAllNotesOff() || m.isAllSoundOff()) { pedal = false; for (int nt = 0; nt < 128; ++nt) keyDown[nt] = pedalHeld[nt] = false; arp.allOff(); evs.push_back ({ pos, 2, 0, 0.f }); }
+            else if (m.isPitchWheel())   evs.push_back ({ pos, 3, 0, (float) (m.getPitchWheelValue() - 8192) / 8192.f * bendRange });
             else if (m.isAftertouch())   evs.push_back ({ pos, 5, m.getNoteNumber(), (float) m.getAfterTouchValue() / 127.f });
             else if (m.isChannelPressure()) evs.push_back ({ pos, 6, 0, (float) m.getChannelPressureValue() / 127.f });
             else if (m.isController() && m.getControllerNumber() != 1) {}                // deja traite en debut de bloc
