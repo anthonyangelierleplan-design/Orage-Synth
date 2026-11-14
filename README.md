@@ -52,6 +52,8 @@ Façade façon Korg MS20 : zones délimitées par des traits blancs sérigraphi�
 - **Calibré sur de vraies mesures** d'un MS-10 de 1978 (résonance 0 / 30 / 60 / 100 % et auto-oscillation) : bosse de résonance, fréquence d'auto-oscillation (écart < 1 % dans le moteur), amplitude et harmoniques 2 et 3.
 - **Limites connues** : seulement 3 positions de résonance mesurées (le comportement entre 60 % et 100 % est interpolé) ; l'affaiblissement des aigus au-delà de 7-9 kHz vu sur l'enregistrement n'est pas modélisé ; pas encore écouté ; crête max plus haute que le MS-20 à fond (1,74 contre 1,11 en pire cas, 5 voix) ; CPU environ 1,6× celui de l'ancien MS-20.
 
+- **Nouveau « LADDER CEM3320 »** : modèle du circuit CEM3320 du Pro-One (4 étages OTA à tanh, retour implicite par le VCA de résonance), l'auto-oscillation suit le cutoff (< 1 %). **Nouveau « SEM CKT »** : modèle du circuit Oberheim SEM (mélangeur, deux intégrateurs CA3080, diodes D11/D12 sur le retour, morph LP > notch > HP conservé). Calibrés sur les schémas et la théorie du circuit, PAS sur des enregistrements du matériel (aucun disponible) : jugement à l'oreille. CPU 11,5 % et 10,8 % (6 voix) contre 7-9 % pour les anciens.
+
 ## v17 (qualité)
 - **Suréchantillonnage ×4** du wavefolder et du drive, triangle anti-replié : beaucoup moins d'aigus parasites sur les notes hautes.
 - **Coupe-continu** en sortie du synthé.

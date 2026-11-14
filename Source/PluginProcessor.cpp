@@ -140,7 +140,7 @@ const std::vector<SynDef>& synDefs()
         C ("s_arpOn", "Arp", "Off|On|Latch", 0);
         C ("s_arpMode", "Arp Direction", "Up|Down|Up-Down|Played|Random|Converge", 0);
         C ("s_arpOct", "Arp Range", "1 Oct|2 Oct|Full", 0);
-        C ("s_ftype", "Filter Type", "MS-20|SEM|Ladder|MS-10 (circuit)", 0);  F ("s_semMorph", "SEM Morph", 0, 1, 0);
+        C ("s_ftype", "Filter Type", "MS-20|SEM|Ladder|MS-10 (circuit)|Ladder CEM3320 (circuit)|SEM (circuit)", 0);  F ("s_semMorph", "SEM Morph", 0, 1, 0);
         C ("s_assign", "Key Assign", "Poly|Mono|Unison|Share|Chord", 0);  B ("s_hold", "Hold", false);
         F ("s_uniDetune", "Unison Detune", 0, 1, 0.3f);  B ("s_chordLearn", "Chord Learn", false);
         for (int i = 5; i <= kMacros; ++i) F ("s_m" + juce::String (i), "Macro " + juce::String (i), 0, 1, 0);

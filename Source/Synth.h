@@ -51,7 +51,7 @@ struct SynthParams
     int fmDir = 0, fmRatio = 0, fmWave = 0;   // FM : sens (0 VCO2>VCO1, 1 VCO1>VCO2, 2 croisee), rapport de frequence (0 libre), onde du modulateur (0 = celle du VCO)
     float fmFine = 0.f, fmAtt = 0.f, fmDec = 0.4f, fmEnvAmt = 0.f, fmVel = 0.f, fmAT = 0.f;     // FM : desaccord fin, enveloppe de profondeur, vitesse, aftertouch
     float uniDetune = 0.3f;                   // ecart de desaccord des voix empilees
-    int ftype = 0;                            // filtre passe-bas : 0 MS20, 1 SEM, 2 Ladder, 3 MS-10 (circuit)
+    int ftype = 0;                            // filtre passe-bas : 0 MS20, 1 SEM, 2 Ladder, 3 MS-10 (circuit), 4 Ladder CEM3320 (circuit), 5 SEM (circuit)
     float semMorph = 0.f;                     // SEM : LP -> notch -> HP
     float fold = 0.f, foldSym = 0.f;           // wavefolder : quantite, symetrie
     float master = 0.7f;
@@ -299,6 +299,78 @@ struct Ms10
         return (float) (Va * (makeup / (att * (1.0 + R64 / R63) * kSc)));
     }
 };
+// ---- LADDER "CEM3320" : modele du circuit du filtre 4 poles CEM3320 (Sequential Pro-One) : 4 etages OTA (tanh) + condensateur, retour de la sortie par le VCA de resonance.
+// Chaque etage : C dv/dt = Gm*Vs*tanh((entree - v)/Vs), Vs = 2*Vt = 52 mV ; le signal est ramene au niveau du mV par les resistances d'entree.
+// Integration trapezoidale + Newton 4x4 (jacobienne bidiagonale + 1 terme de retour, resolue en O(n)) : le retour est implicite, la frequence d'auto-oscillation = le cutoff.
+struct Cem3320
+{
+    float v[4] {}, t[4] {}; unsigned rs = 12345u;
+    void reset() { for (int i = 0; i < 4; ++i) v[i] = t[i] = 0.f; }
+    float run (float x, float g, float k)                       // g = tan(pi f/fs), k = gain du retour (auto-oscillation vers 4)
+    {
+        constexpr float sc = 1.0f;                              // niveau moteur -> unites de Vs (0,052 V par unite)
+        rs = rs * 1664525u + 1013904223u;
+        const float u = x * sc + (float) (int) (rs >> 8) * 1e-9f;     // bruit thermique infime : amorce l'auto-oscillation
+
+        float w[4] = { v[0], v[1], v[2], v[3] }, s[4];
+        for (int i = 0; i < 4; ++i) s[i] = v[i] + g * t[i];
+        for (int it = 0; it < 8; ++it)
+        {
+            float a = u - k * w[3], al = 0.f, be = 0.f, A[3], B[3];
+            for (int i = 0; i < 4; ++i)
+            {
+                const float tn = tanhFast (a - w[i]), d = 1.f - tn * tn, F = w[i] - g * tn - s[i], Jd = 1.f + g * d;
+                if (i == 0) { al = -F / Jd; be = -g * d * k / Jd; }
+                else        { al = (-F + g * d * al) / Jd; be = g * d * be / Jd; }
+                if (i < 3) { A[i] = al; B[i] = be; }
+                a = w[i];
+            }
+            const float d4 = al / (1.f - be);
+            float step = std::fabs (d4);
+            for (int i = 0; i < 3; ++i) { const float di = A[i] + B[i] * d4; w[i] += di; step = std::max (step, std::fabs (di)); }
+            w[3] += d4;
+            if (step < 2e-6f) break;
+        }
+        float a = u - k * w[3];
+        for (int i = 0; i < 4; ++i) { t[i] = tanhFast (a - w[i]); v[i] = w[i]; a = w[i]; }
+        if (! (std::fabs (v[3]) < 1e3f)) reset();
+        return v[3] * (1.f / sc);
+    }
+};
+// ---- SEM "circuit" : filtre a variables d'etat Oberheim SEM : melangeur A12 (entree - LP - amortissement*BP), deux integrateurs CA3080 (tanh) A13/A15 precedes de diviseurs,
+// suiveurs Q39/Q40, BP en A14, LP en A16, amortissement fixe par le potard RES (50k) avec ecretage par les diodes D11/D12. Trapezoide + Newton 2x2 (retour implicite).
+struct SemCkt
+{
+    float bp = 0.f, lp = 0.f, t1 = 0.f, t2 = 0.f;
+    void reset() { bp = lp = t1 = t2 = 0.f; }
+    // x entree, g = tan(pi f/fs), d = amortissement (2 = sans resonance), morph LP -> notch -> HP
+    float run (float x, float g, float d, float morph)
+    {
+        constexpr float sc = 1.0f / 1.2f;                       // niveau moteur -> echelle des OTA (1,2 par unite d'echelle)
+        constexpr float il = 1.f / 1.6f;                        // seuil des diodes D11/D12 (en echelle OTA)
+        const float xn = x * sc;
+        const float s1 = bp + g * t1, s2 = lp + g * t2;
+        float b = bp, l = lp, hp = 0.f;
+        for (int it = 0; it < 8; ++it)
+        {
+            const float tl = tanhFast (b * il), Lb = tl / il, dL = 1.f - tl * tl;
+            hp = xn - l - d * Lb;
+            const float ta = tanhFast (hp), tb = tanhFast (b), ea = 1.f - ta * ta, eb = 1.f - tb * tb;
+            const float F1 = b - g * ta - s1, F2 = l - g * tb - s2;
+            const float a11 = 1.f + g * ea * d * dL, a12 = g * ea, a21 = -g * eb, a22 = 1.f;
+            const float det = a11 * a22 - a12 * a21;
+            const float db = (-F1 * a22 + F2 * a12) / det, dl = (-a11 * F2 + a21 * F1) / det;
+            b += db; l += dl;
+            if (std::fabs (db) + std::fabs (dl) < 2e-6f) break;
+        }
+        const float tl = tanhFast (b * il);
+        hp = xn - l - d * (tl / il);
+        t1 = tanhFast (hp); t2 = tanhFast (b); bp = b; lp = l;
+        if (! (std::fabs (lp) < 1e3f && std::fabs (bp) < 1e3f)) reset();
+        const float lg = std::min (1.f, std::max (0.f, 2.f * (1.f - morph))), hg = std::min (1.f, std::max (0.f, 2.f * morph));
+        return (l * lg + hp * hg) * (1.f / sc);
+    }
+};
 // ---- surechantillonnage x4 autour d'une non-linearite (2 etages demi-bande) : les harmoniques creees au-dessus de Nyquist sont filtrees au lieu de se replier
 template <int L> struct HalfBand                                    // L impair avec (L-1)/2 impair (11, 15, 23...) : un tap sur deux est nul, on ne calcule que les autres
 {
@@ -467,7 +539,7 @@ private:
         bool active = false; int note = 60; float vel = 1.f; uint64_t age = 0;
         bool gated = false, raw = false; int slot = -1; float uniCents = 0.f, uniPan = 0.f, gainV = 1.f;
         sy::Env aenv, fenv; float pitch = 60.f, ph1 = 0.f, ph2 = 0.f, prev1 = 0.f, prev2 = 0.f, fmT = 0.f;
-        sy::Hp hp; sy::Lp lp; sy::Sem sem; sy::Ladder lad; sy::Ms10 ms; float pat = 0.f, patS = 0.f, rndv = 0.f; float xPrev = 0.f, drvLp = 0.f; sy::Over4 osF, osD; bool cInit = false; float c0[20] {}; float lph[kLfos] {}, lfade[kLfos] {}, lsh[kLfos] {}, lcur[kLfos] {}; float envM[8] {};     // envM : modulation des enveloppes (bloc precedent)
+        sy::Hp hp; sy::Lp lp; sy::Sem sem; sy::Ladder lad; sy::Ms10 ms; sy::Cem3320 cem; sy::SemCkt sck; float pat = 0.f, patS = 0.f, rndv = 0.f; float xPrev = 0.f, drvLp = 0.f; sy::Over4 osF, osD; bool cInit = false; float c0[20] {}; float lph[kLfos] {}, lfade[kLfos] {}, lsh[kLfos] {}, lcur[kLfos] {}; float envM[8] {};     // envM : modulation des enveloppes (bloc precedent)
     };
     static constexpr int kKeys = 16;
     struct Key { int note; float vel; bool phys; uint64_t t; };
@@ -718,6 +790,8 @@ private:
         // valeurs de controle : calculees une fois par bloc de 16 echantillons, puis INTERPOLEES echantillon par echantillon (pas de marches)
         float c1[20] = { gL, gH, kL, kH, kSem, kLad, res, morph, drive, drvEmph, foldA, foldS, level, lv1, l2, noiseA, 0.f, 0.f, 0.f, 0.f };
         if (P.ftype == 3) sy::Ms10Tab::get().controls (2.0 * fs * (double) gL, (double) res, msC, c1[16], c1[17], c1[18]);       // MS-10 : resistance des etages, retour PEAK
+        if (P.ftype == 4) c1[16] = 4.04f * res;                                                                                  // CEM3320 : gain de retour (auto-oscillation au-dessus de 4)
+        else if (P.ftype == 5) c1[16] = 1.9f * std::pow (1.f - res, 1.3f) + 0.03f;                                               // SEM : amortissement (potard RES)
         if (! v.cInit) { for (int q = 0; q < 20; ++q) v.c0[q] = c1[q]; v.cInit = true; }
         float cd[20]; for (int q = 0; q < 20; ++q) cd[q] = (c1[q] - v.c0[q]) / (float) len;
         float cc[20]; for (int q = 0; q < 20; ++q) cc[q] = v.c0[q];
@@ -755,12 +829,14 @@ private:
             if (P.ftype == 1)      lp = v.sem.run (dx, gL, kSem, morph) * 1.15f;
             else if (P.ftype == 2) lp = v.lad.run (dx * 1.2f, gL, kLad) * (1.f + 1.0f * res);
             else if (P.ftype == 3) lp = v.ms.run (dx, cc[16], cc[17], cc[18], msC);
+            else if (P.ftype == 4) lp = v.cem.run (dx, gL * (1.f + 0.075f * std::min (1.f, std::max (0.f, (cc[16] - 3.8f) * 4.2f))), cc[16]) * (1.f + 1.2f * res);
+            else if (P.ftype == 5) lp = v.sck.run (dx, gL, cc[16], morph);
             else                   lp = v.lp.run (dx, gL, kL, res);
             const float a = v.aenv.tick (aA2, aD2, aS2, aR2, fs);
             const float y = lp * a * level * v.gainV * (0.35f + 0.65f * v.vel);
             if (! (std::fabs (y) < 8.f))                                   // garde-fou : NaN, infini ou valeur folle -> on remet les etats a zero (jamais de bruit ni de blocage)
             {
-                v.hp = sy::Hp(); v.lp = sy::Lp(); v.sem = sy::Sem(); v.lad = sy::Ladder(); v.ms.reset(); v.drvLp = 0.f; v.xPrev = 0.f; v.prev1 = v.prev2 = 0.f; v.osF = sy::Over4(); v.osD = sy::Over4();
+                v.hp = sy::Hp(); v.lp = sy::Lp(); v.sem = sy::Sem(); v.lad = sy::Ladder(); v.ms.reset(); v.cem.reset(); v.sck.reset(); v.drvLp = 0.f; v.xPrev = 0.f; v.prev1 = v.prev2 = 0.f; v.osF = sy::Over4(); v.osD = sy::Over4();
                 if (! std::isfinite (v.ph1)) v.ph1 = 0.f;
                 if (! std::isfinite (v.ph2)) v.ph2 = 0.f;
                 continue;

@@ -85,7 +85,7 @@ Les chiffres viennent des tests automatiques, pas d'une écoute : l'oreille rest
 5. Mesurer CPU en vrai plugin, fuzz de réglages extrêmes, presets.
 
 ## Reste à faire sur Orage
-- Ladder (schéma CEM3320 Pro-One) et SEM (schéma Oberheim) à modéliser de la même façon ; enregistrements du matériel réel bienvenus (MS-10 à 80 % / 90 % aussi).
+- Ladder CEM3320 et SEM circuit faits d'après les schémas seulement (v18) ; les caler sur des enregistrements du matériel quand le user en a (MS-10 à 80 % / 90 % aussi). Compensation de hauteur de l'auto-oscillation CEM (+7,5 % sur g) ajoutée à la main : l'OTA saturé fait baisser la fréquence.
 - Écouter le MS-10 circuit ; décider du roll-off aigu et d'un réglage d'asymétrie.
 - À l'oreille : lissage 20 ms, MS-20 adouci, drive brillant, wavefolder.
 - Dans Ableton : menu « Assigner à », anneaux à la souris, sous-menus.
