@@ -93,7 +93,9 @@ public:
     void resized() override;
     void setCvActive (bool);
     const juce::String& getParamId() const { return paramId; }
+    void setChoices (const juce::StringArray& names);              // potard cranté : une graduation nommée par choix (paramètre "choice")
 
+    juce::StringArray choices;
     DetentSlider slider;
     juce::String text, loText, hiText;
     int cvIndex;                                     // destination CV associee (ou -1)

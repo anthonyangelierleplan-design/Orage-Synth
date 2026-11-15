@@ -88,3 +88,4 @@ Façade façon Korg MS20 : zones délimitées par des traits blancs sérigraphi�
 - **Ratchet global** 1x à 4x (CC 109), en plus du ratchet par pas ; **triolets** (pas x1,5) ; **tap tempo** (passe l'horloge en mode libre).
 - Les boutons ON et LATCH de l'Hydrasynth n'envoient pas de CC : à régler à la main (ou par MIDI learn d'un autre contrôle).
 - Correction : les 4 LFO du bloc MODULATION GENERATOR s'empilaient après un redimensionnement.
+- **Potards crantés** (MODE, OCTAVE, RATCHET) : un cran par choix, graduations nommées autour du potard, valeur active en orange ; ON/OFF/LATCH, TRIPLET, TAP TEMPO, TYPE et FREE RUN restent des boutons. (`KnobUnit::setChoices` sur un paramètre de type choix.)

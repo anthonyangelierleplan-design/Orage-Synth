@@ -571,7 +571,12 @@ void KnobUnit::mouseDown (const juce::MouseEvent& e)
 #endif
 }
 
-void KnobUnit::resized() { slider.setBounds (getLocalBounds().withTrimmedBottom (16)); }
+void KnobUnit::resized()
+{
+    auto b = getLocalBounds().withTrimmedBottom (16);
+    if (! choices.isEmpty()) b = b.withSizeKeepingCentre ((int) (juce::jmin (b.getWidth(), b.getHeight()) * 0.74f), (int) (juce::jmin (b.getWidth(), b.getHeight()) * 0.74f));   // potard cranté : place pour les libellés autour
+    slider.setBounds (b);
+}
 
 void KnobUnit::setCvActive (bool a) { if (a != cvActive) { cvActive = a; repaint(); } }
 
@@ -650,6 +655,17 @@ void KnobUnit::paintOverChildren (juce::Graphics&) {}
 bool KnobUnit::modInterceptor (const juce::MouseEvent&, int) { return false; }
 #endif
 
+void KnobUnit::setChoices (const juce::StringArray& names)
+{
+    choices = names;
+    resized();
+    slider.getProperties().set ("numbered", false);
+    slider.textFromValueFunction = [this] (double v) { return choices[juce::jlimit (0, juce::jmax (0, choices.size() - 1), juce::roundToInt (v))]; };
+    slider.onValueChange = [this] { repaint(); };
+    slider.setPopupDisplayEnabled (true, true, nullptr);
+    repaint();
+}
+
 void KnobUnit::paint (juce::Graphics& g)
 {
     const auto sb = slider.getBounds().toFloat();
@@ -658,6 +674,19 @@ void KnobUnit::paint (juce::Graphics& g)
     const float sa = juce::MathConstants<float>::pi * 1.2f, ea = juce::MathConstants<float>::pi * 2.8f;
     const float alpha = slider.isEnabled() ? 1.f : 0.45f;
     const bool numbered = (bool) slider.getProperties()["numbered"] && sb.getWidth() >= 58.f;
+    if (! choices.isEmpty())                                                       // potard cranté : graduations nommées, la valeur active en clair
+    {
+        const int n = choices.size(), cur = juce::jlimit (0, n - 1, juce::roundToInt (slider.getValue()));
+        g.setFont (font (8.8f));
+        for (int i = 0; i < n; ++i)
+        {
+            const float a = sa + (n > 1 ? (float) i / (float) (n - 1) : 0.5f) * (ea - sa);
+            g.setColour ((i == cur ? look::cvRing : look::print).withAlpha ((i == cur ? 1.f : 0.85f) * alpha));
+            g.fillEllipse (c.x + r * 0.74f * std::sin (a) - 1.8f, c.y - r * 0.74f * std::cos (a) - 1.8f, 3.6f, 3.6f);
+            g.drawText (choices[i], (int) (c.x + r * (0.98f + 0.04f * std::abs (std::sin (a))) * std::sin (a)) - 24, (int) (c.y - r * 1.0f * std::cos (a)) - 6, 48, 12, juce::Justification::centred, false);
+        }
+    }
+    else
     for (int i = 0; i <= 10; ++i)
     {
         const float a = sa + (float) i / 10.f * (ea - sa), rad = r * (numbered ? 0.755f : 0.93f), dot = (i % 5 == 0) ? 3.2f : 2.f;
@@ -670,7 +699,7 @@ void KnobUnit::paint (juce::Graphics& g)
                         juce::Justification::centred, false);
         }
     }
-    if (! numbered)
+    if (! numbered && choices.isEmpty())
     {
         g.setFont (font (9.5f));
         g.setColour (look::print.withAlpha (0.8f * alpha));

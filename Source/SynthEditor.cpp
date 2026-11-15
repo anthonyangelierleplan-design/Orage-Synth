@@ -354,34 +354,33 @@ SynthPanel::SynthPanel (OrageAudioProcessor& p, int pg) : proc (p), page (pg)
                 if (auto* sy = proc.apvts.getParameter ("s_arpSync")) sy->setValueNotifyingHost (0.f);
                 if (auto* rt = proc.apvts.getParameter ("s_arpRate")) rt->setValueNotifyingHost ((float) (std::log (hz / 0.5) / std::log (40.0)));
             });
-            auto* dir = selector (*u, "s_arpMode", juce::StringArray { "UP", "DOWN", "UP-DN", "PLAYED", "RANDOM", "CONVERGE" });
-            auto* oct = selector (*u, "s_arpOct", juce::StringArray { "1 OCT", "2 OCT", "3 OCT", "4 OCT" });
+            auto* dir = knob (*u, "s_arpMode", "MODE");  dir->setChoices ({ "UP", "DOWN", "UP-DN", "PLAYED", "RANDOM", "CONVRG" });
+            auto* oct = knob (*u, "s_arpOct", "OCTAVE"); oct->setChoices ({ "1", "2", "3", "4" });
             auto* free = toggle (*u, "s_arpFree", "FREE RUN");
             auto* type = selector (*u, "s_arpType", juce::StringArray { "ARP", "SEQ" });
-            auto* t1 = tag (*u, "ON / LATCH"); auto* t2 = tag (*u, "MODE  (direction)"); auto* t3 = tag (*u, "OCTAVE"); auto* t4 = tag (*u, "TYPE  (SEQ = one stored note per step)");
+            auto* t1 = tag (*u, "ON / LATCH"); auto* t4 = tag (*u, "TYPE  (SEQ = one stored note per step)");
             u->layoutFn = [=] (juce::Rectangle<int> r)
             {
-                const int w = r.getWidth(), q = (w - 12) / 4;
-                t1->setBounds (r.getX(), r.getY(), 100, 10);         on->setBounds (r.getX(), r.getY() + 12, w / 2 - 8, 34);
-                trip->setBounds (r.getX() + w / 2, r.getY() + 12, q, 34); tap->setBounds (r.getX() + w / 2 + q + 4, r.getY() + 12, w - w / 2 - q - 4, 34);
-                t2->setBounds (r.getX(), r.getY() + 50, 120, 10);    dir->setBounds (r.getX(), r.getY() + 62, w, 34);
-                t3->setBounds (r.getX(), r.getY() + 100, 80, 10);    oct->setBounds (r.getX(), r.getY() + 112, w / 2 - 8, 32);
-                t4->setBounds (r.getX() + w / 2, r.getY() + 100, w / 2, 10); type->setBounds (r.getX() + w / 2, r.getY() + 112, w / 4 - 4, 32);
-                free->setBounds (r.getX() + w / 2 + w / 4, r.getY() + 112, w / 4, 32);
+                const int w = r.getWidth(), kw = juce::jmin (150, (int) (w * 0.29f));
+                dir->setBounds (r.getX(), r.getY(), kw, r.getHeight());          oct->setBounds (r.getX() + kw + 4, r.getY(), kw, r.getHeight());
+                const int rx = r.getX() + 2 * kw + 16, rw = r.getRight() - rx, y = r.getY();
+                t1->setBounds (rx, y, 100, 10);                                  on->setBounds (rx, y + 12, rw, 34);
+                trip->setBounds (rx, y + 52, rw / 2 - 3, 32);                    tap->setBounds (rx + rw / 2 + 3, y + 52, rw - rw / 2 - 3, 32);
+                t4->setBounds (rx, y + 92, rw, 10);                              type->setBounds (rx, y + 104, rw / 2 - 3, 32);
+                free->setBounds (rx + rw / 2 + 3, y + 104, rw - rw / 2 - 3, 32);
             };
         }
         {
             auto* u = unit ("CLOCK  &  FEEL");
             auto* rate = knob (*u, "s_arpRate", "TEMPO"); auto* sync = combo (*u, "s_arpSync");
-            auto* rat = selector (*u, "s_arpRatchet", juce::StringArray { "1x", "2x", "3x", "4x" });
+            auto* rat = knob (*u, "s_arpRatchet", "RATCHET"); rat->setChoices ({ "1x", "2x", "3x", "4x" });
             auto* chance = knob (*u, "s_arpChance", "CHANCE"); auto* gate = knob (*u, "s_arpGate", "GATE"); auto* swing = knob (*u, "s_arpSwing", "SWING");
-            auto* ts = tag (*u, "DIVISION"); auto* tr = tag (*u, "RATCHET");
+            auto* ts = tag (*u, "DIVISION");
             u->layoutFn = [=] (juce::Rectangle<int> r)
             {
                 ts->setBounds (r.getX(), r.getY(), 80, 10); sync->setBounds (r.getX(), r.getY() + 12, 150, 28);
-                tr->setBounds (r.getX(), r.getY() + 46, 80, 10); rat->setBounds (r.getX(), r.getY() + 58, 150, 30);
-                const int cw = juce::jmin (100, (r.getWidth() - 170) / 4), x0 = r.getX() + 170;
-                int x = x0; for (auto* k : { rate, chance, gate, swing }) { k->setBounds (x, r.getY(), cw, r.getHeight()); x += cw; }
+                const int cw = juce::jmin (100, (r.getWidth() - 170) / 5), x0 = r.getX() + 170;
+                int x = x0; for (auto* k : { rate, rat, chance, gate, swing }) { k->setBounds (x, r.getY(), cw, r.getHeight()); x += cw; }
             };
         }
         // ---- rang 2 : pas des notes
