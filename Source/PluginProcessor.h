@@ -136,7 +136,7 @@ private:
     bool  caught[kMaxMap], anchored[kMaxMap];
     juce::File midiMapFile() const;
     float arpStepHz (double bpm) const;
-    float arpRateKnob = 0.55f; int arpSyncDiv = 0;
+    float arpRateKnob = 0.55f; int arpSyncDiv = 0; bool arpTriplet = false;
     std::vector<std::atomic<float>*> rawSyn;
     juce::ValueTree captureState();
     void applyState (juce::ValueTree state);

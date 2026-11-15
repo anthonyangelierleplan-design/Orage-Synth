@@ -140,7 +140,7 @@ const std::vector<SynDef>& synDefs()
         F ("s_fold", "Wavefolder", 0, 1, 0);  F ("s_foldSym", "Fold Symmetry", -1, 1, 0);
         C ("s_arpOn", "Arp", "Off|On|Latch", 0);
         C ("s_arpMode", "Arp Direction", "Up|Down|Up-Down|Played|Random|Converge", 0);
-        C ("s_arpOct", "Arp Range", "1 Oct|2 Oct|Full", 0);
+        C ("s_arpOct", "Arp Range", "1 Oct|2 Oct|3 Oct|4 Oct", 0);
         C ("s_ftype", "Filter Type", "MS-20|SEM|Ladder|MS-10 (circuit)|Ladder CEM3320 (circuit)|SEM (circuit)", 0);  F ("s_semMorph", "SEM Morph", 0, 1, 0);
         C ("s_assign", "Key Assign", "Poly|Mono|Unison|Share|Chord", 0);  B ("s_hold", "Hold", false);
         F ("s_uniDetune", "Unison Detune", 0, 1, 0.3f);  B ("s_chordLearn", "Chord Learn", false);
@@ -163,6 +163,7 @@ const std::vector<SynDef>& synDefs()
         C ("s_arpType", "Arp Type", "Arp|Seq", 0);  B ("s_seqRec", "Step Record", false);
         { juce::StringArray br; for (int k = 1; k <= 24; ++k) br.add ("Bend +/-" + juce::String (k) + " st"); C ("s_bendRange", "Pitch Bend Range", br.joinIntoString ("|"), 1); }
         F ("s_fltLfo", "Filter LFO1 Amount", 0, 1, 0);
+        C ("s_arpRatchet", "Arp Ratchet", "1x|2x|3x|4x", 0);  B ("s_arpTriplet", "Arp Triplet", false);
         return v;
     }();
     return defs;
@@ -254,7 +255,6 @@ void applyMacroSet (OrageAudioProcessor& p, const juce::String& cat)
     static const MacroDef rack[8]  { { MdLpf, 0.5f }, { MdRevMix, 0.4f }, { MdBbdMix, 0.4f }, { MdFxPower, 0.4f }, { MdFxUnc, 0.4f }, { MdFxDestroy, 0.4f }, { MdFxSpring, 0.4f }, { MdFxChaos, 0.4f } };
     const MacroDef* d = cat == "Pad" ? pad : cat == "Bass" ? bass : cat == "Lead" ? lead : cat == "Pluck / Keys" ? keys : cat == "Arp / Seq" ? arp : cat == "FX / Texture" ? fx : rack;
     for (int k = 0; k < 8; ++k) M (p, 5 + k, macroSrc (k), d[k].dst, d[k].amt);
-    M (p, 13, MsWheel, MdLpf, 0.4f);                                    // molette de modulation : routage par defaut (filtre), reglable dans la matrice
 #else
     juce::ignoreUnused (p, cat);
 #endif
@@ -588,7 +588,7 @@ void v18_Trance_Gate_Arp (OrageAudioProcessor& p)
 }
 void v18_Arp_Rain (OrageAudioProcessor& p)
 {
-    S (p, { {"s_wave1",2},{"s_wave2",2},{"s_oct2",3},{"s_lvl2",0.4f},{"s_ftype",5},{"s_lpf",0.6f},{"s_lpfRes",0.3f},{"s_fltEnv",0.4f},{"s_fD",0.2f},{"s_fS",0},{"s_aD",0.3f},{"s_aS",0.1f},{"s_aR",0.4f},{"s_arpOn",1},{"s_arpMode",4},{"s_arpOct",2},{"s_arpRate",0.7f},{"s_arpGate",0.4f},{"bbdMix",0.4f},{"bbdSync",6},{"bbdFb",0.5f},{"bbdPing",1},{"revMix",0.35f},{"revDecay",0.75f},{"output",4.8f} });
+    S (p, { {"s_wave1",2},{"s_wave2",2},{"s_oct2",3},{"s_lvl2",0.4f},{"s_ftype",5},{"s_lpf",0.6f},{"s_lpfRes",0.3f},{"s_fltEnv",0.4f},{"s_fD",0.2f},{"s_fS",0},{"s_aD",0.3f},{"s_aS",0.1f},{"s_aR",0.4f},{"s_arpOn",1},{"s_arpMode",4},{"s_arpOct",3},{"s_arpRate",0.7f},{"s_arpGate",0.4f},{"bbdMix",0.4f},{"bbdSync",6},{"bbdFb",0.5f},{"bbdPing",1},{"revMix",0.35f},{"revDecay",0.75f},{"output",4.8f} });
 }
 void v18_Acid_Lanes (OrageAudioProcessor& p)
 {
@@ -599,12 +599,12 @@ void v18_Acid_Lanes (OrageAudioProcessor& p)
 }
 void v18_Pulse_Climb (OrageAudioProcessor& p)
 {
-    S (p, { {"s_wave1",1},{"s_wave2",0},{"s_lvl2",0.4f},{"s_tune2",0.1f},{"s_ftype",4},{"s_lpf",0.45f},{"s_lpfRes",0.4f},{"s_fltEnv",0.5f},{"s_fD",0.2f},{"s_fS",0},{"s_aD",0.25f},{"s_aS",0.1f},{"s_aR",0.2f},{"s_arpOn",1},{"s_arpMode",2},{"s_arpOct",2},{"s_arpRate",0.64f},{"s_arpGate",0.5f},{"revMix",0.25f},{"revDecay",0.6f},{"power",0.2f},{"output",-1.8f} });
+    S (p, { {"s_wave1",1},{"s_wave2",0},{"s_lvl2",0.4f},{"s_tune2",0.1f},{"s_ftype",4},{"s_lpf",0.45f},{"s_lpfRes",0.4f},{"s_fltEnv",0.5f},{"s_fD",0.2f},{"s_fS",0},{"s_aD",0.25f},{"s_aS",0.1f},{"s_aR",0.2f},{"s_arpOn",1},{"s_arpMode",2},{"s_arpOct",3},{"s_arpRate",0.64f},{"s_arpGate",0.5f},{"revMix",0.25f},{"revDecay",0.6f},{"power",0.2f},{"output",-1.8f} });
     M (p, 1, MsLfo1, MdPw1, 0.3f);
 }
 void v18_Random_Dreams (OrageAudioProcessor& p)
 {
-    S (p, { {"s_wave1",2},{"s_wave2",2},{"s_fm",0.4f},{"s_tune2",7},{"s_ftype",5},{"s_lpf",0.6f},{"s_fltEnv",0.4f},{"s_fD",0.25f},{"s_fS",0},{"s_aD",0.3f},{"s_aS",0.1f},{"s_aR",0.4f},{"s_arpOn",1},{"s_arpMode",2},{"s_arpOct",2},{"s_arpRate",0.61f},{"s_assign",3},{"bbdMix",0.4f},{"bbdPing",1},{"bbdSync",6},{"revMix",0.4f},{"revDecay",0.7f},{"power",0.2f},{"output",-0.6f} });
+    S (p, { {"s_wave1",2},{"s_wave2",2},{"s_fm",0.4f},{"s_tune2",7},{"s_ftype",5},{"s_lpf",0.6f},{"s_fltEnv",0.4f},{"s_fD",0.25f},{"s_fS",0},{"s_aD",0.3f},{"s_aS",0.1f},{"s_aR",0.4f},{"s_arpOn",1},{"s_arpMode",2},{"s_arpOct",3},{"s_arpRate",0.61f},{"s_assign",3},{"bbdMix",0.4f},{"bbdPing",1},{"bbdSync",6},{"revMix",0.4f},{"revDecay",0.7f},{"power",0.2f},{"output",-0.6f} });
 }
 void v18_Seq_Pluck (OrageAudioProcessor& p)
 {
@@ -615,13 +615,13 @@ void v18_Seq_Pluck (OrageAudioProcessor& p)
 }
 void v18_Ratchet_Pluck (OrageAudioProcessor& p)
 {
-    S (p, { {"s_wave1",1},{"s_wave2",0},{"s_tune2",0.1f},{"s_lvl2",0.4f},{"s_ftype",3},{"s_lpf",0.5f},{"s_lpfRes",0.35f},{"s_fltEnv",0.5f},{"s_fD",0.2f},{"s_fS",0},{"s_aD",0.18f},{"s_aS",0},{"s_aR",0.15f},{"s_arpOn",1},{"s_arpMode",4},{"s_arpOct",2},{"s_assign",0},{"s_arpRate",0.6f},{"s_arpGate",0.35f},{"s_arpChance",0.8f},{"revMix",0.3f},{"revDecay",0.6f},{"power",0.2f},{"output",-1} });
+    S (p, { {"s_wave1",1},{"s_wave2",0},{"s_tune2",0.1f},{"s_lvl2",0.4f},{"s_ftype",3},{"s_lpf",0.5f},{"s_lpfRes",0.35f},{"s_fltEnv",0.5f},{"s_fD",0.2f},{"s_fS",0},{"s_aD",0.18f},{"s_aS",0},{"s_aR",0.15f},{"s_arpOn",1},{"s_arpMode",4},{"s_arpOct",3},{"s_assign",0},{"s_arpRate",0.6f},{"s_arpGate",0.35f},{"s_arpChance",0.8f},{"revMix",0.3f},{"revDecay",0.6f},{"power",0.2f},{"output",-1} });
     setSteps (p, "2101112110121011", "1121142111211421");
     setLane (p, 0, MdRevMix, 0.5f, 0, { 0.1f, 0.1f, 0.4f, 0.1f, 0.9f });
 }
 void v18_Polymeter_Drift (OrageAudioProcessor& p)
 {
-    S (p, { {"s_wave1",0},{"s_wave2",1},{"s_lvl2",0.5f},{"s_tune2",7},{"s_ftype",5},{"s_lpf",0.45f},{"s_lpfRes",0.25f},{"s_aA",0.2f},{"s_aD",0.5f},{"s_aS",0.5f},{"s_aR",0.6f},{"s_arpOn",2},{"s_arpMode",0},{"s_arpOct",2},{"s_arpRate",0.52f},{"s_arpGate",0.8f},{"revMix",0.35f},{"revDecay",0.7f},{"revShimmer",0.15f},{"power",0.2f},{"output",-8.5f} });
+    S (p, { {"s_wave1",0},{"s_wave2",1},{"s_lvl2",0.5f},{"s_tune2",7},{"s_ftype",5},{"s_lpf",0.45f},{"s_lpfRes",0.25f},{"s_aA",0.2f},{"s_aD",0.5f},{"s_aS",0.5f},{"s_aR",0.6f},{"s_arpOn",2},{"s_arpMode",0},{"s_arpOct",3},{"s_arpRate",0.52f},{"s_arpGate",0.8f},{"revMix",0.35f},{"revDecay",0.7f},{"revShimmer",0.15f},{"power",0.2f},{"output",-8.5f} });
     setLane (p, 0, MdLpf, 0.3f, 0.2f, { 0.2f, 0.7f, 0.4f, 0.9f, 0.3f });
     setLane (p, 1, MdPan, 0.5f, 0, { 0, 1, 0.5f, 0.2f, 0.8f, 0.4f, 0.9f });
     setLane (p, 2, MdReso, 0.2f, 0, { 0, 0.5f, 0, 1, 0, 0.3f, 0, 0.8f, 0.2f });
@@ -765,6 +765,9 @@ OrageAudioProcessor::OrageAudioProcessor()
     resetMidiMap();
     if (const auto f = midiMapFile(); f.existsAsFile()) midiMapFromString (f.loadFileAsString());
     mapDirty.store (false);
+#if ORAGE_SYNTH
+    engine.setRack ({ NBbd, NSpring });                                  // nouvelle instance = comme le preset Init : delay + spring (mix a zero)
+#endif
 }
 
 // ---------------------------------------------------------------- MIDI learn universel
@@ -783,12 +786,12 @@ int OrageAudioProcessor::defaultCcOf (const juce::String& id) const
         { "s_ring", 43 }, { "s_lvl1", 44 }, { "s_lvl2", 46 },               // RM12 Depth ; OSC1 Vol ; OSC2 Vol
         { "s_drive", 50 }, { "s_key", 51 }, { "s_fltEnv", 54 }, { "s_fltLfo", 52 },             // Filter1 Drive / Keytrack / LFO1amt / ENV1amt
         { "s_hpf", 55 }, { "s_hpfRes", 56 },                                // Filter2 Cutoff / Res -> passe-haut
-        { "bbdTone", 63 }, { "revDecay", 65 }, { "revDamp", 67 },
+        { "bbdTone", 63 }, { "springDecay", 65 }, { "springDrip", 67 },
         { "s_lpfRes", 71 }, { "s_l1Rate", 72 }, { "s_l2Rate", 73 }, { "s_lpf", 74 }, { "s_l3Rate", 76 }, { "s_l4Rate", 78 },
         { "s_fA", 81 }, { "s_fD", 82 }, { "s_fS", 83 }, { "s_fR", 84 },     // ENV1 = enveloppe du filtre (Filter1 ENV1amt)
         { "s_aA", 85 }, { "s_aD", 86 }, { "s_aS", 87 }, { "s_aR", 88 },     // ENV2 = enveloppe d'ampli
-        { "revMix", 91 }, { "bbdMix", 92 }, { "s_uniDetune", 95 },
-        { "s_arpSync", 106 }, { "s_arpGate", 107 }, { "s_arpMode", 108 }, { "s_arpChance", 110 }, { "s_arpOct", 120 }, { "s_arpLen", 122 },
+        { "springMix", 91 }, { "bbdMix", 92 }, { "revMix", 93 }, { "revDecay", 94 }, { "s_uniDetune", 95 },
+        { "s_arpSync", 106 }, { "s_arpRatchet", 109 }, { "s_arpGate", 107 }, { "s_arpMode", 108 }, { "s_arpChance", 110 }, { "s_arpOct", 120 }, { "s_arpLen", 122 },
         { "s_fine2", 112 } };                                               // OSC2 Cent
     const auto it = hydra.find (id);
     return it != hydra.end() ? it->second : -1;
@@ -927,6 +930,7 @@ orage::SynthParams OrageAudioProcessor::readSynth()
     arpParams.seq = n() == 1; seqRec = b();
     bendRange = (float) (n() + 1);
     s.fltLfo = f();
+    arpParams.ratchet = n() + 1; arpTriplet = b();
     jassert (i == rawSyn.size());
     return s;
 }
@@ -1294,7 +1298,7 @@ void OrageAudioProcessor::loadFactoryPreset (int i)
 #endif
     engine.clearPatch();
     engine.bypassMask.store (0);
-    if (i == 0) engine.setRack ({}); else engine.setDefaultRack();      // Init = rack vide ; les autres presets utilisent tous les modules
+    if (i == 0) engine.setRack ({ NBbd, NSpring }); else engine.setDefaultRack();      // Init = delay + spring (mix a zero) ; tous les modules pour les autres ; les autres presets utilisent tous les modules
     if (i != 0 && juce::String (kFactory[i].category) == "Rack FX") legacyFxDefaults (*this);
     kFactory[i].apply (*this);
 #if ORAGE_SYNTH
@@ -1359,8 +1363,9 @@ void OrageAudioProcessor::applyMapped (int i, float v, float prevHw)
 float OrageAudioProcessor::arpStepHz (double bpm) const
 {
 #if ORAGE_SYNTH
-    if (arpSyncDiv > 0 && arpSyncDiv < 14) return (float) bpm / 60.f / kLfoDivBeats[arpSyncDiv];
-    return 0.5f * std::pow (40.f, arpRateKnob);
+    const float tr = arpTriplet ? 1.5f : 1.f;                                       // triolets : 3 pas pour 2
+    if (arpSyncDiv > 0 && arpSyncDiv < 14) return tr * (float) bpm / 60.f / kLfoDivBeats[arpSyncDiv];
+    return tr * 0.5f * std::pow (40.f, arpRateKnob);
 #else
     juce::ignoreUnused (bpm); return 1.f;
 #endif

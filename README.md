@@ -79,3 +79,12 @@ Façade façon Korg MS20 : zones délimitées par des traits blancs sérigraphi�
 - **Étendue du pitch bend** réglable (±1 à ±24 demi-tons, défaut ±2), sélecteur dans le bloc MODULATION.
 - Test : tools/tests/midi_hydrasynth.cpp (collisions, CC74, Program Change, sustain, bend).
 - **Potard LFO 1 du filtre** (bloc VC LOWPASS FILTER, CC 52 comme « Filter1 LFO1amt ») : quantité de LFO1 sur le cutoff, 0 par défaut. Même échelle qu'un slot de matrice à 100 %.
+
+## v19e (retours de test sur l'Hydrasynth)
+- **Spring sur les CC de la reverb** : mix 91, decay 65, drip (ton) 67. La reverb passe en 93 (mix) et 94 (decay). L'Hydrasynth n'a pas de CC pour le spring, d'où ce choix.
+- **Rack par défaut = delay + spring** (mix à zéro, démarrage neutre) pour une nouvelle instance et pour le preset Init.
+- **Molette de modulation** : plus de routage par défaut vers le cutoff dans les presets d'usine (reste réglable dans la matrice).
+- **Arpégiateur réorganisé comme la face avant de l'Hydrasynth** : TEMPO, CHANCE, GATE, SWING + DIVISION + RATCHET ; ON/LATCH, TRIPLET, TAP TEMPO ; MODE (direction) ; OCTAVE de 1 à 4 (l'ancien « FULL » = 4 octaves devient « 4 OCT »).
+- **Ratchet global** 1x à 4x (CC 109), en plus du ratchet par pas ; **triolets** (pas x1,5) ; **tap tempo** (passe l'horloge en mode libre).
+- Les boutons ON et LATCH de l'Hydrasynth n'envoient pas de CC : à régler à la main (ou par MIDI learn d'un autre contrôle).
+- Correction : les 4 LFO du bloc MODULATION GENERATOR s'empilaient après un redimensionnement.

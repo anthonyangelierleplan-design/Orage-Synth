@@ -35,7 +35,8 @@ struct ArpParams
 {
     int on = 0;            // 0 off, 1 on, 2 latch
     int dir = 0;           // 0 up, 1 down, 2 up-down, 3 played, 4 random, 5 converge
-    int range = 0;         // 0 : 1 octave, 1 : 2 octaves, 2 : full (4 octaves)
+    int range = 0;         // 0..3 : 1 a 4 octaves
+    int ratchet = 1;       // ratchet global 1..4 (comme le potard RATCHET de l'Hydrasynth) : repetitions minimum de chaque pas
     int assign = 0;        // mode d'affectation des touches (voir Synth : poly, mono, unison, share, chord)
     bool hold = false;     // HOLD du synthe : meme effet que LATCH
     float gate = 0.5f;     // duree de la note dans le pas (0.1 .. 1)
@@ -129,7 +130,7 @@ public:
                         curNote = std::min (127, std::max (0, pat->seqNote[pos].load() + trans));
                         const float v = nKeys > 0 ? lastVel() : 0.8f;
                         curVel = st == 2 ? std::min (1.f, v * 1.15f + 0.25f) : v;
-                        ratchetN = std::max (1, std::min (4, pat->ratchet[pos].load()));
+                        ratchetN = std::max (std::max (1, std::min (4, P.ratchet)), std::min (4, pat->ratchet[pos].load()));
                         tieNow = pat->tie[pos].load() != 0 && ratchetN == 1;
                         active = true;
                     }
@@ -147,7 +148,7 @@ public:
                             curNote = seq[idx]; if (P.dir != 4) ++idx;
                             const float v = lastVel();
                             curVel = st == 2 ? std::min (1.f, v * 1.15f + 0.25f) : v;
-                            ratchetN = std::max (1, std::min (4, pat->ratchet[pos].load()));
+                            ratchetN = std::max (std::max (1, std::min (4, P.ratchet)), std::min (4, pat->ratchet[pos].load()));
                             active = true;
                         }
                     }
@@ -215,7 +216,7 @@ private:
                 break;
             }
         }
-        const int oct = P.range == 0 ? 1 : (P.range == 1 ? 2 : 4);
+        const int oct = std::max (1, std::min (4, P.range + 1));
         int up[64], nu = 0;
         for (int o = 0; o < oct; ++o)
             for (int i = 0; i < nb && nu < 64; ++i) if (base[i] + 12 * o <= 127) up[nu++] = base[i] + 12 * o;
