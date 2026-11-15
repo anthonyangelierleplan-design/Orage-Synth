@@ -384,6 +384,7 @@ private:
     std::unique_ptr<OrageDialog> dialog;
     Jack *jackIn = nullptr, *jackOut = nullptr, *jackMix = nullptr;
     LedToggle cablesBtn, midiBtn;
+    juce::TextButton settingsBtn;                       // synthe : panneau des reglages globaux (qualite, lissage, aftertouch)
     juce::Label midiMon;
 
     std::vector<std::unique_ptr<KnobUnit>> knobs;

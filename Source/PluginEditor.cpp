@@ -1504,6 +1504,58 @@ void OrageDialog::paint (juce::Graphics& g)
 }
 
 // ================================================================ editeur
+#if ORAGE_SYNTH
+// ---------------------------------------------------------------- panneau SETTINGS : reglages globaux (jamais dans les presets)
+namespace
+{
+struct SettingsPanel : public juce::Component
+{
+    explicit SettingsPanel (OrageAudioProcessor& p) : proc (p)
+    {
+        struct Row { const char* title; const char* hint; juce::StringArray items; std::atomic<int>* v; };
+        const Row rows[] {
+            { "AUDIO QUALITY", "High Fidelity : oversampling x8 on filters, folder and drive. Heavier on CPU.",
+              { "Performance  (filters x2)", "Quality  (filters x4)", "High Fidelity  (filters x8)" }, &p.quality },
+            { "MIDI SMOOTHING", "Glides knob changes so a 7-bit controller does not zipper.",
+              { "Off", "5 ms", "10 ms", "20 ms  (default)", "40 ms", "80 ms" }, &p.ccSmooth },
+            { "AFTERTOUCH CURVE", "Shape of the pressure response.",
+              { "Linear", "Exponential  (soft start)", "Logarithmic  (sensitive start)", "S-curve" }, &p.atCurve },
+            { "AFTERTOUCH RESPONSE", "How fast the pressure follows your finger.",
+              { "Instant", "Fast", "Medium  (default)", "Slow", "Slower", "Very slow" }, &p.atSpeed },
+            { "MIDI TAKEOVER", "When a hardware knob does not match the plugin knob.",
+              { "Scale  (converges smoothly)", "Pickup  (waits to cross)", "Direct  (jumps)" }, &p.takeoverMode } };
+        for (const auto& r : rows)
+        {
+            auto lb = std::make_unique<juce::Label>(); lb->setText (r.title, juce::dontSendNotification);
+            lb->setFont (juce::Font (juce::FontOptions (11.f, juce::Font::bold))); lb->setColour (juce::Label::textColourId, juce::Colour (0xffe8d9a8));
+            auto hn = std::make_unique<juce::Label>(); hn->setText (r.hint, juce::dontSendNotification);
+            hn->setFont (juce::Font (juce::FontOptions (9.5f))); hn->setColour (juce::Label::textColourId, juce::Colours::white.withAlpha (0.55f));
+            auto cb = std::make_unique<juce::ComboBox>(); cb->addItemList (r.items, 1);
+            cb->setSelectedId (r.v->load() + 1, juce::dontSendNotification);
+            auto* a = r.v; auto* c = cb.get();
+            cb->onChange = [this, a, c] { a->store (c->getSelectedId() - 1); proc.settingChanged(); };
+            addAndMakeVisible (*lb); addAndMakeVisible (*hn); addAndMakeVisible (*cb);
+            labels.push_back (std::move (lb)); hints.push_back (std::move (hn)); combos.push_back (std::move (cb));
+        }
+        setSize (420, 24 + (int) combos.size() * 58);
+    }
+    void paint (juce::Graphics& g) override { g.fillAll (juce::Colour (0xff1a1713)); }
+    void resized() override
+    {
+        int y = 12;
+        for (size_t k = 0; k < combos.size(); ++k)
+        {
+            labels[k]->setBounds (12, y, 150, 16); combos[k]->setBounds (170, y - 2, getWidth() - 182, 24);
+            hints[k]->setBounds (12, y + 22, getWidth() - 24, 14); y += 58;
+        }
+    }
+    OrageAudioProcessor& proc;
+    std::vector<std::unique_ptr<juce::Label>> labels, hints;
+    std::vector<std::unique_ptr<juce::ComboBox>> combos;
+};
+}
+#endif
+
 OrageAudioProcessorEditor::OrageAudioProcessorEditor (OrageAudioProcessor& p, juce::String title, juce::String subtitle)
     : AudioProcessorEditor (&p), proc (p), titleText (std::move (title)), subText (std::move (subtitle)), patchBay (p)
 {
@@ -1548,6 +1600,12 @@ OrageAudioProcessorEditor::OrageAudioProcessorEditor (OrageAudioProcessor& p, ju
         look::showMidi = midiBtn.getToggleState();
         const auto f = juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory).getChildFile ("Foudre Audio").getChildFile ("midishow.txt");
         f.getParentDirectory().createDirectory(); f.replaceWithText (look::showMidi ? "1" : "0");
+    };
+    addAndMakeVisible (settingsBtn);
+    settingsBtn.setButtonText ("SETTINGS");
+    settingsBtn.onClick = [this]
+    {
+        juce::CallOutBox::launchAsynchronously (std::make_unique<SettingsPanel> (proc), settingsBtn.getScreenBounds(), getTopLevelComponent());
     };
 #endif
     addAndMakeVisible (patchBay);
@@ -2037,6 +2095,7 @@ void OrageAudioProcessorEditor::resized()
     themeBtn.setBounds (W - 640, 44, 100, 24);
     midiBtn.setBounds (W - 640, 16, 100, 24);
     midiMon.setBounds (W - 530, 16, 125, 24);
+    settingsBtn.setBounds (W - 300, 16, 110, 24);
 
     // ---- colonnes : panneau lateral | rack | (bandeau de modulation en bas)
     const int vpW = W - 170 - 310;

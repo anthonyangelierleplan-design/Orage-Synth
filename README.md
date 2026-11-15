@@ -89,3 +89,11 @@ Façade façon Korg MS20 : zones délimitées par des traits blancs sérigraphi�
 - Les boutons ON et LATCH de l'Hydrasynth n'envoient pas de CC : à régler à la main (ou par MIDI learn d'un autre contrôle).
 - Correction : les 4 LFO du bloc MODULATION GENERATOR s'empilaient après un redimensionnement.
 - **Potards crantés** (MODE, OCTAVE, RATCHET) : un cran par choix, graduations nommées autour du potard, valeur active en orange ; ON/OFF/LATCH, TRIPLET, TAP TEMPO, TYPE et FREE RUN restent des boutons. (`KnobUnit::setChoices` sur un paramètre de type choix.)
+
+## v20 (qualité, lissage MIDI, aftertouch)
+- **Filtres** : les trois filtres de première génération (MS-20, SEM, LADDER) sont supprimés. Il reste les trois modèles circuit : **MS-10**, **LADDER CEM3320**, **SEM**. Les anciens projets et presets sont migrés : MS-20 → MS-10, SEM → SEM, Ladder → CEM3320 (le timbre change légèrement).
+- **Panneau SETTINGS** (bouton en haut à droite) : qualité audio, lissage MIDI, courbe et réactivité de l'aftertouch, mode de reprise MIDI. Ces réglages sont globaux (fichier de mapping MIDI + projet), pas dans les presets.
+- **Qualité audio** : *Performance* (filtres ×2), *Quality* (×4, défaut), *High Fidelity* (×8 sur filtres, repliement et drive). Mesure sur 6 voix, un cœur : Performance 10–15 %, Quality 10–25 %, High Fidelity 14–50 % (CEM3320 le plus coûteux). Le MS-10 n'est pas suréchantillonné ; les oscillateurs restent en BLEP.
+- **Lissage MIDI** : glissement des potards pilotés en MIDI (0 / 5 / 10 / 20 / 40 / 80 ms, défaut 20 ms) contre le bruit de zipper d'un contrôleur 7 bits.
+- **Aftertouch** : courbe linéaire ou exponentielle, réactivité lente / moyenne / rapide.
+- Tests : `tools/tests/midi_hydrasynth.cpp`, `stabilite_filtres.cpp` (nouvelle numérotation, argument qualité).

@@ -97,6 +97,14 @@ public:
     std::atomic<int> lastMidiMsg { 0 };     // dernier message MIDI recu (affichage) : kind<<16 | numero<<8 | valeur ; kind 1 note, 2 CC, 3 pitch, 4 aftertouch
     std::atomic<int> pendingProgram { -1 };     // Program Change recu -> preset d'usine (charge sur le thread de l'interface)
     std::atomic<int> presetSerial { 0 };        // incremente quand un preset est charge par MIDI (l'editeur se rafraichit)
+    // reglages globaux (fichier + projet, jamais dans les presets) : panneau SETTINGS de l'en-tete
+    std::atomic<int> quality { 1 };             // 0 performance, 1 qualite, 2 high fidelity
+    std::atomic<int> ccSmooth { 3 };            // lissage des reglages : 0 off, 1 5 ms, 2 10 ms, 3 20 ms, 4 40 ms, 5 80 ms
+    std::atomic<int> atCurve { 0 };             // courbe de l'aftertouch : 0 lineaire, 1 exponentielle, 2 logarithmique, 3 en S
+    std::atomic<int> atSpeed { 2 };             // reactivite de l'aftertouch : 0 instantanee ... 5 tres lente
+    void settingChanged() { mapDirty.store (true); }
+    float atShape (float x) const;
+    float blockMs = 10.f, smV[16] {}; bool smInit = false;
     float bendRange = 2.f;                      // etendue du pitch bend en demi-tons
     bool pedal = false, keyDown[128] = {}, pedalHeld[128] = {};
     std::atomic<int> wheelShown { 0 };      // valeur de la molette (CC1) 0..127 pour l'affichage

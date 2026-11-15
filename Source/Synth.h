@@ -61,7 +61,8 @@ struct SynthParams
     int fmDir = 0, fmRatio = 0, fmWave = 0;   // FM : sens (0 VCO2>VCO1, 1 VCO1>VCO2, 2 croisee), rapport de frequence (0 libre), onde du modulateur (0 = celle du VCO)
     float fmFine = 0.f, fmAtt = 0.f, fmDec = 0.4f, fmEnvAmt = 0.f, fmVel = 0.f, fmAT = 0.f;     // FM : desaccord fin, enveloppe de profondeur, vitesse, aftertouch
     float uniDetune = 0.3f;                   // ecart de desaccord des voix empilees
-    int ftype = 0;                            // filtre passe-bas : 0 MS20, 1 SEM, 2 Ladder, 3 MS-10 (circuit), 4 Ladder CEM3320 (circuit), 5 SEM (circuit)
+    int ftype = 0;                            // filtre passe-bas : 0 MS-10 (circuit), 1 Ladder CEM3320 (circuit), 2 SEM (circuit)
+    int quality = 1;                          // 0 performance (filtres x2, folder/saturation x4), 1 qualite (x4/x4), 2 high fidelity (x8/x8)
     float fltLfo = 0.f;                       // quantite de LFO1 sur le cutoff (potard du bloc filtre, comme sur l'Hydrasynth)
     float semMorph = 0.f;                     // SEM : LP -> notch -> HP
     float fold = 0.f, foldSym = 0.f;           // wavefolder : quantite, symetrie
@@ -445,7 +446,30 @@ struct Over2
         return a.down (u0, u1);
     }
 };
+// ---- surechantillonnage x2 / x4 / x8 au choix (mode qualite) : demi-bandes en cascade 23 -> 11 -> 11 taps
+struct OverVar
+{
+    HalfBand<23> a; HalfBand<11> b, c;
+    template <typename F> float run (float x, int fac, F&& nl)
+    {
+        float u0, u1; a.up (x, u0, u1);
+        if (fac <= 2) { u0 = nl (u0); u1 = nl (u1); return a.down (u0, u1); }
+        float w[4]; b.up (u0, w[0], w[1]); b.up (u1, w[2], w[3]);
+        if (fac <= 4)
+        {
+            for (float& v : w) v = nl (v);
+            const float d0 = b.down (w[0], w[1]), d1 = b.down (w[2], w[3]);
+            return a.down (d0, d1);
+        }
+        float z[8]; for (int i = 0; i < 4; ++i) c.up (w[i], z[2 * i], z[2 * i + 1]);
+        for (float& v : z) v = nl (v);
+        for (int i = 0; i < 4; ++i) w[i] = c.down (z[2 * i], z[2 * i + 1]);
+        const float d0 = b.down (w[0], w[1]), d1 = b.down (w[2], w[3]);
+        return a.down (d0, d1);
+    }
+};
 inline float gHalf (float g) { return g / (1.f + std::sqrt (1.f + g * g)); }      // tan(a) -> tan(a/2) : le meme cutoff a cadence double
+inline float gHalfN (float g, int fac) { g = gHalf (g); if (fac >= 4) g = gHalf (g); if (fac >= 8) g = gHalf (g); return g; }
 // ---- wavefolder (repli sinus) : 0 = transparent
 inline float fold (float x, float amt, float sym)
 {
@@ -483,6 +507,7 @@ public:
     void setWheel (float w) { wheel = w; }
     void setBend (float semis) { bend = semis; }
     void setChanAT (float a) { chanAT = a; }
+    void setAtResponse (float coef) { atCoef = coef; }                         // reactivite de l'aftertouch : part du chemin parcourue a chaque pas de controle
     void setPolyAT (int note, float a) { for (auto& v : voices) if (v.active && v.note == note) v.pat = a; }
 
     // ---- touches : l'interpretation depend du mode d'affectation (POLY, MONO, UNISON, SHARE, CHORD MEMORY) et de HOLD
@@ -570,7 +595,7 @@ private:
         bool active = false; int note = 60; float vel = 1.f; uint64_t age = 0;
         bool gated = false, raw = false; int slot = -1; float uniCents = 0.f, uniPan = 0.f, gainV = 1.f;
         sy::Env aenv, fenv; float pitch = 60.f, ph1 = 0.f, ph2 = 0.f, prev1 = 0.f, prev2 = 0.f, fmT = 0.f;
-        sy::Hp hp; sy::Lp lp; sy::Sem sem; sy::Ladder lad; sy::Ms10 ms; sy::Cem3320 cem; sy::SemCkt sck; float pat = 0.f, patS = 0.f, rndv = 0.f; float xPrev = 0.f, drvLp = 0.f; sy::Over4 osF, osD; sy::Over2 osV; bool cInit = false; float c0[20] {}; float lph[kLfos] {}, lfade[kLfos] {}, lsh[kLfos] {}, lcur[kLfos] {}; float envM[8] {};     // envM : modulation des enveloppes (bloc precedent)
+        sy::Hp hp; sy::Ms10 ms; sy::Cem3320 cem; sy::SemCkt sck; float pat = 0.f, patS = 0.f, rndv = 0.f; float xPrev = 0.f, drvLp = 0.f; sy::OverVar osF, osD, osV; bool cInit = false; float c0[20] {}; float lph[kLfos] {}, lfade[kLfos] {}, lsh[kLfos] {}, lcur[kLfos] {}; float envM[8] {};     // envM : modulation des enveloppes (bloc precedent)
     };
     static constexpr int kKeys = 16;
     struct Key { int note; float vel; bool phys; uint64_t t; };
@@ -582,6 +607,7 @@ private:
     float fs = 44100.f, bpm = 120.f, wheel = 0.f, bend = 0.f, gPhase[kLfos] {}, gSh[kLfos] {}, gCur[kLfos] {};
     float laneT[kLanes] {}, laneC[kLanes] {};
     uint64_t counter = 0; int lastNote = -1; uint32_t seed = 12345u;
+    float atCoef = 0.4f, chanATs = 0.f;
     float lastVel = 0.8f, fxOut[kFxMod] {}, chanAT = 0.f, lastRnd = 0.f, lastKey = 0.f;
 
     int findKey (int note) const { for (int i = 0; i < nKeys; ++i) if (keys[i].note == note) return i; return -1; }
@@ -707,7 +733,8 @@ private:
         float e = 0.f; for (auto& v : voices) if (v.active) e = std::max (e, v.fenv.v);
         src[MsEnv] = e; src[MsVel] = lastVel; src[MsWheel] = wheel;
         float ae = 0.f, pa = 0.f; for (auto& v : voices) if (v.active) { ae = std::max (ae, v.aenv.v); pa = std::max (pa, v.patS); }
-        src[MsAmpEnv] = ae; src[MsKey] = lastKey; src[MsRandom] = lastRnd; src[MsChanAT] = chanAT; src[MsPolyAT] = std::max (pa, chanAT);
+        src[MsAmpEnv] = ae; src[MsKey] = lastKey; src[MsRandom] = lastRnd; chanATs += (chanAT - chanATs) * atCoef;
+        src[MsChanAT] = chanATs; src[MsPolyAT] = std::max (pa, chanATs);
         float acc[kFxMod] {};
         for (const auto& sl : P.slot)
             if (sl.src > 0 && sl.amt != 0.f && fxIndex (sl.dst) >= 0) acc[fxIndex (sl.dst)] += src[sl.src] * sl.amt / modNative (sl.dst);
@@ -770,8 +797,8 @@ private:
         const float fe = v.fenv.tick (tm (P.fA, v.envM[4]), tm (P.fD, v.envM[5]), std::min (1.f, std::max (0.f, P.fS + v.envM[6])), tm (P.fR, v.envM[7]), fs / (float) kCtl);   // enveloppes cadencees au bloc
         src[MsEnv] = fe; src[MsVel] = v.vel; src[MsWheel] = wheel;
         src[MsAmpEnv] = v.aenv.v; src[MsKey] = std::max (-1.f, std::min (1.f, (v.pitch - 60.f) / 48.f)); src[MsRandom] = v.rndv;
-        v.patS += (v.pat - v.patS) * 0.4f;
-        src[MsChanAT] = chanAT; src[MsPolyAT] = std::max (v.patS, chanAT);
+        v.patS += (v.pat - v.patS) * atCoef;
+        src[MsChanAT] = chanATs; src[MsPolyAT] = std::max (v.patS, chanATs);
         float md[kNumModDst] {};
         for (const auto& s : P.slot)
             if (s.src > 0 && s.dst > 0 && s.amt != 0.f) md[s.dst] += src[s.src] * s.amt / modNative (s.dst);
@@ -820,10 +847,11 @@ private:
         const float gl = std::sqrt (0.5f * (1.f - pan)), gr = std::sqrt (0.5f * (1.f + pan));
         const float dt1 = f1 / fs, dt2 = f2 / fs;
         // valeurs de controle : calculees une fois par bloc de 16 echantillons, puis INTERPOLEES echantillon par echantillon (pas de marches)
+        const int facFlt = P.quality <= 0 ? 2 : (P.quality == 1 ? 4 : 8), facFx = P.quality >= 2 ? 8 : 4;
         float c1[20] = { gL, gH, kL, kH, kSem, kLad, res, morph, drive, drvEmph, foldA, foldS, level, lv1, l2, noiseA, 0.f, 0.f, 0.f, 0.f };
-        if (P.ftype == 3) sy::Ms10Tab::get().controls (2.0 * fs * (double) gL, (double) res, msC, c1[16], c1[17], c1[18]);       // MS-10 : resistance des etages, retour PEAK
-        if (P.ftype == 4) c1[16] = 4.04f * res;                                                                                  // CEM3320 : gain de retour (auto-oscillation au-dessus de 4)
-        else if (P.ftype == 5) c1[16] = 1.9f * std::pow (1.f - res, 1.3f) + 0.03f;                                               // SEM : amortissement (potard RES)
+        if (P.ftype == 0) sy::Ms10Tab::get().controls (2.0 * fs * (double) gL, (double) res, msC, c1[16], c1[17], c1[18]);       // MS-10 : resistance des etages, retour PEAK
+        if (P.ftype == 1) c1[16] = 4.04f * res;                                                                                  // CEM3320 : gain de retour (auto-oscillation au-dessus de 4)
+        else if (P.ftype == 2) c1[16] = 1.9f * std::pow (1.f - res, 1.3f) + 0.03f;                                               // SEM : amortissement (potard RES)
         if (! v.cInit) { for (int q = 0; q < 20; ++q) v.c0[q] = c1[q]; v.cInit = true; }
         float cd[20]; for (int q = 0; q < 20; ++q) cd[q] = (c1[q] - v.c0[q]) / (float) len;
         float cc[20]; for (int q = 0; q < 20; ++q) cc[q] = v.c0[q];
@@ -849,34 +877,31 @@ private:
                 v.prev1 = m (v.ph1, inc1); v.prev2 = m (v.ph2, inc2);
             }
             float x = o1 * lv1 + o2 * l2 + o1 * o2 * ringA * 1.4f + rnd() * noiseA * 0.7f;
-            x = v.osF.run (x, [foldA, foldS] (float u) { return sy::fold (u, foldA, foldS); });      // wavefolder surechantillonne x4 (plus de repliement de spectre)
+            x = v.osF.run (x, facFx, [foldA, foldS] (float u) { return sy::fold (u, foldA, foldS); });      // wavefolder surechantillonne x4 (plus de repliement de spectre)
             const float hp = v.hp.run (x * 0.7f, gH, kH);                  // HPF puis LPF, comme sur le MS20
             // DRIVE "shiny" : on accentue le haut du spectre AVANT la saturation (les graves gonflent moins, les harmoniques brillent), puis on rend le niveau
             v.drvLp += drvC * (hp - v.drvLp);
             const float hiPart = hp - v.drvLp;
             const float dIn = hp + drvEmph * hiPart;
             const float dBias = 0.06f * (drive - 1.f), dOff = std::tanh (dBias), dNorm = 1.f / (1.f + 0.12f * (drive - 1.f));
-            const float dx = v.osD.run (dIn, [drive, dBias, dOff, dNorm] (float u) { return (sy::tanhFast (u * drive + dBias) - dOff) * dNorm; });   // saturation surechantillonnee x4
+            const float dx = v.osD.run (dIn, facFx, [drive, dBias, dOff, dNorm] (float u) { return (sy::tanhFast (u * drive + dBias) - dOff) * dNorm; });   // saturation surechantillonnee x4
             float lp;
-            if (P.ftype == 1)      lp = v.sem.run (dx, gL, kSem, morph) * 1.15f;
-            else if (P.ftype == 2) lp = v.lad.run (dx * 1.2f, gL, kLad) * (1.f + 1.0f * res);
-            else if (P.ftype == 3) lp = v.ms.run (dx, cc[16], cc[17], cc[18], msC);
-            else if (P.ftype == 4)
+            if (P.ftype == 0)      lp = v.ms.run (dx, cc[16], cc[17], cc[18], msC);
+            else if (P.ftype == 1)
             {
-                const float kq = cc[16], g2 = sy::gHalf (gL) * (1.f + kCemTune * std::min (1.f, std::max (0.f, (kq - 3.8f) * 4.2f)));
-                lp = v.osV.run (dx, [&v, g2, kq] (float u) { return v.cem.run (u, g2, kq); }) * (1.f + 1.2f * res);
+                const float kq = cc[16], g2 = sy::gHalfN (gL, facFlt) * (1.f + kCemTune * std::min (1.f, std::max (0.f, (kq - 3.8f) * 4.2f)));
+                lp = v.osV.run (dx, facFlt, [&v, g2, kq] (float u) { return v.cem.run (u, g2, kq); }) * (1.f + 1.2f * res);
             }
-            else if (P.ftype == 5)
+            else
             {
-                const float dq = cc[16], g2 = sy::gHalf (gL);
-                lp = v.osV.run (dx, [&v, g2, dq, morph] (float u) { return v.sck.run (u, g2, dq, morph); });
+                const float dq = cc[16], g2 = sy::gHalfN (gL, facFlt);
+                lp = v.osV.run (dx, facFlt, [&v, g2, dq, morph] (float u) { return v.sck.run (u, g2, dq, morph); });
             }
-            else                   lp = v.lp.run (dx, gL, kL, res);
             const float a = v.aenv.tick (aA2, aD2, aS2, aR2, fs);
             const float y = lp * a * level * v.gainV * (0.35f + 0.65f * v.vel);
             if (! (std::fabs (y) < 8.f))                                   // garde-fou : NaN, infini ou valeur folle -> on remet les etats a zero (jamais de bruit ni de blocage)
             {
-                v.hp = sy::Hp(); v.lp = sy::Lp(); v.sem = sy::Sem(); v.lad = sy::Ladder(); v.ms.reset(); v.cem.reset(); v.sck.reset(); v.drvLp = 0.f; v.xPrev = 0.f; v.prev1 = v.prev2 = 0.f; v.osF = sy::Over4(); v.osD = sy::Over4(); v.osV = sy::Over2();
+                v.hp = sy::Hp(); v.ms.reset(); v.cem.reset(); v.sck.reset(); v.drvLp = 0.f; v.xPrev = 0.f; v.prev1 = v.prev2 = 0.f; v.osF = sy::OverVar(); v.osD = sy::OverVar(); v.osV = sy::OverVar();
                 if (! std::isfinite (v.ph1)) v.ph1 = 0.f;
                 if (! std::isfinite (v.ph2)) v.ph2 = 0.f;
                 continue;
