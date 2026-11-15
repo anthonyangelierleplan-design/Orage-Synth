@@ -97,3 +97,7 @@ Façade façon Korg MS20 : zones délimitées par des traits blancs sérigraphi�
 - **Lissage MIDI** : glissement des potards pilotés en MIDI (0 / 5 / 10 / 20 / 40 / 80 ms, défaut 20 ms) contre le bruit de zipper d'un contrôleur 7 bits.
 - **Aftertouch** : courbe linéaire ou exponentielle, réactivité lente / moyenne / rapide.
 - Tests : `tools/tests/midi_hydrasynth.cpp`, `stabilite_filtres.cpp` (nouvelle numérotation, argument qualité).
+
+## v20b (vibrato VCO1, LFO rapides)
+- **VCO 1** : trois nouveaux potards à côté de PW : **LFO AMT** (LFO 1 → hauteur du VCO 1), **+ WHEEL** et **+ AFTER** (profondeur ajoutée par la molette de modulation et par l'aftertouch). Profondeur quadratique : jusqu'à ±3 demi-tons, fin pour les petits vibratos. Mappables en MIDI learn.
+- **LFO** : plage étendue à 0,05 – 300 Hz (avant 0,05 – 40 Hz). Les presets d'usine et les anciens projets sont convertis pour garder exactement leur vitesse (propriété d'état `lfoV2`). Le plafond est de 300 Hz car les LFO sont calculés par blocs de 16 échantillons.

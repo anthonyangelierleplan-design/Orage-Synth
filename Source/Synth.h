@@ -63,11 +63,12 @@ struct SynthParams
     float uniDetune = 0.3f;                   // ecart de desaccord des voix empilees
     int ftype = 0;                            // filtre passe-bas : 0 MS-10 (circuit), 1 Ladder CEM3320 (circuit), 2 SEM (circuit)
     int quality = 1;                          // 0 performance (filtres x2, folder/saturation x4), 1 qualite (x4/x4), 2 high fidelity (x8/x8)
+    float vib = 0.f, vibWheel = 0.f, vibAT = 0.f;   // vibrato VCO1 : quantite de LFO1 sur la hauteur (+ molette, + aftertouch)
     float fltLfo = 0.f;                       // quantite de LFO1 sur le cutoff (potard du bloc filtre, comme sur l'Hydrasynth)
     float semMorph = 0.f;                     // SEM : LP -> notch -> HP
     float fold = 0.f, foldSym = 0.f;           // wavefolder : quantite, symetrie
     float master = 0.7f;
-    struct Lfo { float rate = 0.4f, slew = 0.f, fade = 0.f; int wave = 0, sync = 0, trig = 0; } lfo[kLfos];     // wave : 0 sin, 1 tri, 2 saw, 3 carre, 4 S&H
+    struct Lfo { float rate = 0.307f, slew = 0.f, fade = 0.f; int wave = 0, sync = 0, trig = 0; } lfo[kLfos];     // wave : 0 sin, 1 tri, 2 saw, 3 carre, 4 S&H
     float macro[kMacros] {};
     struct Slot { int src = 0, dst = 0; float amt = 0.f; } slot[kSlots];
     struct Lane { int dst = 0; float amt = 0.f, glide = 0.f; } lane[kLanes];      // pistes de modulation de l'arpegiateur : destination directe (sans passer par la matrice)
@@ -749,7 +750,7 @@ private:
     {
         const auto& l = P.lfo[i];
         if (l.sync > 0 && l.sync < 14) return bpm / 60.f / kLfoDivBeats[l.sync];
-        return 0.05f * std::pow (800.f, l.rate);                         // 0.05 .. 40 Hz
+        return 0.05f * std::pow (6000.f, l.rate);                        // 0.05 .. 300 Hz (v20b ; avant 0.05 .. 40 Hz)
     }
 public:
     static float lfoWave (float ph, int wave, float sh)
@@ -811,7 +812,10 @@ private:
         const float glideV = std::min (1.f, std::max (0.f, P.glide + md[MdGlide]));
         const float glideC = glideV > 0.001f ? 1.f - std::exp (-dtCtl / (glideV * 0.6f + 0.002f)) : 1.f;
         v.pitch += (((float) v.note) - v.pitch) * glideC;
-        const float n1 = v.pitch + 12.f * (float) P.oct1 + bend + md[MdPitch] * 12.f + v.uniCents * 0.01f;
+        float vibD = P.vib + P.vibWheel * wheel + P.vibAT * src[MsPolyAT];                // vibrato VCO1 : LFO 1, profondeur = potard + molette + aftertouch
+        vibD = std::min (1.f, std::max (0.f, vibD));
+        const float vibSt = vibD * vibD * 3.f * src[MsLfo1];                              // jusqu'a +/-3 demi-tons, courbe quadratique (reglage fin des petites profondeurs)
+        const float n1 = v.pitch + 12.f * (float) P.oct1 + bend + md[MdPitch] * 12.f + v.uniCents * 0.01f + vibSt;
         const float n2 = v.pitch + 12.f * (float) P.oct2 + P.tune2 + P.fine2 * 0.01f + bend + md[MdPitch] * 12.f + md[MdPitch2] * 12.f + v.uniCents * 0.01f;
         // rapport de frequence entre les deux VCO (FM) : VCO2 suit VCO1 x rapport, la hauteur propre de VCO2 est ignoree
         const float n2r = P.fmRatio > 0 ? n1 + 12.f * std::log2 (kFmRatios[std::min (11, P.fmRatio)]) + P.fmFine * 0.5f + md[MdPitch2] * 12.f : n2 + P.fmFine * 0.5f;

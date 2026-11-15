@@ -459,10 +459,12 @@ SynthPanel::SynthPanel (OrageAudioProcessor& p, int pg) : proc (p), page (pg)
         auto* u = unit ("VOLTAGE CONTROLLED OSCILLATOR 1");
         auto* w = selector (*u, "s_wave1", waves); auto* o = selector (*u, "s_oct1", octs);
         auto* pw = knob (*u, "s_pw1", "PW");
+        auto* vb = knob (*u, "s_vib", "LFO AMT"); auto* vw = knob (*u, "s_vibWheel", "+ WHEEL"); auto* va = knob (*u, "s_vibAT", "+ AFTER");
         u->layoutFn = [=] (juce::Rectangle<int> r)
         {
-            w->setBounds (r.getX(), r.getY() + 6, 170, 46); o->setBounds (r.getX(), r.getY() + 62, 170, 34);
-            pw->setBounds (r.getX() + 180, r.getY() + 6, 88, r.getHeight() - 12);
+            const int sw = juce::jmin (r.getWidth(), 270);
+            w->setBounds (r.getX(), r.getY() + 4, sw, 40); o->setBounds (r.getX(), r.getY() + 48, sw, 30);
+            place (r.withTrimmedTop (80), { pw, vb, vw, va }, 0, 72);
         };
     }
     {

@@ -125,7 +125,7 @@ const std::vector<SynDef>& synDefs()
         for (int i = 1; i <= kLfos; ++i)
         {
             const juce::String p ("s_l" + juce::String (i));
-            F (p + "Rate", "LFO" + juce::String (i) + " Rate", 0, 1, 0.4f);  C (p + "Wave", "LFO" + juce::String (i) + " Wave", "Sine|Triangle|Saw|Square|S&H", 0);
+            F (p + "Rate", "LFO" + juce::String (i) + " Rate", 0, 1, 0.307f);  C (p + "Wave", "LFO" + juce::String (i) + " Wave", "Sine|Triangle|Saw|Square|S&H", 0);
             F (p + "Slew", "LFO" + juce::String (i) + " Slew", 0, 1, 0);  F (p + "Fade", "LFO" + juce::String (i) + " Fade", 0, 1, 0);
             C (p + "Sync", "LFO" + juce::String (i) + " Sync", divs.joinIntoString ("|"), 0);  B (p + "Trig", "LFO" + juce::String (i) + " Retrig", false);
         }
@@ -164,6 +164,7 @@ const std::vector<SynDef>& synDefs()
         { juce::StringArray br; for (int k = 1; k <= 24; ++k) br.add ("Bend +/-" + juce::String (k) + " st"); C ("s_bendRange", "Pitch Bend Range", br.joinIntoString ("|"), 1); }
         F ("s_fltLfo", "Filter LFO1 Amount", 0, 1, 0);
         C ("s_arpRatchet", "Arp Ratchet", "1x|2x|3x|4x", 0);  B ("s_arpTriplet", "Arp Triplet", false);
+        F ("s_vib", "VCO1 LFO Amount", 0, 1, 0);  F ("s_vibWheel", "VCO1 LFO + Wheel", 0, 1, 0);  F ("s_vibAT", "VCO1 LFO + Aftertouch", 0, 1, 0);
         return v;
     }();
     return defs;
@@ -235,7 +236,15 @@ void fGated (OrageAudioProcessor& p)
 
 
 using KV = std::pair<const char*, float>;
-void S (OrageAudioProcessor& p, std::initializer_list<KV> l) { for (auto& kv : l) p.setParamReal (kv.first, kv.second); }
+void S (OrageAudioProcessor& p, std::initializer_list<KV> l)
+{
+    for (auto& kv : l)
+    {
+        const juce::String id (kv.first);
+        const bool lfoRate = id.startsWith ("s_l") && id.endsWith ("Rate") && id.length() == 8;      // la plage des LFO a change (v20b) : les presets d'usine gardent leur vitesse
+        p.setParamReal (kv.first, lfoRate ? kv.second * 0.7677f : kv.second);
+    }
+}
 void M (OrageAudioProcessor& p, int slot, int src, int dst, float amt)
 {
     const juce::String b ("s_slot" + juce::String (slot));
@@ -951,6 +960,7 @@ orage::SynthParams OrageAudioProcessor::readSynth()
     bendRange = (float) (n() + 1);
     s.fltLfo = f();
     arpParams.ratchet = n() + 1; arpTriplet = b();
+    s.vib = f(); s.vibWheel = f(); s.vibAT = f();
     jassert (i == rawSyn.size());
     s.quality = quality.load();
     {                                                                       // lissage des reglages (pas de crenelage quand on tourne un potard MIDI 7 bits)
@@ -1137,6 +1147,7 @@ juce::AudioProcessorEditor* OrageAudioProcessor::createEditor()
 juce::ValueTree OrageAudioProcessor::captureState()
 {
     auto state = apvts.copyState();
+    state.setProperty ("lfoV2", 1, nullptr);                               // plage de vitesse des LFO elargie (0.05..300 Hz)
     state.setProperty ("ftV2", 1, nullptr);                                // filtres : numerotation 0..2 (circuits) depuis la v20
     state.setProperty ("patch", juce::String (engine.serializePatch()), nullptr);
     state.setProperty ("rack", juce::String (engine.serializeRack()), nullptr);
@@ -1197,6 +1208,14 @@ void OrageAudioProcessor::applyState (juce::ValueTree state)
             {
                 static const int remap[6] { 0, 2, 1, 0, 1, 2 };            // MS-20->MS-10, SEM->SEM circuit, Ladder->CEM3320, puis les 3 circuits
                 c.setProperty ("value", remap[juce::jlimit (0, 5, juce::roundToInt ((float) c.getProperty ("value", 0.0)))], nullptr);
+            }
+    if (! state.hasProperty ("lfoV2"))                                     // ancienne plage 0.05..40 Hz : on convertit pour garder la meme vitesse
+        for (auto c : state)
+            if (c.hasProperty ("id"))
+            {
+                const auto id = c.getProperty ("id").toString();
+                if (id.startsWith ("s_l") && id.endsWith ("Rate") && id.length() == 8)
+                    c.setProperty ("value", (float) c.getProperty ("value", 0.4) * 0.7677f, nullptr);
             }
     apvts.replaceState (state);
 }
