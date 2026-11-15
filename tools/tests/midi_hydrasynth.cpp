@@ -53,5 +53,17 @@ int main()
     juce::MidiBuffer mb; mb.addEvent (juce::MidiMessage::pitchWheel (1, 16383), 0); rms (p, mb);
     chk (std::fabs (p.bendRange - 12.f) < 0.5f, "bend range lu");
     std::printf ("  bendRange = %.1f\n", p.bendRange);
+    // 6. LFO1 -> filtre : le potard LFO change le son (variation du niveau d'un bloc a l'autre) et est sur le CC 52
+    chk (p.defaultCcOf ("s_fltLfo") == 52, "s_fltLfo sur CC52");
+    auto var = [&] (float amt)
+    {
+        p.loadFactoryPreset (0); p.setParamReal ("s_lpf", 0.35f); p.setParamReal ("s_lpfRes", 0.5f); p.setParamReal ("s_fltEnv", 0.f); p.setParamReal ("s_aS", 1.f);
+        p.setParamReal ("s_l1Rate", 0.55f); p.setParamReal ("s_fltLfo", amt);
+        juce::MidiBuffer mb; mb.addEvent (juce::MidiMessage::noteOn (1, 48, 0.9f), 0); rms (p, mb, 40);
+        double m = 0, m2 = 0; const int N = 300; for (int k = 0; k < N; ++k) { const double r = rms (p, {}, 1); m += r; m2 += r * r; }
+        m /= N; return std::sqrt (std::max (0.0, m2 / N - m * m)) / (m + 1e-9);
+    };
+    const double v0 = var (0.f), v1 = var (1.f); std::printf ("  variation relative : LFO 0 = %.4f, LFO 1 = %.4f\n", v0, v1);
+    chk (v1 > 3 * v0 + 0.01, "le potard LFO module le cutoff");
     std::printf ("%s\n", fail ? "ECHEC" : "TOUT OK"); return fail;
 }

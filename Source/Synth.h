@@ -62,6 +62,7 @@ struct SynthParams
     float fmFine = 0.f, fmAtt = 0.f, fmDec = 0.4f, fmEnvAmt = 0.f, fmVel = 0.f, fmAT = 0.f;     // FM : desaccord fin, enveloppe de profondeur, vitesse, aftertouch
     float uniDetune = 0.3f;                   // ecart de desaccord des voix empilees
     int ftype = 0;                            // filtre passe-bas : 0 MS20, 1 SEM, 2 Ladder, 3 MS-10 (circuit), 4 Ladder CEM3320 (circuit), 5 SEM (circuit)
+    float fltLfo = 0.f;                       // quantite de LFO1 sur le cutoff (potard du bloc filtre, comme sur l'Hydrasynth)
     float semMorph = 0.f;                     // SEM : LP -> notch -> HP
     float fold = 0.f, foldSym = 0.f;           // wavefolder : quantite, symetrie
     float master = 0.7f;
@@ -777,6 +778,7 @@ private:
         for (int i = 0; i < kLanes; ++i)
             if (P.lane[i].dst > 0 && P.lane[i].amt != 0.f) md[P.lane[i].dst] += laneC[i] * P.lane[i].amt / modNative (P.lane[i].dst);
 
+        if (P.fltLfo != 0.f) md[MdLpf] += src[MsLfo1] * P.fltLfo / modNative (MdLpf);
         for (int k = 0; k < 8; ++k) v.envM[k] = md[MdAmpA + k];
         const float aA2 = tm (P.aA, md[MdAmpA]), aD2 = tm (P.aD, md[MdAmpD]), aS2 = std::min (1.f, std::max (0.f, P.aS + md[MdAmpS])), aR2 = tm (P.aR, md[MdAmpR]);
         const float glideV = std::min (1.f, std::max (0.f, P.glide + md[MdGlide]));

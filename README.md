@@ -78,3 +78,4 @@ Façade façon Korg MS20 : zones délimitées par des traits blancs sérigraphi�
 - **Pédale de sustain** (CC64) : les fins de note sont retenues tant qu'elle est enfoncée (arpégiateur compris).
 - **Étendue du pitch bend** réglable (±1 à ±24 demi-tons, défaut ±2), sélecteur dans le bloc MODULATION.
 - Test : tools/tests/midi_hydrasynth.cpp (collisions, CC74, Program Change, sustain, bend).
+- **Potard LFO 1 du filtre** (bloc VC LOWPASS FILTER, CC 52 comme « Filter1 LFO1amt ») : quantité de LFO1 sur le cutoff, 0 par défaut. Même échelle qu'un slot de matrice à 100 %.

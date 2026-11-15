@@ -162,6 +162,7 @@ const std::vector<SynDef>& synDefs()
         F ("s_fmEnvAmt", "FM Env Amount", 0, 1, 0);  F ("s_fmVel", "FM Velocity", 0, 1, 0);  F ("s_fmAT", "FM Aftertouch", 0, 1, 0);
         C ("s_arpType", "Arp Type", "Arp|Seq", 0);  B ("s_seqRec", "Step Record", false);
         { juce::StringArray br; for (int k = 1; k <= 24; ++k) br.add (juce::String (k)); C ("s_bendRange", "Pitch Bend Range", br.joinIntoString ("|"), 1); }
+        F ("s_fltLfo", "Filter LFO1 Amount", 0, 1, 0);
         return v;
     }();
     return defs;
@@ -780,7 +781,7 @@ int OrageAudioProcessor::defaultCcOf (const juce::String& id) const
         { "bbdFb", 14 }, { "bbdTime", 15 },
         { "s_pw1", 24 }, { "s_pw2", 26 }, { "s_fm", 30 },                   // wavscan OSC1/OSC2 -> largeur d'impulsion ; Mutator1 Depth -> FM
         { "s_ring", 43 }, { "s_lvl1", 44 }, { "s_lvl2", 46 },               // RM12 Depth ; OSC1 Vol ; OSC2 Vol
-        { "s_drive", 50 }, { "s_key", 51 }, { "s_fltEnv", 54 },             // Filter1 Drive / Keytrack / ENV1amt
+        { "s_drive", 50 }, { "s_key", 51 }, { "s_fltEnv", 54 }, { "s_fltLfo", 52 },             // Filter1 Drive / Keytrack / LFO1amt / ENV1amt
         { "s_hpf", 55 }, { "s_hpfRes", 56 },                                // Filter2 Cutoff / Res -> passe-haut
         { "bbdTone", 63 }, { "revDecay", 65 }, { "revDamp", 67 },
         { "s_lpfRes", 71 }, { "s_l1Rate", 72 }, { "s_l2Rate", 73 }, { "s_lpf", 74 }, { "s_l3Rate", 76 }, { "s_l4Rate", 78 },
@@ -925,6 +926,7 @@ orage::SynthParams OrageAudioProcessor::readSynth()
     s.fmDir = n(); s.fmRatio = n(); s.fmWave = n(); s.fmFine = f(); s.fmAtt = f(); s.fmDec = f(); s.fmEnvAmt = f(); s.fmVel = f(); s.fmAT = f();
     arpParams.seq = n() == 1; seqRec = b();
     bendRange = (float) (n() + 1);
+    s.fltLfo = f();
     jassert (i == rawSyn.size());
     return s;
 }

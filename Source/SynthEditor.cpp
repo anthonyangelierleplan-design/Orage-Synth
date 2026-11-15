@@ -491,11 +491,12 @@ SynthPanel::SynthPanel (OrageAudioProcessor& p, int pg) : proc (p), page (pg)
         auto* u = unit ("VC LOWPASS FILTER");
         auto* a = knob (*u, "s_lpf", "CUTOFF"); auto* b = knob (*u, "s_lpfRes", "PEAK"); auto* c = knob (*u, "s_fltEnv", "EG AMOUNT");
         auto* d = knob (*u, "s_key", "KEY TRACK"); auto* e = knob (*u, "s_drive", "DRIVE"); auto* mo = knob (*u, "s_semMorph", "SEM MORPH");
+        auto* lf = knob (*u, "s_fltLfo", "LFO 1");
         auto* ft = selector (*u, "s_ftype", juce::StringArray { "MS-20", "SEM", "LADDER", "MS-10 CKT", "LADDER CEM3320", "SEM CKT" });
         u->layoutFn = [=] (juce::Rectangle<int> r)
         {
             ft->setBounds (r.getX(), r.getY() + 2, juce::jmin (620, r.getWidth()), 34);
-            place (r.withTrimmedTop (38), { a, b, c, d, e, mo }, 0, juce::jmin (88, r.getWidth() / 6));
+            place (r.withTrimmedTop (38), { a, b, c, d, e, lf, mo }, 0, juce::jmin (88, r.getWidth() / 7));
         };
     }
     {
