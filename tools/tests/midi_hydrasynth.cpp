@@ -28,6 +28,7 @@ int main()
     std::map<int, juce::String> seen; bool dup = false; int n = 0;
     for (int i = 0; i < p.mapIds.size(); ++i) { const int c = p.defaultCcOf (p.mapIds[i]); if (c < 0) continue; ++n; if (seen.count (c)) { dup = true; std::printf ("  collision CC%d: %s / %s\n", c, seen[c].toRawUTF8(), p.mapIds[i].toRawUTF8()); } seen[c] = p.mapIds[i]; }
     chk (! dup, "pas de collision de CC"); std::printf ("  %d parametres sur CC par defaut\n", n);
+    chk (p.defaultCcOf ("s_lvl2") == 46 && p.defaultCcOf ("s_arpOct") == 120 && p.defaultCcOf ("s_ring") == 43, "OSC2 vol=46, arp oct=120, ring=43");
     for (auto id : { "s_lpf", "s_lpfRes", "s_aA", "s_fR", "revMix", "bbdFb", "s_l4Rate", "s_uniDetune" }) chk (p.defaultCcOf (id) >= 0, id);
     // 2. CC74 -> cutoff (mode direct)
     p.takeoverMode.store (2);

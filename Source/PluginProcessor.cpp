@@ -778,13 +778,17 @@ int OrageAudioProcessor::defaultCcOf (const juce::String& id) const
     static const std::map<juce::String, int> hydra = {
         { "s_noise", 3 }, { "s_glide", 5 }, { "s_master", 7 },
         { "bbdFb", 14 }, { "bbdTime", 15 },
-        { "s_lvl1", 44 }, { "s_lvl2", 45 },
-        { "s_drive", 50 }, { "s_key", 51 },
+        { "s_pw1", 24 }, { "s_pw2", 26 }, { "s_fm", 30 },                   // wavscan OSC1/OSC2 -> largeur d'impulsion ; Mutator1 Depth -> FM
+        { "s_ring", 43 }, { "s_lvl1", 44 }, { "s_lvl2", 46 },               // RM12 Depth ; OSC1 Vol ; OSC2 Vol
+        { "s_drive", 50 }, { "s_key", 51 }, { "s_fltEnv", 54 },             // Filter1 Drive / Keytrack / ENV1amt
+        { "s_hpf", 55 }, { "s_hpfRes", 56 },                                // Filter2 Cutoff / Res -> passe-haut
         { "bbdTone", 63 }, { "revDecay", 65 }, { "revDamp", 67 },
         { "s_lpfRes", 71 }, { "s_l1Rate", 72 }, { "s_l2Rate", 73 }, { "s_lpf", 74 }, { "s_l3Rate", 76 }, { "s_l4Rate", 78 },
-        { "s_aA", 81 }, { "s_aD", 82 }, { "s_aS", 83 }, { "s_aR", 84 },       // ENV1 de l'Hydrasynth = enveloppe d'ampli
-        { "s_fA", 85 }, { "s_fD", 86 }, { "s_fS", 87 }, { "s_fR", 88 },       // ENV2 = enveloppe de filtre
-        { "revMix", 91 }, { "bbdMix", 92 }, { "s_uniDetune", 95 } };
+        { "s_fA", 81 }, { "s_fD", 82 }, { "s_fS", 83 }, { "s_fR", 84 },     // ENV1 = enveloppe du filtre (Filter1 ENV1amt)
+        { "s_aA", 85 }, { "s_aD", 86 }, { "s_aS", 87 }, { "s_aR", 88 },     // ENV2 = enveloppe d'ampli
+        { "revMix", 91 }, { "bbdMix", 92 }, { "s_uniDetune", 95 },
+        { "s_arpSync", 106 }, { "s_arpGate", 107 }, { "s_arpMode", 108 }, { "s_arpChance", 110 }, { "s_arpOct", 120 }, { "s_arpLen", 122 },
+        { "s_fine2", 112 } };                                               // OSC2 Cent
     const auto it = hydra.find (id);
     return it != hydra.end() ? it->second : -1;
 }
