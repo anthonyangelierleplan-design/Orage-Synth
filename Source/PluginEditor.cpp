@@ -221,6 +221,9 @@ bool drawGlyph (juce::Graphics& g, const juce::String& name, juce::Rectangle<flo
 
 juce::File themeFile() { return juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory).getChildFile ("Foudre Audio").getChildFile ("theme.txt"); }
 int loadThemePref() { const auto f = themeFile(); return f.existsAsFile() ? f.loadFileAsString().trim().getIntValue() : 0; }
+juce::File drawerFile() { return juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory).getChildFile ("Foudre Audio").getChildFile ("drawers.txt"); }
+int loadDrawerPref() { const auto f = drawerFile(); return f.existsAsFile() ? f.loadFileAsString().trim().getIntValue() : 3; }     // bit 0 : patchbay ouvert, bit 1 : bandeau ouvert
+void saveDrawerPref (int v) { const auto f = drawerFile(); f.getParentDirectory().createDirectory(); f.replaceWithText (juce::String (v)); }
 void saveThemePref (int i) { const auto f = themeFile(); f.getParentDirectory().createDirectory(); f.replaceWithText (juce::String (i)); }
 
 const int kTileNodes[] = { orage::NOct, orage::NDist, orage::NColor, orage::NFilter, orage::NDestroy, orage::NComp, orage::NSpring, orage::NStut, orage::NBbd, orage::NVerb, orage::NGate };
@@ -1601,6 +1604,14 @@ OrageAudioProcessorEditor::OrageAudioProcessorEditor (OrageAudioProcessor& p, ju
         const auto f = juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory).getChildFile ("Foudre Audio").getChildFile ("midishow.txt");
         f.getParentDirectory().createDirectory(); f.replaceWithText (look::showMidi ? "1" : "0");
     };
+    {
+        const int dv = loadDrawerPref(); patchOpen = (dv & 1) != 0; stripOpen = (dv & 2) != 0;
+        addAndMakeVisible (patchToggle); addAndMakeVisible (stripToggle);
+        patchToggle.onClick = [this] { patchOpen = ! patchOpen; updateDrawers(); };
+        stripToggle.onClick = [this] { stripOpen = ! stripOpen; updateDrawers(); };
+        patchToggle.setTooltip ("Replier / deplier le patchbay");
+        stripToggle.setTooltip ("Replier / deplier les LFO, S&H et suiveur d'enveloppe");
+    }
     addAndMakeVisible (settingsBtn);
     settingsBtn.setButtonText ("SETTINGS");
     settingsBtn.onClick = [this]
@@ -2081,6 +2092,15 @@ void OrageAudioProcessorEditor::timerCallback()
 }
 
 // ---------------------------------------------------------------- mise en page
+void OrageAudioProcessorEditor::updateDrawers()
+{
+    saveDrawerPref ((patchOpen ? 1 : 0) | (stripOpen ? 2 : 0));
+    patchToggle.setButtonText (juce::String (patchOpen ? juce::CharPointer_UTF8 ("PATCHBAY  \xe2\x96\xbe") : juce::CharPointer_UTF8 ("PATCHBAY  \xe2\x96\xb8")));
+    stripToggle.setButtonText (juce::String (stripOpen ? juce::CharPointer_UTF8 ("MODULATION  \xe2\x96\xbe") : juce::CharPointer_UTF8 ("MODULATION  \xe2\x96\xb8")));
+    resized();
+    repaint();
+}
+
 void OrageAudioProcessorEditor::resized()
 {
     const int W = getWidth(), H = getHeight();
@@ -2098,11 +2118,19 @@ void OrageAudioProcessorEditor::resized()
     settingsBtn.setBounds (W - 300, 16, 110, 24);
 
     // ---- colonnes : panneau lateral | rack | (bandeau de modulation en bas)
-    const int vpW = W - 170 - 310;
+    const int vpW = patchOpen ? W - 170 - 310 : W - 170;
     const int top = kHeaderH + 8;
+    const int stripH = stripOpen ? 172 + 8 : 0;
+    patchToggle.setBounds (W - 310, 72, 148, 20);
+    stripToggle.setBounds (W - 158, 72, 148, 20);
+    {   // le texte des languettes suit l'etat (sans reappeler resized)
+        patchToggle.setButtonText (juce::String (patchOpen ? juce::CharPointer_UTF8 ("PATCHBAY  \xe2\x96\xbe") : juce::CharPointer_UTF8 ("PATCHBAY  \xe2\x96\xb8")));
+        stripToggle.setButtonText (juce::String (stripOpen ? juce::CharPointer_UTF8 ("MODULATION  \xe2\x96\xbe") : juce::CharPointer_UTF8 ("MODULATION  \xe2\x96\xb8")));
+    }
+    patchPanel.setVisible (patchOpen);
     patchPanel.setBounds (W - 310, top, 300, H - top - 10);
     side.setBounds (10, top, 140, H - top - 10);
-    viewport.setBounds (160, top, vpW, H - top - 8 - 172 - 8);
+    viewport.setBounds (160, top, vpW, H - top - 8 - stripH);
     rackView.setSize (juce::jmax (200, vpW - 10 - 10), juce::jmax (90, rackView.getHeight()));
     rackView.relayout();
     patchBay.setBounds (getLocalBounds());
@@ -2111,6 +2139,7 @@ void OrageAudioProcessorEditor::resized()
     // ---- bandeau de modulation
     {
         const int y = H - 8 - 172, gap = 8;
+        for (auto& su : stripUnits) su->setVisible (stripOpen);
         const float weights[4] { 3.f, 3.f, 3.f, 2.6f };
         const int usable = vpW - 3 * gap;
         int x = 160;

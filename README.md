@@ -101,3 +101,6 @@ Façade façon Korg MS20 : zones délimitées par des traits blancs sérigraphi�
 ## v20b (vibrato VCO1, LFO rapides)
 - **VCO 1** : trois nouveaux potards à côté de PW : **LFO AMT** (LFO 1 → hauteur du VCO 1), **+ WHEEL** et **+ AFTER** (profondeur ajoutée par la molette de modulation et par l'aftertouch). Profondeur quadratique : jusqu'à ±3 demi-tons, fin pour les petits vibratos. Mappables en MIDI learn.
 - **LFO** : plage étendue à 0,05 – 300 Hz (avant 0,05 – 40 Hz). Les presets d'usine et les anciens projets sont convertis pour garder exactement leur vitesse (propriété d'état `lfoV2`). Le plafond est de 300 Hz car les LFO sont calculés par blocs de 16 échantillons.
+
+## v20c (tiroirs de l'onglet Effets)
+- Deux languettes dans l'en-tête de l'onglet Effets : **PATCHBAY** (colonne de droite) et **MODULATION** (bandeau LFO 1 / LFO 2 / S&H / suiveur d'enveloppe) se replient d'un clic ; le rack récupère la place. L'état est mémorisé (`drawers.txt`, dossier Foudre Audio). Replié, le câblage et les modulations restent actifs, seuls les câbles disparaissent de l'écran.

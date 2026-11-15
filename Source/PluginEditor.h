@@ -384,6 +384,9 @@ private:
     std::unique_ptr<OrageDialog> dialog;
     Jack *jackIn = nullptr, *jackOut = nullptr, *jackMix = nullptr;
     LedToggle cablesBtn, midiBtn;
+    juce::TextButton patchToggle, stripToggle;           // tiroirs : replier le patchbay (colonne de droite) / le bandeau LFO-S&H-ENV
+    bool patchOpen = true, stripOpen = true;
+    void updateDrawers();
     juce::TextButton settingsBtn;                       // synthe : panneau des reglages globaux (qualite, lissage, aftertouch)
     juce::Label midiMon;
 
