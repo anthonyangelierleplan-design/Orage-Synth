@@ -161,7 +161,7 @@ const std::vector<SynDef>& synDefs()
         F ("s_fmFine", "FM Fine", -1, 1, 0);  F ("s_fmAtt", "FM Attack", 0, 1, 0);  F ("s_fmDec", "FM Decay", 0, 1, 0.4f);
         F ("s_fmEnvAmt", "FM Env Amount", 0, 1, 0);  F ("s_fmVel", "FM Velocity", 0, 1, 0);  F ("s_fmAT", "FM Aftertouch", 0, 1, 0);
         C ("s_arpType", "Arp Type", "Arp|Seq", 0);  B ("s_seqRec", "Step Record", false);
-        { juce::StringArray br; for (int k = 1; k <= 24; ++k) br.add (juce::String (k)); C ("s_bendRange", "Pitch Bend Range", br.joinIntoString ("|"), 1); }
+        { juce::StringArray br; for (int k = 1; k <= 24; ++k) br.add ("Bend +/-" + juce::String (k) + " st"); C ("s_bendRange", "Pitch Bend Range", br.joinIntoString ("|"), 1); }
         F ("s_fltLfo", "Filter LFO1 Amount", 0, 1, 0);
         return v;
     }();
