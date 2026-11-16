@@ -310,12 +310,12 @@ void FilterView::paint (juce::Graphics& g)
         C s (0.f, hz / fc), H;
         if (type == 1)                                                                   // echelle 4 poles a retour : le pic se paie en gain de bande passante
         {
-            const C G = C (1.f) / std::pow (C (1.f) + s, 4); H = G / (C (1.f) + 4.f * res * G);
+            const C p1 = C (1.f) + s, p2 = p1 * p1, G = C (1.f) / (p2 * p2); H = G / (C (1.f) + C (4.f * res) * G);
         }
         else
         {
             const C lp = C (1.f) / (s * s + s / qL + C (1.f));
-            if (type == 2) { const C hp = (s * s) * lp; H = morph < 0.5f ? lp + 2.f * morph * hp : (2.f - 2.f * morph) * lp + hp; }
+            if (type == 2) { const C hp = (s * s) * lp; H = morph < 0.5f ? lp + C (2.f * morph) * hp : C (2.f - 2.f * morph) * lp + hp; }
             else H = lp;
         }
         if (hpf > 0.005f) { const C sh (0.f, hz / fh); H *= (sh * sh) / (sh * sh + sh / qH + C (1.f)); }
