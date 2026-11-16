@@ -104,3 +104,9 @@ Façade façon Korg MS20 : zones délimitées par des traits blancs sérigraphi�
 
 ## v20c (tiroirs de l'onglet Effets)
 - Deux languettes dans l'en-tête de l'onglet Effets : **PATCHBAY** (colonne de droite) et **MODULATION** (bandeau LFO 1 / LFO 2 / S&H / suiveur d'enveloppe) se replient d'un clic ; le rack récupère la place. L'état est mémorisé (`drawers.txt`, dossier Foudre Audio). Replié, le câblage et les modulations restent actifs, seuls les câbles disparaissent de l'écran.
+
+## v21 (MPE, circuits animés, presets nettoyés)
+- **MPE** (SETTINGS → MPE MODE) : une note par canal (2–16, le canal 1 est le canal maître). Pression, slide (CC74) et pitch bend sont propres à chaque note ; le slide agit comme une molette par note (il alimente la source WHEEL et le potard + WHEEL du vibrato), la pression alimente l'aftertouch polyphonique. Plage de bend par note réglable (±2 à ±48, défaut MPE = 48, à aligner avec le clavier). Sur le Hydrasynth : mode MPE. Test : `tools/tests/midi_mpe.cpp`.
+- **Faces animées** : chaque module du rack affiche une grille transparente avec des composants (résistance, condensateur, diode, circuit intégré, bobine, lampe) reliés par des pistes. Ils s'allument de gauche à droite avec le niveau de sortie du module, et des impulsions courent sur les pistes ; un module contourné reste éteint.
+- **Presets** : à chaque chargement, les modules sans effet (mix à zéro, octaver éteint, filtre ouvert, etc.) sont retirés du rack (2,4 modules par preset en moyenne, contre 11). Un module reste s'il est câblé, modulé par le preset ou ciblé par un câble CV. Les macros qui visaient un module retiré sont redirigées vers un paramètre du synthé. Le module peut toujours être ajouté à la main.
+- **Plucks / Keys** : decay (amp et filtre) ×1,8 et release ×1,8 (borné 0,35–0,75), pour des notes moins sèches.

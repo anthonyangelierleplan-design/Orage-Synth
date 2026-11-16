@@ -509,6 +509,8 @@ public:
     void setBend (float semis) { bend = semis; }
     void setChanAT (float a) { chanAT = a; }
     void setAtResponse (float coef) { atCoef = coef; }                         // reactivite de l'aftertouch : part du chemin parcourue a chaque pas de controle
+    void setNoteBend (int note, float semis) { for (auto& v : voices) if (v.active && v.note == note) v.nbend = semis; }   // MPE : bend propre a la note
+    void setNoteSlide (int note, float a) { for (auto& v : voices) if (v.active && v.note == note) v.slide = a; }        // MPE : slide (CC74) -> agit comme une molette par note
     void setPolyAT (int note, float a) { for (auto& v : voices) if (v.active && v.note == note) v.pat = a; }
 
     // ---- touches : l'interpretation depend du mode d'affectation (POLY, MONO, UNISON, SHARE, CHORD MEMORY) et de HOLD
@@ -596,7 +598,7 @@ private:
         bool active = false; int note = 60; float vel = 1.f; uint64_t age = 0;
         bool gated = false, raw = false; int slot = -1; float uniCents = 0.f, uniPan = 0.f, gainV = 1.f;
         sy::Env aenv, fenv; float pitch = 60.f, ph1 = 0.f, ph2 = 0.f, prev1 = 0.f, prev2 = 0.f, fmT = 0.f;
-        sy::Hp hp; sy::Ms10 ms; sy::Cem3320 cem; sy::SemCkt sck; float pat = 0.f, patS = 0.f, rndv = 0.f; float xPrev = 0.f, drvLp = 0.f; sy::OverVar osF, osD, osV; bool cInit = false; float c0[20] {}; float lph[kLfos] {}, lfade[kLfos] {}, lsh[kLfos] {}, lcur[kLfos] {}; float envM[8] {};     // envM : modulation des enveloppes (bloc precedent)
+        sy::Hp hp; sy::Ms10 ms; sy::Cem3320 cem; sy::SemCkt sck; float pat = 0.f, patS = 0.f, nbend = 0.f, slide = 0.f, rndv = 0.f; float xPrev = 0.f, drvLp = 0.f; sy::OverVar osF, osD, osV; bool cInit = false; float c0[20] {}; float lph[kLfos] {}, lfade[kLfos] {}, lsh[kLfos] {}, lcur[kLfos] {}; float envM[8] {};     // envM : modulation des enveloppes (bloc precedent)
     };
     static constexpr int kKeys = 16;
     struct Key { int note; float vel; bool phys; uint64_t t; };
@@ -796,7 +798,8 @@ private:
         for (int i = 0; i < kLanes; ++i) src[laneSrc (i)] = laneC[i];
         auto tm = [] (float t, float m) { return t * std::pow (4.f, m); };               // temps d'enveloppe : x4 / :4 a pleine modulation
         const float fe = v.fenv.tick (tm (P.fA, v.envM[4]), tm (P.fD, v.envM[5]), std::min (1.f, std::max (0.f, P.fS + v.envM[6])), tm (P.fR, v.envM[7]), fs / (float) kCtl);   // enveloppes cadencees au bloc
-        src[MsEnv] = fe; src[MsVel] = v.vel; src[MsWheel] = wheel;
+        const float wheelV = std::max (wheel, v.slide);
+        src[MsEnv] = fe; src[MsVel] = v.vel; src[MsWheel] = wheelV;
         src[MsAmpEnv] = v.aenv.v; src[MsKey] = std::max (-1.f, std::min (1.f, (v.pitch - 60.f) / 48.f)); src[MsRandom] = v.rndv;
         v.patS += (v.pat - v.patS) * atCoef;
         src[MsChanAT] = chanATs; src[MsPolyAT] = std::max (v.patS, chanATs);
@@ -812,11 +815,11 @@ private:
         const float glideV = std::min (1.f, std::max (0.f, P.glide + md[MdGlide]));
         const float glideC = glideV > 0.001f ? 1.f - std::exp (-dtCtl / (glideV * 0.6f + 0.002f)) : 1.f;
         v.pitch += (((float) v.note) - v.pitch) * glideC;
-        float vibD = P.vib + P.vibWheel * wheel + P.vibAT * src[MsPolyAT];                // vibrato VCO1 : LFO 1, profondeur = potard + molette + aftertouch
+        float vibD = P.vib + P.vibWheel * wheelV + P.vibAT * src[MsPolyAT];                // vibrato VCO1 : LFO 1, profondeur = potard + molette + aftertouch
         vibD = std::min (1.f, std::max (0.f, vibD));
         const float vibSt = vibD * vibD * 3.f * src[MsLfo1];                              // jusqu'a +/-3 demi-tons, courbe quadratique (reglage fin des petites profondeurs)
-        const float n1 = v.pitch + 12.f * (float) P.oct1 + bend + md[MdPitch] * 12.f + v.uniCents * 0.01f + vibSt;
-        const float n2 = v.pitch + 12.f * (float) P.oct2 + P.tune2 + P.fine2 * 0.01f + bend + md[MdPitch] * 12.f + md[MdPitch2] * 12.f + v.uniCents * 0.01f;
+        const float n1 = v.pitch + 12.f * (float) P.oct1 + bend + v.nbend + md[MdPitch] * 12.f + v.uniCents * 0.01f + vibSt;
+        const float n2 = v.pitch + 12.f * (float) P.oct2 + P.tune2 + P.fine2 * 0.01f + bend + v.nbend + md[MdPitch] * 12.f + md[MdPitch2] * 12.f + v.uniCents * 0.01f;
         // rapport de frequence entre les deux VCO (FM) : VCO2 suit VCO1 x rapport, la hauteur propre de VCO2 est ignoree
         const float n2r = P.fmRatio > 0 ? n1 + 12.f * std::log2 (kFmRatios[std::min (11, P.fmRatio)]) + P.fmFine * 0.5f + md[MdPitch2] * 12.f : n2 + P.fmFine * 0.5f;
         const float f1 = 440.f * std::pow (2.f, (n1 - 69.f) / 12.f), f2 = 440.f * std::pow (2.f, (n2r - 69.f) / 12.f);

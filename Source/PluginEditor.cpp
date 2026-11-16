@@ -1191,6 +1191,94 @@ void ModuleUnit::addJack (Jack* j, int col, int row, const juce::String& label)
     jackCols = juce::jmax (jackCols, col + 1);
 }
 
+// ---------------------------------------------------------------- circuit anime : grille transparente + composants qui s'allument avec le signal
+juce::Rectangle<float> ModuleUnit::animRect() const
+{
+    const auto b = getLocalBounds().toFloat().reduced (1.f);
+    const float cw = juce::jmin (280.f, b.getWidth() * 0.26f), top = 22.f + 8.f;
+    return { b.getRight() - (float) jackStripWidth() - cw - 12.f, b.getY() + top, cw, juce::jmax (10.f, b.getHeight() - top - 10.f) };
+}
+
+void ModuleUnit::tickAnim()
+{
+    float target = 0.f;
+    if (level && (! isActive || isActive())) target = juce::jlimit (0.f, 1.f, std::sqrt (juce::jmax (0.f, level())) * 1.25f);
+    glow += (target - glow) * (target > glow ? 0.5f : 0.1f);
+    animT += (1.f / 30.f) * (0.35f + 2.4f * glow);
+    if (! collapsed && isShowing() && (glow > 0.004f || lastGlow > 0.004f)) repaint (animRect().expanded (3.f).toNearestInt());
+    lastGlow = glow;
+}
+
+void ModuleUnit::drawCircuit (juce::Graphics& g, juce::Rectangle<float> r, int seed, float glowV, float t, juce::Colour accent) const
+{
+    juce::Graphics::ScopedSaveState ss (g);
+    g.reduceClipRegion (r.toNearestInt());
+    const float cell = 16.f;
+    const int cols = juce::jmax (3, (int) (r.getWidth() / cell)), rows = juce::jmax (3, (int) (r.getHeight() / cell));
+    const float ox = r.getX() + (r.getWidth() - (float) cols * cell) * 0.5f, oy = r.getY() + (r.getHeight() - (float) rows * cell) * 0.5f;
+    auto P = [&] (int cx, int cy) { return juce::Point<float> (ox + ((float) cx + 0.5f) * cell, oy + ((float) cy + 0.5f) * cell); };
+    // grille transparente
+    g.setColour (juce::Colours::white.withAlpha (0.06f));
+    for (int i = 0; i <= cols; ++i) g.drawVerticalLine ((int) (ox + (float) i * cell), oy, oy + (float) rows * cell);
+    for (int j = 0; j <= rows; ++j) g.drawHorizontalLine ((int) (oy + (float) j * cell), ox, ox + (float) cols * cell);
+    // composants poses sur la grille, relies par des pistes en L ; chaque element a un seuil d'allumage
+    juce::Random rnd (1234 + seed * 77);
+    const int nComp = juce::jlimit (5, 11, (cols * rows) / 14);
+    struct Comp { int cx, cy, kind; float th; };
+    std::vector<Comp> comps;
+    for (int k = 0; k < nComp; ++k)
+    {
+        Comp c { 1 + rnd.nextInt (juce::jmax (1, cols - 2)), 1 + rnd.nextInt (juce::jmax (1, rows - 2)), rnd.nextInt (6), (float) (k + 1) / (float) (nComp + 1) };
+        comps.push_back (c);
+    }
+    std::sort (comps.begin(), comps.end(), [] (const Comp& a, const Comp& b) { return a.cx != b.cx ? a.cx < b.cx : a.cy < b.cy; });
+    for (size_t k = 0; k < comps.size(); ++k) comps[k].th = (float) (k + 1) / (float) (comps.size() + 1);       // allumage de gauche a droite : le signal "traverse" le circuit
+    auto lit = [&] (float th) { return juce::jlimit (0.f, 1.f, (glowV - th * 0.85f) / 0.18f); };
+    const juce::Colour dim = juce::Colours::white.withAlpha (0.20f);
+    for (size_t k = 0; k + 1 < comps.size(); ++k)                                      // pistes
+    {
+        const auto a = P (comps[k].cx, comps[k].cy), bb = P (comps[k + 1].cx, comps[k + 1].cy); const juce::Point<float> m (bb.x, a.y);
+        juce::Path tr; tr.startNewSubPath (a); tr.lineTo (m); tr.lineTo (bb);
+        const float L = lit (comps[k + 1].th);
+        g.setColour (dim.withAlpha (0.16f)); g.strokePath (tr, juce::PathStrokeType (1.1f));
+        if (L > 0.01f)
+        {
+            g.setColour (accent.withAlpha (0.20f * L)); g.strokePath (tr, juce::PathStrokeType (4.f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+            g.setColour (accent.brighter (0.3f).withAlpha (0.75f * L)); g.strokePath (tr, juce::PathStrokeType (1.3f));
+            const float d1 = a.getDistanceFrom (m), d2 = m.getDistanceFrom (bb), tot = d1 + d2;                   // impulsion qui court sur la piste
+            float u = std::fmod (t * 0.55f + 0.31f * (float) k, 1.f) * tot;
+            const auto pp = u < d1 ? juce::Point<float> (a.x + (m.x - a.x) * (d1 > 0 ? u / d1 : 0.f), a.y) : juce::Point<float> (bb.x, m.y + (bb.y - m.y) * (d2 > 0 ? (u - d1) / d2 : 0.f));
+            g.setColour (accent.brighter (0.8f).withAlpha (0.9f * L)); g.fillEllipse (pp.x - 1.8f, pp.y - 1.8f, 3.6f, 3.6f);
+        }
+    }
+    for (const auto& c : comps)                                                         // composants
+    {
+        const float L = lit (c.th);
+        const auto p = P (c.cx, c.cy);
+        const auto col = dim.interpolatedWith (accent.brighter (0.2f), L).withAlpha (0.28f + 0.67f * L);
+        if (L > 0.01f) { g.setColour (accent.withAlpha (0.16f * L)); g.fillEllipse (p.x - 11.f, p.y - 11.f, 22.f, 22.f); }
+        g.setColour (juce::Colours::black.withAlpha (0.35f)); g.fillEllipse (p.x - 1.f, p.y - 1.f, 2.f, 2.f);
+        g.setColour (col);
+        juce::Path q;
+        switch (c.kind)
+        {
+            case 0: { const float x0 = p.x - 7.f; q.startNewSubPath (x0 - 3.f, p.y); q.lineTo (x0, p.y);                  // resistance
+                      for (int z = 0; z < 6; ++z) q.lineTo (x0 + 2.4f * (float) (z + 1), p.y + ((z & 1) ? 3.f : -3.f));
+                      q.lineTo (x0 + 17.f, p.y); break; }
+            case 1: q.addLineSegment ({ p.x - 9.f, p.y, p.x - 2.f, p.y }, 0.f); q.addLineSegment ({ p.x - 2.f, p.y - 6.f, p.x - 2.f, p.y + 6.f }, 0.f);   // condensateur
+                    q.addLineSegment ({ p.x + 2.f, p.y - 6.f, p.x + 2.f, p.y + 6.f }, 0.f); q.addLineSegment ({ p.x + 2.f, p.y, p.x + 9.f, p.y }, 0.f); break;
+            case 2: q.addTriangle (p.x - 5.f, p.y - 5.f, p.x - 5.f, p.y + 5.f, p.x + 5.f, p.y); q.addLineSegment ({ p.x + 5.f, p.y - 5.f, p.x + 5.f, p.y + 5.f }, 0.f); break;   // diode
+            case 3: { q.addRectangle (p.x - 8.f, p.y - 6.f, 16.f, 12.f);                                                  // circuit integre
+                      for (int z = 0; z < 3; ++z) { q.addLineSegment ({ p.x - 8.f + 4.f * (float) z + 2.f, p.y - 9.f, p.x - 8.f + 4.f * (float) z + 2.f, p.y - 6.f }, 0.f);
+                                                    q.addLineSegment ({ p.x - 8.f + 4.f * (float) z + 2.f, p.y + 6.f, p.x - 8.f + 4.f * (float) z + 2.f, p.y + 9.f }, 0.f); } break; }
+            case 4: for (int z = 0; z < 3; ++z) q.addCentredArc (p.x - 6.f + 6.f * (float) z, p.y, 3.f, 3.f, 0.f, -1.5708f, 1.5708f, z == 0);   // bobine
+                    break;
+            default: q.addEllipse (p.x - 5.f, p.y - 5.f, 10.f, 10.f); q.addEllipse (p.x - 1.5f, p.y - 1.5f, 3.f, 3.f); break;           // lampe / voyant
+        }
+        g.strokePath (q, juce::PathStrokeType (1.2f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+    }
+}
+
 void ModuleUnit::paint (juce::Graphics& g)
 {
     const auto b = getLocalBounds().toFloat().reduced (1.f);
@@ -1213,7 +1301,8 @@ void ModuleUnit::paint (juce::Graphics& g)
             const float gh = juce::jmin (b.getHeight() - 52.f, 112.f), gw = gh * 1.25f;
             const juce::Rectangle<float> gr (b.getRight() - (float) jackStripWidth() - gw - 34.f, b.getY() + bandH + 14.f + (b.getHeight() - bandH - 14.f - gh) * 0.5f, gw, gh);
             baGlyph (g, si, gr.translated (1.5f, 2.f), juce::Colours::black.withAlpha (0.22f), 10.f);
-            baGlyph (g, si, gr, juce::Colours::white.withAlpha (0.20f), 10.f);
+            baGlyph (g, si, gr, juce::Colours::white.withAlpha (level ? 0.09f : 0.20f), 10.f);
+            if (level) drawCircuit (g, animRect(), si, glow, animT, C (th.led).interpolatedWith (juce::Colour (0xffffd070), 0.4f));
         }
     }
     if (! collapsed)                                                                       // lisere chrome sous le bandeau
@@ -1525,6 +1614,10 @@ struct SettingsPanel : public juce::Component
               { "Linear", "Exponential  (soft start)", "Logarithmic  (sensitive start)", "S-curve" }, &p.atCurve },
             { "AFTERTOUCH RESPONSE", "How fast the pressure follows your finger.",
               { "Instant", "Fast", "Medium  (default)", "Slow", "Slower", "Very slow" }, &p.atSpeed },
+            { "MPE MODE", "On : each note has its own pressure, slide (CC74) and pitch bend (channel 1 = master). Hydrasynth : MPE mode.",
+              { "Off  (standard MIDI)", "On  (MPE, channels 2-16)" }, &p.mpeOn },
+            { "MPE BEND RANGE", "Must match the keyboard (MPE default: 48 semitones).",
+              { "+/- 2 semitones", "+/- 12 semitones", "+/- 24 semitones", "+/- 48 semitones  (MPE default)" }, &p.mpeBend },
             { "MIDI TAKEOVER", "When a hardware knob does not match the plugin knob.",
               { "Scale  (converges smoothly)", "Pickup  (waits to cross)", "Direct  (jumps)" }, &p.takeoverMode } };
         for (const auto& r : rows)
@@ -1652,6 +1745,7 @@ ModuleUnit* OrageAudioProcessorEditor::newUnit (int node, const juce::String& ti
     raw->topTrim = 33;
     u->onRemove = [this, node] { proc.engine.removeFromRack (node); refreshRack(); };
     u->isActive = [this, node] { return (proc.engine.bypassMask.load() & (1u << node)) == 0; };
+    u->level = [this, node] { return proc.engine.nodeLvl[node].load (std::memory_order_relaxed); };
     u->onToggleActive = [this, node, raw]
     {
         const bool wasBypassed = (proc.engine.bypassMask.load() & (1u << node)) != 0;
@@ -2050,6 +2144,7 @@ void OrageAudioProcessorEditor::confirm (const juce::String& title, const juce::
 void OrageAudioProcessorEditor::timerCallback()
 {
     heatShown += 0.2f * (proc.engine.heat.load() - heatShown);
+    for (auto& kv : rackUnits) kv.second->tickAnim();
     arcShown = juce::jmax (arcShown * 0.82f, proc.engine.arc.load());
     repaint (headerArea);
     if (const int ps = proc.presetSerial.load(); ps != lastPresetSerial) { lastPresetSerial = ps; afterPreset(); }

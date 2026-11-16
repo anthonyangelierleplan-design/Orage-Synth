@@ -101,11 +101,13 @@ public:
     std::atomic<int> quality { 1 };             // 0 performance, 1 qualite, 2 high fidelity
     std::atomic<int> ccSmooth { 3 };            // lissage des reglages : 0 off, 1 5 ms, 2 10 ms, 3 20 ms, 4 40 ms, 5 80 ms
     std::atomic<int> atCurve { 0 };             // courbe de l'aftertouch : 0 lineaire, 1 exponentielle, 2 logarithmique, 3 en S
+    std::atomic<int> mpeOn { 0 }, mpeBend { 3 };   // MPE : 0 off / 1 on ; plage de bend par note : 0 +/-2, 1 +/-12, 2 +/-24, 3 +/-48 demi-tons
     std::atomic<int> atSpeed { 2 };             // reactivite de l'aftertouch : 0 instantanee ... 5 tres lente
     void settingChanged() { mapDirty.store (true); }
     float atShape (float x) const;
     float blockMs = 10.f, smV[16] {}; bool smInit = false;
     float bendRange = 2.f;                      // etendue du pitch bend en demi-tons
+    int chNote[16] {}; bool chOn[16] {}; float chBend[16] {}, chSlide[16] {};                         // MPE : derniere note vivante de chaque canal membre
     bool pedal = false, keyDown[128] = {}, pedalHeld[128] = {};
     std::atomic<int> wheelShown { 0 };      // valeur de la molette (CC1) 0..127 pour l'affichage
     std::atomic<int> arpStepShown { -1 };   // pas courant de l'arpegiateur (affichage)
@@ -126,6 +128,7 @@ public:
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createLayout();
     orage::Params readParams() const;
+    void pruneUnusedModules();
     orage::SynthParams readSynth();
     orage::ArpParams arpParams;
     struct MidiEv { int pos; int type; int a; float v; };       // type : 0 note on, 1 note off, 2 all off, 3 bend, 4 molette, 5 aftertouch poly, 6 aftertouch canal, 7/8/9 notes brutes de l'arpegiateur (simple / pile unison / off)

@@ -259,7 +259,12 @@ public:
     std::function<bool()> isActive;                  // false : module contourne (bypass)
     std::function<void()> onToggleActive;
     int currentHeight() const { return collapsed ? 26 : fullHeight; }
+    std::function<float()> level;                    // niveau de sortie du module (0..1) : anime la face (circuit imprime qui s'allume)
+    void tickAnim();                                 // appele a 30 Hz par l'editeur
 private:
+    float glow = 0.f, lastGlow = 0.f, animT = 0.f;
+    juce::Rectangle<float> animRect() const;
+    void drawCircuit (juce::Graphics&, juce::Rectangle<float>, int seed, float glowV, float t, juce::Colour accent) const;
     struct JackSlot { Jack* jack; int col, row; juce::String label; };
     std::vector<JackSlot> jackSlots;
     int jackCols = 0;

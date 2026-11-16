@@ -946,6 +946,8 @@ public:
     std::atomic<float> heat { 0.f }, arc { 0.f };
     std::atomic<float> compGr { 0.f }, gateLed { 1.f };            // vumeter du comp (dB de reduction) et voyant du gate
     std::atomic<float> modLed[kNumSrc];
+    std::atomic<float> nodeLvl[kNumNodes] {};                          // niveau de sortie de chaque module (crete lissee) : anime les faces du rack
+
     static constexpr int kExt = 38;                              // 10 entrees CV + chaos + BBD temps / feedback / mix + reverb mix / decay / damp
     std::atomic<uint32_t> audioIn[kNumNodes], cvIn[kNumCv];     // le patch : masques de bits des sources branchees
 
@@ -1158,7 +1160,7 @@ private:
 
             if (nd != NOut && (bypassMask.load() & (1u << nd)) != 0)       // module contourne : le signal passe tel quel
             {
-                out[nd] = in;
+                out[nd] = in; nodeLvl[nd].store (0.f, std::memory_order_relaxed);
                 if (nd == NComp) compGr.store (0.f);
                 if (nd == NGate) gateLed.store (1.f);
                 done[nd] = true;
@@ -1180,6 +1182,12 @@ private:
                 default:       modOut (in, io, n, nc); break;
             }
             done[nd] = true;
+            if (nd != NOut)
+            {
+                float pk = 0.f;
+                for (int c = 0; c < nc; ++c) for (int i = 0; i < n; ++i) pk = std::max (pk, std::fabs (out[nd].ch[c][i]));
+                nodeLvl[nd].store (std::max (pk, nodeLvl[nd].load() * 0.9f), std::memory_order_relaxed);
+            }
         }
     }
 

@@ -836,7 +836,7 @@ float OrageAudioProcessor::atShape (float x) const
 juce::String OrageAudioProcessor::midiMapToString() const
 {
     juce::String s ("M" + juce::String (takeoverMode.load()));
-    s << ";Q" << quality.load() << ";S" << ccSmooth.load() << ";AC" << atCurve.load() << ";AS" << atSpeed.load();
+    s << ";Q" << quality.load() << ";S" << ccSmooth.load() << ";AC" << atCurve.load() << ";AS" << atSpeed.load() << ";XM" << mpeOn.load() << ";XB" << mpeBend.load();
     for (int i = 0; i < mapIds.size(); ++i)
     {
         const int cc = mapCc[(size_t) i].load();
@@ -853,7 +853,9 @@ void OrageAudioProcessor::midiMapFromString (const juce::String& str)
         if (tok.startsWith ("M") && ! tok.contains ("=")) { takeoverMode.store (juce::jlimit (0, 2, tok.substring (1).getIntValue())); continue; }
         if (! tok.contains ("="))                                               // reglages globaux : qualite, lissage, aftertouch
         {
-            if (tok.startsWith ("AC")) atCurve.store (juce::jlimit (0, 3, tok.substring (2).getIntValue()));
+            if (tok.startsWith ("XM")) mpeOn.store (juce::jlimit (0, 1, tok.substring (2).getIntValue()));
+            else if (tok.startsWith ("XB")) mpeBend.store (juce::jlimit (0, 3, tok.substring (2).getIntValue()));
+            else if (tok.startsWith ("AC")) atCurve.store (juce::jlimit (0, 3, tok.substring (2).getIntValue()));
             else if (tok.startsWith ("AS")) atSpeed.store (juce::jlimit (0, 5, tok.substring (2).getIntValue()));
             else if (tok.startsWith ("Q")) quality.store (juce::jlimit (0, 2, tok.substring (1).getIntValue()));
             else if (tok.startsWith ("S")) ccSmooth.store (juce::jlimit (0, 5, tok.substring (1).getIntValue()));
@@ -1007,7 +1009,7 @@ void OrageAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
             for (const auto meta : midi)
             {
                 const auto m = meta.getMessage();
-                if (m.isController()) { const int c = m.getControllerNumber(); lastCcV[c] = m.getControllerValue(); seen[c] = true; }
+                if (m.isController() && ! (mpeOn.load() != 0 && m.getChannel() >= 2 && m.getControllerNumber() == 74)) { const int c = m.getControllerNumber(); lastCcV[c] = m.getControllerValue(); seen[c] = true; }
             }
             for (int c = 0; c < 128; ++c) if (seen[c]) handleCC (c, lastCcV[c]);
         }
@@ -1056,6 +1058,55 @@ void OrageAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
                     for (int nt = 0; nt < 128; ++nt)
                         if (pedalHeld[nt]) { pedalHeld[nt] = false; keyDown[nt] = false; if (arpOn) arp.noteOff (nt); else evs.push_back ({ pos, 1, nt, 0.f }); }
                 pedal = dn;
+            }
+            const bool mpeMember = mpeOn.load() != 0 && m.getChannel() >= 2;                 // MPE : le canal 1 est le canal maitre, 2..16 portent une note chacun
+            if (mpeMember)
+            {
+                const int ch = m.getChannel() - 1;
+                static const float mpeRange[4] { 2.f, 12.f, 24.f, 48.f };
+                if (m.isPitchWheel())
+                {
+                    const float st = (float) (m.getPitchWheelValue() - 8192) / 8192.f * mpeRange[juce::jlimit (0, 3, mpeBend.load())];
+                    chBend[ch] = st; if (chOn[ch]) evs.push_back ({ pos, 11, chNote[ch], st });
+                    lastMidiMsg.store ((3 << 16) | ((m.getPitchWheelValue() >> 7) << 8) | (m.getPitchWheelValue() & 127));
+                    continue;
+                }
+                if (m.isChannelPressure())
+                {
+                    const float pr = atShape ((float) m.getChannelPressureValue() / 127.f);
+                    if (chOn[ch]) evs.push_back ({ pos, 5, chNote[ch], pr });
+                    lastMidiMsg.store ((4 << 16) | (m.getChannelPressureValue() & 127));
+                    continue;
+                }
+                if (m.isController() && m.getControllerNumber() == 74)                    // slide
+                {
+                    chSlide[ch] = (float) m.getControllerValue() / 127.f;
+                    if (chOn[ch]) evs.push_back ({ pos, 12, chNote[ch], chSlide[ch] });
+                    lastMidiMsg.store ((2 << 16) | (74 << 8) | m.getControllerValue());
+                    continue;
+                }
+                if (m.isNoteOn() && ! chordLearn)
+                {
+                    chNote[ch] = m.getNoteNumber(); chOn[ch] = true;
+                    keyDown[m.getNoteNumber()] = true; pedalHeld[m.getNoteNumber()] = false;
+                    lastMidiMsg.store ((1 << 16) | (m.getNoteNumber() << 8) | m.getVelocity());
+                    if (arpOn) arp.noteOn (m.getNoteNumber(), m.getFloatVelocity());
+                    else
+                    {
+                        evs.push_back ({ pos, 0, m.getNoteNumber(), m.getFloatVelocity() });
+                        evs.push_back ({ pos, 11, m.getNoteNumber(), chBend[ch] });      // l'etat du canal (bend, slide) s'applique des la premiere note
+                        evs.push_back ({ pos, 12, m.getNoteNumber(), chSlide[ch] });
+                    }
+                    continue;
+                }
+                if (m.isNoteOff() && chOn[ch] && chNote[ch] == m.getNoteNumber())
+                {
+                    chOn[ch] = false;
+                    if (pedal) { pedalHeld[m.getNoteNumber()] = true; continue; }
+                    keyDown[m.getNoteNumber()] = false;
+                    if (arpOn) arp.noteOff (m.getNoteNumber()); else evs.push_back ({ pos, 1, m.getNoteNumber(), 0.f });
+                    continue;
+                }
             }
             if (m.isNoteOn()) { keyDown[m.getNoteNumber()] = true; pedalHeld[m.getNoteNumber()] = false; }
             else if (m.isNoteOff() && pedal && keyDown[m.getNoteNumber()]) { pedalHeld[m.getNoteNumber()] = true; continue; }
@@ -1116,6 +1167,8 @@ void OrageAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
                 case 8: synth.noteOnStack (e.a, e.v); break;
                 case 9: synth.noteOffRaw (e.a); break;
                 case 5: synth.setPolyAT (e.a, e.v); break;
+                case 11: synth.setNoteBend (e.a, e.v); break;
+                case 12: synth.setNoteSlide (e.a, e.v); break;
                 case 6: synth.setChanAT (e.v); break;
                 default: synth.setWheel (e.v); break;
             }
@@ -1360,10 +1413,90 @@ void OrageAudioProcessor::loadFactoryPreset (int i)
     if (i != 0 && juce::String (kFactory[i].category) == "Rack FX") legacyFxDefaults (*this);
     kFactory[i].apply (*this);
 #if ORAGE_SYNTH
+    if (i != 0 && juce::String (kFactory[i].category) == "Pluck / Keys")                // plucks / keys : enveloppes moins sechees (decay et release allonges)
+    {
+        auto get = [this] (const char* id) { return apvts.getRawParameterValue (id)->load(); };
+        for (const char* id : { "s_aD", "s_fD" }) setParamReal (id, juce::jmin (0.95f, get (id) * 1.8f));
+        setParamReal ("s_aR", juce::jlimit (0.35f, 0.75f, get ("s_aR") * 1.8f));
+    }
     if (i != 0) applyMacroSet (*this, kFactory[i].category);
 #endif
+    if (i != 0) pruneUnusedModules();
     presetName = kFactory[i].name;
     presetCategory = kFactory[i].category;
+}
+
+// Retire du rack les modules qui ne font rien dans le preset (mix a zero, filtre ouvert, etc.) : on voit ce que le preset utilise vraiment.
+// Un module reste si un cable, une modulation du preset ou un cablage CV l'utilise ; les macros qui visaient un module retire sont redirigees vers le synthe.
+void OrageAudioProcessor::pruneUnusedModules()
+{
+    const orage::Params q = readParams();
+    const bool idle[kNumNodes] = {
+        false,                                                                           // NIn
+        q.octMode == 0,                                                                  // NOct
+        false,                                                                           // NDist : toujours actif (couleur de saturation)
+        std::fabs (q.low) < 0.003f && std::fabs (q.mid) < 0.003f && std::fabs (q.high) < 0.003f,   // NColor
+        ! (q.hpf > 0.003f || q.lpf < 0.997f),                                            // NFilter
+        q.destroy < 0.003f,                                                              // NDestroy
+        q.compAmt < 0.003f,                                                              // NComp
+        q.springMix < 0.003f,                                                            // NSpring
+        q.gateThresh < 0.003f,                                                           // NGate
+        q.bbdMix < 0.003f,                                                               // NBbd
+        q.revMix < 0.003f,                                                               // NVerb
+        ! q.stutOn,                                                                      // NStut
+        false };                                                                         // NOut
+    bool keep[kNumNodes] {};
+    for (int nd = 0; nd < kNumNodes; ++nd)                                              // modules touches par un cable audio : on les garde
+    {
+        const uint32_t m = engine.audioIn[nd].load();
+        if (m != 0) { keep[nd] = true; for (int sc = 0; sc < kNumNodes; ++sc) if (m & (1u << sc)) keep[sc] = true; }
+    }
+    for (int d = 0; d < kNumCv; ++d)                                                     // cablage CV : le module qui porte l'entree reste
+        if (engine.cvIn[d].load() != 0)
+        {
+            int owner = -1;
+            switch (d) { case CvDrive: case CvClip: case CvUnc: owner = NDist; break; case CvHpf: case CvLpf: case CvPeak: owner = NFilter; break;
+                         case CvDestroy: case CvDRate: owner = NDestroy; break; case CvSpring: owner = NSpring; break;
+                         case CvStutOn: case CvStutLen: case CvStutDecay: case CvStutPitch: case CvStutMix: owner = NStut; break; default: break; }
+            if (owner >= 0) keep[owner] = true;
+        }
+#if ORAGE_SYNTH
+    auto ownerOf = [] (int dst) -> int
+    {
+        switch (dst)
+        {
+            case MdFxPower: case MdFxClip: case MdFxUnc: case MdFxChaos: return NDist;
+            case MdFxHpf: case MdFxLpf: case MdFxPeak: return NFilter;
+            case MdFxDestroy: case MdFxRate: return NDestroy;
+            case MdFxSpring: case MdSprDecay: return NSpring;
+            case MdBbdTime: case MdBbdFb: case MdBbdMix: case MdBbdTone: case MdBbdWobble: return NBbd;
+            case MdRevMix: case MdRevDecay: case MdRevDamp: case MdRevSize: case MdRevPre: case MdRevShimmer: case MdRevWidth: return NVerb;
+            case MdStutOn: case MdStutMode: case MdStutDiv: case MdStutFeel: case MdStutLen: case MdStutDecay: case MdStutPitch: case MdStutMix: return NStut;
+            case MdCompAmt: return NComp; case MdGateThresh: return NGate; case MdOctAmt: return NOct;
+            case MdColLow: case MdColMid: case MdColHigh: return NColor;
+            default: return -1;
+        }
+    };
+    auto get = [this] (const juce::String& id) { return apvts.getRawParameterValue (id)->load(); };
+    for (int sl = 1; sl <= orage::kSlots; ++sl)                                           // modulations du preset (hors macros 5..12)
+    {
+        if (sl >= 5 && sl <= 12) continue;
+        const juce::String b ("s_slot" + juce::String (sl));
+        if (get (b + "Src") > 0.5f && std::fabs (get (b + "Amt")) > 0.001f) { const int o = ownerOf (juce::roundToInt (get (b + "Dst"))); if (o >= 0) keep[o] = true; }
+    }
+    static const int pool[] { MdReso, MdDrive, MdFold, MdFltEnv, MdNoise, MdPitch2, MdPw1, MdPw2, MdFm, MdRing, MdMorph, MdFoldSym };
+    bool usedDst[kNumModDst] {};
+    for (int sl = 5; sl <= 12; ++sl) { const int o = ownerOf (juce::roundToInt (get ("s_slot" + juce::String (sl) + "Dst"))); if (o < 0 || keep[o] || ! idle[o]) usedDst[juce::roundToInt (get ("s_slot" + juce::String (sl) + "Dst"))] = true; }
+    for (int sl = 5; sl <= 12; ++sl)                                                       // macros : redirigees si leur module disparait
+    {
+        const int dst = juce::roundToInt (get ("s_slot" + juce::String (sl) + "Dst")), o = ownerOf (dst);
+        if (o < 0 || keep[o] || ! idle[o]) continue;
+        for (int cand : pool) if (! usedDst[cand]) { usedDst[cand] = true; M (*this, sl, juce::roundToInt (get ("s_slot" + juce::String (sl) + "Src")), cand, 0.4f); break; }
+    }
+#endif
+    std::vector<int> rack;
+    for (int n : engine.getRack()) if (! idle[n] || keep[n]) rack.push_back (n);
+    engine.setRack (rack);
 }
 
 // CC MIDI -> parametres assignes (macros de l'Hydrasynth, ou tout potard appris par clic droit). Retourne true si le CC a ete consomme.
