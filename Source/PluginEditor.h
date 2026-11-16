@@ -97,7 +97,7 @@ public:
 
     juce::StringArray choices;
     DetentSlider slider;
-    juce::String text, loText, hiText;
+    juce::String text, loText, hiText, baseText;
     int cvIndex;                                     // destination CV associee (ou -1)
     bool cvActive = false;
 private:
@@ -341,6 +341,7 @@ public:
     void paint (juce::Graphics&) override;
     void resized() override;
     void mouseUp (const juce::MouseEvent&) override;
+    void mouseWheelMove (const juce::MouseEvent&, const juce::MouseWheelDetails&) override;
 
     // appels du rack
     void rackChangedByUser (const std::vector<int>& newOrder);
@@ -413,6 +414,10 @@ private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> footAtt;
     juce::TextButton clearRackBtn, clearPatchBtn, resetBtn, themeBtn { "LOOK" };
     float scopeGain = 1.f;
+    bool scopeAuto = true; float scopeTrimDb = 0.f, scopeManualDb = 20.f;       // oscilloscope : gain auto (+ ajustement fin) ou manuel
+    juce::Rectangle<float> scopeBtn (int k) const;                               // 0 : '-', 1 : '+', 2 : AUTO
+    void scopeNudge (float dDb);
+    void saveScopePref() const;
 public:
     std::function<void()> onThemeChanged;                        // pour que la fenetre parente repeigne ses propres fonds
 private:

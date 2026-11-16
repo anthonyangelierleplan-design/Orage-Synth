@@ -224,6 +224,7 @@ int loadThemePref() { const auto f = themeFile(); return f.existsAsFile() ? f.lo
 juce::File drawerFile() { return juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory).getChildFile ("Foudre Audio").getChildFile ("drawers.txt"); }
 int loadDrawerPref() { const auto f = drawerFile(); return f.existsAsFile() ? f.loadFileAsString().trim().getIntValue() : 3; }     // bit 0 : patchbay ouvert, bit 1 : bandeau ouvert
 void saveDrawerPref (int v) { const auto f = drawerFile(); f.getParentDirectory().createDirectory(); f.replaceWithText (juce::String (v)); }
+juce::File scopeFile() { return juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory).getChildFile ("Foudre Audio").getChildFile ("scope.txt"); }
 void saveThemePref (int i) { const auto f = themeFile(); f.getParentDirectory().createDirectory(); f.replaceWithText (juce::String (i)); }
 
 const int kTileNodes[] = { orage::NOct, orage::NDist, orage::NColor, orage::NFilter, orage::NDestroy, orage::NComp, orage::NSpring, orage::NStut, orage::NBbd, orage::NVerb, orage::NGate };
@@ -664,7 +665,12 @@ void KnobUnit::setChoices (const juce::StringArray& names)
     resized();
     slider.getProperties().set ("numbered", false);
     slider.textFromValueFunction = [this] (double v) { return choices[juce::jlimit (0, juce::jmax (0, choices.size() - 1), juce::roundToInt (v))]; };
-    slider.onValueChange = [this] { repaint(); };
+    if (names.size() > 8)                                                          // beaucoup de crans : points seulement, la valeur active s'ecrit dans l'etiquette
+    {
+        baseText = text;
+        slider.onValueChange = [this] { repaint(); };
+    }
+    else slider.onValueChange = [this] { repaint(); };
     slider.setPopupDisplayEnabled (true, true, nullptr);
     repaint();
 }
@@ -677,6 +683,7 @@ void KnobUnit::paint (juce::Graphics& g)
     const float sa = juce::MathConstants<float>::pi * 1.2f, ea = juce::MathConstants<float>::pi * 2.8f;
     const float alpha = slider.isEnabled() ? 1.f : 0.45f;
     const bool numbered = (bool) slider.getProperties()["numbered"] && sb.getWidth() >= 58.f;
+    if (choices.size() > 8) text = baseText + "  " + choices[juce::jlimit (0, choices.size() - 1, juce::roundToInt (slider.getValue()))];
     if (! choices.isEmpty())                                                       // potard cranté : graduations nommées, la valeur active en clair
     {
         const int n = choices.size(), cur = juce::jlimit (0, n - 1, juce::roundToInt (slider.getValue()));
@@ -686,7 +693,7 @@ void KnobUnit::paint (juce::Graphics& g)
             const float a = sa + (n > 1 ? (float) i / (float) (n - 1) : 0.5f) * (ea - sa);
             g.setColour ((i == cur ? look::cvRing : look::print).withAlpha ((i == cur ? 1.f : 0.85f) * alpha));
             g.fillEllipse (c.x + r * 0.74f * std::sin (a) - 1.8f, c.y - r * 0.74f * std::cos (a) - 1.8f, 3.6f, 3.6f);
-            g.drawText (choices[i], (int) (c.x + r * (0.98f + 0.04f * std::abs (std::sin (a))) * std::sin (a)) - 24, (int) (c.y - r * 1.0f * std::cos (a)) - 6, 48, 12, juce::Justification::centred, false);
+            if (n <= 8) g.drawText (choices[i], (int) (c.x + r * (0.98f + 0.04f * std::abs (std::sin (a))) * std::sin (a)) - 24, (int) (c.y - r * 1.0f * std::cos (a)) - 6, 48, 12, juce::Justification::centred, false);
         }
     }
     else
@@ -1659,6 +1666,10 @@ OrageAudioProcessorEditor::OrageAudioProcessorEditor (OrageAudioProcessor& p, ju
     look::applyTheme (loadThemePref());
     OrageLookAndFeel::refreshAll();
 
+    {
+        const auto f = scopeFile();
+        if (f.existsAsFile()) { juce::StringArray t; t.addTokens (f.loadFileAsString().trim(), ",", ""); if (t.size() >= 3) { scopeAuto = t[0].getIntValue() != 0; scopeTrimDb = t[1].getFloatValue(); scopeManualDb = t[2].getFloatValue(); } }
+    }
     addAndMakeVisible (themeBtn);
     themeBtn.onClick = [this] { cycleTheme(); };
     addAndMakeVisible (prevBtn); addAndMakeVisible (nameBtn); addAndMakeVisible (nextBtn); addAndMakeVisible (saveBtn);
@@ -2305,8 +2316,47 @@ void OrageAudioProcessorEditor::cycleTheme()
     if (onThemeChanged) onThemeChanged();
 }
 
+juce::Rectangle<float> OrageAudioProcessorEditor::scopeBtn (int k) const
+{
+    const auto scr = lampWindow().reduced (2.f);
+    const float y = scr.getBottom() - 15.f;
+    if (k == 2) return { scr.getRight() - 38.f, y, 34.f, 12.f };
+    if (k == 1) return { scr.getRight() - 58.f, y, 16.f, 12.f };
+    return { scr.getRight() - 77.f, y, 16.f, 12.f };
+}
+
+void OrageAudioProcessorEditor::saveScopePref() const
+{
+    const auto f = scopeFile(); f.getParentDirectory().createDirectory();
+    f.replaceWithText (juce::String (scopeAuto ? 1 : 0) + "," + juce::String (scopeTrimDb, 1) + "," + juce::String (scopeManualDb, 1));
+}
+
+void OrageAudioProcessorEditor::scopeNudge (float dDb)
+{
+    if (scopeAuto) scopeTrimDb = juce::jlimit (-12.f, 30.f, scopeTrimDb + dDb);
+    else           scopeManualDb = juce::jlimit (-12.f, 60.f, scopeManualDb + dDb);
+    saveScopePref(); repaint (headerArea);
+}
+
+void OrageAudioProcessorEditor::mouseWheelMove (const juce::MouseEvent& e, const juce::MouseWheelDetails& w)
+{
+    if (proc.headerScope.load() == 1 && lampWindow().contains (e.position)) scopeNudge ((w.deltaY > 0 ? 1.f : -1.f) * (e.mods.isShiftDown() ? 0.25f : 1.f));
+}
+
 void OrageAudioProcessorEditor::mouseUp (const juce::MouseEvent& e)
 {
+    if (proc.headerScope.load() == 1 && lampWindow().contains (e.position) && ! e.mouseWasDraggedSinceMouseDown())
+    {
+        const float step = e.mods.isShiftDown() ? 0.5f : 3.f;                                 // pas de 3 dB (0,5 dB avec Maj) ; double-clic sur AUTO : remise a zero
+        if (scopeBtn (0).expanded (2.f).contains (e.position)) { scopeNudge (-step); return; }
+        if (scopeBtn (1).expanded (2.f).contains (e.position)) { scopeNudge (step); return; }
+        if (scopeBtn (2).expanded (2.f).contains (e.position))
+        {
+            if (e.getNumberOfClicks() >= 2) { scopeTrimDb = 0.f; scopeManualDb = 20.f; scopeAuto = ! scopeAuto; }
+            else scopeAuto = ! scopeAuto;
+            saveScopePref(); repaint (headerArea); return;
+        }
+    }
     if (lampWindow().contains (e.position) && ! e.mouseWasDraggedSinceMouseDown())
     {
         proc.headerScope.store (proc.headerScope.load() == 0 ? 1 : 0);
@@ -2393,8 +2443,12 @@ void OrageAudioProcessorEditor::drawScope (juce::Graphics& g, juce::Rectangle<fl
     }
     float pk = 0.f;
     for (int i = 0; i < span; ++i) pk = juce::jmax (pk, std::abs (buf[start + i]));
-    const float target = pk > 0.003f ? juce::jmin (6.f, 0.85f / pk) : 1.f;
-    scopeGain += (target - scopeGain) * 0.15f;
+    if (scopeAuto)
+    {
+        const float target = pk > 0.0003f ? juce::jmin (400.f, 0.85f / pk) * std::pow (10.f, scopeTrimDb / 20.f) : 1.f;          // auto : cale la crete a 85 % (jusqu'a +52 dB) + ajustement fin
+        scopeGain += (target - scopeGain) * 0.15f;
+    }
+    else scopeGain = std::pow (10.f, scopeManualDb / 20.f);
     juce::Path p;
     const int nx = (int) scr.getWidth();
     for (int x = 0; x <= nx; ++x)
@@ -2408,6 +2462,20 @@ void OrageAudioProcessorEditor::drawScope (juce::Graphics& g, juce::Rectangle<fl
     g.setColour (ph.withAlpha (0.16f)); g.strokePath (p, juce::PathStrokeType (5.f, juce::PathStrokeType::curved));
     g.setColour (ph.withAlpha (0.35f)); g.strokePath (p, juce::PathStrokeType (2.6f, juce::PathStrokeType::curved));
     g.setColour (ph.brighter (0.5f));   g.strokePath (p, juce::PathStrokeType (1.2f, juce::PathStrokeType::curved));
+    {   // commandes de gain : - / + / AUTO (molette sur l'ecran : 1 dB, Maj : 0,25 dB)
+        g.setFont (font (8.5f));
+        const juce::String nm[3] { "-", "+", scopeAuto ? "AUTO" : "MAN" };
+        for (int k = 0; k < 3; ++k)
+        {
+            const auto r = scopeBtn (k);
+            g.setColour (ph.withAlpha (k == 2 && scopeAuto ? 0.35f : 0.14f)); g.fillRoundedRectangle (r, 2.5f);
+            g.setColour (ph.withAlpha (0.7f)); g.drawRoundedRectangle (r, 2.5f, 0.8f);
+            g.drawText (nm[k], r, juce::Justification::centred, false);
+        }
+        const float db = 20.f * std::log10 (juce::jmax (1.0e-3f, scopeGain));
+        g.setColour (ph.withAlpha (0.75f));
+        g.drawText (juce::String (db >= 0.f ? "+" : "") + juce::String (db, 1) + " dB", scopeBtn (0).translated (-52.f, 0.f).withWidth (50.f), juce::Justification::centredRight, false);
+    }
     g.setColour (ph.withAlpha (0.6f));
     g.setFont (font (8.5f));
     g.drawText ("OSC", scr.withTrimmedLeft (5.f).withHeight (12.f).translated (0.f, scr.getHeight() - 13.f), juce::Justification::centredLeft, false);

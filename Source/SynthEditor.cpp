@@ -318,7 +318,7 @@ SynthPanel::SynthPanel (OrageAudioProcessor& p, int pg) : proc (p), page (pg)
         const int kh = juce::jmin (r.getHeight(), cellW + 28), y = r.getY() + (r.getHeight() - kh) / 2;
         for (auto* k : ks) { k->setBounds (x, y, cellW, kh); x += cellW; }
     };
-    const juce::StringArray waves { "SAW", "PULSE", "TRI" }, octs { "-2", "-1", "0", "+1", "+2" };
+    const juce::StringArray waves { "SAW", "PULSE", "TRI", "SIN" }, octs { "-2", "-1", "0", "+1", "+2" };
     const juce::StringArray lfoWaves { "SIN", "TRI", "SAW", "SQR", "S&H" };
 
 
@@ -610,45 +610,104 @@ SynthPanel::SynthPanel (OrageAudioProcessor& p, int pg) : proc (p), page (pg)
     }
     {
         auto* u = unit ("FM  (cross modulation)");
-        auto* depth = knob (*u, "s_fm", "DEPTH");
+        // ---- page PRINCIPALE : caractere, quantite, rapport, enveloppe ; page AVANCEE : sens, modulateur, type, retour, profondeur selon la note...
+        auto* depth = knob (*u, "s_fm", "AMOUNT");
+        auto* ratio = knob (*u, "s_fmRatio", "RATIO");
+        ratio->setChoices ({ "FREE", "1:2", "2:3", "1:1", "3:2", "2:1", "3:1", "4:1", "5:1", "7:1", "7:2", "x1.41", "5:2", "9:2", "6:1", "8:1", "x2.76", "x5.4" });
+        auto* envAmt = knob (*u, "s_fmEnvAmt", "ENV AMT"); auto* dec = knob (*u, "s_fmDec", "DECAY");
+        auto* vel = knob (*u, "s_fmVel", "VELOCITY"); auto* at = knob (*u, "s_fmAT", "AFTERTOUCH");
+        auto* att = knob (*u, "s_fmAtt", "ATTACK"); auto* fine = knob (*u, "s_fmFine", "FINE", "-", "+");
+        auto* fb = knob (*u, "s_fmFb", "FEEDBACK"); auto* key = knob (*u, "s_fmKey", "KEY SCALE");
         auto* dir = selector (*u, "s_fmDir", juce::StringArray { "2>1", "1>2", "BOTH" });
-        auto* ratio = combo (*u, "s_fmRatio"); auto* wave = selector (*u, "s_fmWave", juce::StringArray { "OSC", "SIN", "TRI", "SQR" });
-        auto* envAmt = knob (*u, "s_fmEnvAmt", "ENV AMT"); auto* att = knob (*u, "s_fmAtt", "ATTACK"); auto* dec = knob (*u, "s_fmDec", "DECAY");
-        auto* fine = knob (*u, "s_fmFine", "FINE", "-", "+"); auto* vel = knob (*u, "s_fmVel", "VELOCITY"); auto* at = knob (*u, "s_fmAT", "AFTERTOUCH");
+        auto* wave = selector (*u, "s_fmWave", juce::StringArray { "OSC", "SIN", "TRI", "SQR" });
+        auto* type = selector (*u, "s_fmType", juce::StringArray { "EXP", "LINEAR" });
         auto tag = [this, u] (const juce::String& t) { auto c = std::make_unique<Tag> (t); auto* r = c.get(); u->addAndMakeVisible (*r); owned.push_back (std::move (c)); return r; };
-        auto* tPal = tag ("PALETTE"); auto* tDir = tag ("DIRECTION"); auto* tRat = tag ("RATIO"); auto* tWav = tag ("MODULATOR");
-        // palettes : un clic regle ratio, onde, profondeur et enveloppe ; tout reste ensuite ajustable
+        auto* tPal = tag ("CHARACTER"); auto* tDir = tag ("DIRECTION"); auto* tWav = tag ("MODULATOR"); auto* tTyp = tag ("FM TYPE");
+        // caracteres : un clic regle tout (ondes, ratio, profondeur, enveloppes d'amplitude) ; tout reste ensuite ajustable
+        struct Ch { const char* name; float fm; int ratio, mwave, dir; float envAmt, att, dec, fine, vel, at; int type; float fb, key; int w1, w2; float lvl2, aA, aD, aS, aR; };
+        static const Ch kCh[] {
+            { "BELL",     0.30f, 10, 1, 0, 0.60f, 0.00f, 0.70f, 0.f, 0.30f, 0.00f, 1, 0.00f, 0.5f, 3, 3, 0.f, 0.000f, 0.75f, 0.00f, 0.60f },
+            { "E-PIANO",  0.22f,  3, 1, 0, 0.50f, 0.00f, 0.40f, 0.f, 0.60f, 0.00f, 1, 0.00f, 0.6f, 3, 3, 0.f, 0.000f, 0.60f, 0.15f, 0.35f },
+            { "TINE",     0.20f,  3, 1, 0, 0.75f, 0.00f, 0.22f, 0.f, 0.80f, 0.00f, 1, 0.10f, 0.5f, 3, 3, 0.f, 0.000f, 0.50f, 0.10f, 0.30f },
+            { "MARIMBA",  0.22f,  7, 1, 0, 0.65f, 0.00f, 0.18f, 0.f, 0.50f, 0.00f, 1, 0.00f, 0.4f, 3, 3, 0.f, 0.000f, 0.35f, 0.00f, 0.25f },
+            { "GLASS",    0.16f,  8, 1, 0, 0.45f, 0.00f, 0.60f, 0.f, 0.40f, 0.20f, 1, 0.00f, 0.5f, 3, 3, 0.f, 0.000f, 0.80f, 0.00f, 0.60f },
+            { "BRASS",    0.25f,  3, 1, 0, 0.50f, 0.35f, 0.50f, 0.f, 0.40f, 0.40f, 1, 0.00f, 0.3f, 3, 3, 0.f, 0.080f, 0.40f, 0.80f, 0.20f },
+            { "ORGAN",    0.28f,  5, 1, 0, 0.00f, 0.00f, 0.50f, 0.f, 0.00f, 0.00f, 1, 0.15f, 0.0f, 3, 3, 0.f, 0.010f, 0.30f, 1.00f, 0.12f },
+            { "GONG",     0.35f, 16, 1, 0, 0.50f, 0.00f, 0.80f, 0.f, 0.20f, 0.00f, 1, 0.10f, 0.3f, 3, 3, 0.f, 0.000f, 0.90f, 0.00f, 0.75f },
+            { "WOOD",     0.30f, 12, 1, 0, 0.85f, 0.00f, 0.12f, 0.f, 0.60f, 0.00f, 1, 0.00f, 0.3f, 3, 3, 0.f, 0.000f, 0.20f, 0.00f, 0.14f },
+            { "STRING",   0.22f,  3, 1, 0, 0.60f, 0.00f, 0.30f, 0.f, 0.50f, 0.00f, 1, 0.30f, 0.4f, 3, 3, 0.f, 0.000f, 0.55f, 0.10f, 0.30f },
+            { "FM BASS",  0.30f,  1, 1, 0, 0.50f, 0.00f, 0.22f, 0.f, 0.60f, 0.00f, 1, 0.25f, 0.2f, 3, 3, 0.f, 0.000f, 0.50f, 0.60f, 0.15f },
+            { "CLAV",     0.25f,  6, 1, 0, 0.70f, 0.00f, 0.10f, 0.f, 0.70f, 0.00f, 1, 0.10f, 0.3f, 3, 3, 0.f, 0.000f, 0.22f, 0.00f, 0.12f },
+            { "CHOIR",    0.12f,  4, 1, 0, 0.20f, 0.50f, 0.70f, 0.f, 0.00f, 0.50f, 1, 0.00f, 0.2f, 3, 3, 0.f, 0.550f, 0.50f, 0.90f, 0.70f },
+            { "SPACE",    0.20f, 17, 1, 0, 0.30f, 0.60f, 0.90f, 0.f, 0.00f, 0.40f, 1, 0.10f, 0.2f, 3, 3, 0.f, 0.650f, 0.60f, 0.90f, 0.80f },
+            { "LASER",    0.55f,  9, 1, 0, 1.00f, 0.00f, 0.12f, 0.f, 0.30f, 0.00f, 0, 0.00f, 0.0f, 3, 3, 0.f, 0.000f, 0.30f, 0.00f, 0.20f },
+            { "METAL",    0.45f, 11, 2, 2, 0.30f, 0.00f, 0.60f, 0.15f, 0.00f, 0.00f, 0, 0.00f, 0.0f, 2, 2, 0.3f, 0.000f, 0.60f, 0.00f, 0.40f },
+            { "GROWL",    0.55f,  1, 3, 0, 0.00f, 0.00f, 0.40f, 0.20f, 0.00f, 0.30f, 0, 0.00f, 0.0f, 0, 0, 0.2f, 0.010f, 0.40f, 0.90f, 0.15f } };
+        constexpr int kNCh = (int) (sizeof (kCh) / sizeof (kCh[0]));
         auto pal = std::make_unique<juce::ComboBox>();
-        pal->addItem ("choose...", 1); pal->addItem ("BELL", 2); pal->addItem ("E-PIANO", 3); pal->addItem ("BRASS", 4); pal->addItem ("METAL", 5); pal->addItem ("GROWL", 6); pal->addItem ("PAD", 7);
+        pal->addItem ("choose...", 1); for (int i = 0; i < kNCh; ++i) pal->addItem (kCh[i].name, i + 2);
         pal->setSelectedId (1, juce::dontSendNotification); pal->setScrollWheelEnabled (false);
         u->addAndMakeVisible (*pal);
         auto* palP = pal.get(); owned.push_back (std::move (pal));
         palP->onChange = [this, palP]
         {
-            //                       fm   ratio wave dir  envAmt att  dec  fine  vel  at
-            static const float T[6][10] { { 0.35f, 10, 1, 0, 0.60f, 0.00f, 0.55f, 0.00f, 0.3f, 0.0f },     // BELL    : 7:2, sinus, forte attaque qui s'eteint
-                                          { 0.16f, 3, 1, 0, 0.50f, 0.00f, 0.35f, 0.00f, 0.5f, 0.0f },      // E-PIANO : 1:1, sinus, impact court, suit la velocite
-                                          { 0.12f, 3, 1, 0, 0.50f, 0.45f, 0.50f, 0.00f, 0.4f, 0.4f },      // BRASS   : 1:1, la profondeur monte puis retombe
-                                          { 0.45f, 11, 2, 2, 0.30f, 0.00f, 0.60f, 0.15f, 0.0f, 0.0f },     // METAL   : x1.41, triangle, FM croisee, leger desaccord
-                                          { 0.55f, 1, 3, 0, 0.00f, 0.00f, 0.40f, 0.20f, 0.0f, 0.3f },      // GROWL   : 1:2, carre, profondeur constante
-                                          { 0.12f, 4, 1, 0, 0.20f, 0.60f, 0.80f, 0.00f, 0.0f, 0.4f } };    // PAD     : 3:2, sinus, lente
             const int id = palP->getSelectedId();
             if (id < 2) return;
-            const auto* t = T[id - 2];
-            proc.setParamReal ("s_fm", t[0]); proc.setParamReal ("s_fmRatio", t[1]); proc.setParamReal ("s_fmWave", t[2]); proc.setParamReal ("s_fmDir", t[3]);
-            proc.setParamReal ("s_fmEnvAmt", t[4]); proc.setParamReal ("s_fmAtt", t[5]); proc.setParamReal ("s_fmDec", t[6]); proc.setParamReal ("s_fmFine", t[7]);
-            proc.setParamReal ("s_fmVel", t[8]); proc.setParamReal ("s_fmAT", t[9]);
+            const auto& c = kCh[id - 2];
+            auto S = [this] (const char* n, float v) { proc.setParamReal (n, v); };
+            S ("s_fm", c.fm); S ("s_fmRatio", (float) c.ratio); S ("s_fmWave", (float) c.mwave); S ("s_fmDir", (float) c.dir);
+            S ("s_fmEnvAmt", c.envAmt); S ("s_fmAtt", c.att); S ("s_fmDec", c.dec); S ("s_fmFine", c.fine); S ("s_fmVel", c.vel); S ("s_fmAT", c.at);
+            S ("s_fmType", (float) c.type); S ("s_fmFb", c.fb); S ("s_fmKey", c.key);
+            S ("s_wave1", (float) c.w1); S ("s_wave2", (float) c.w2); S ("s_lvl1", 0.8f); S ("s_lvl2", c.lvl2);          // le modulateur reste muet : on n'entend que la porteuse
+            S ("s_aA", c.aA); S ("s_aD", c.aD); S ("s_aS", c.aS); S ("s_aR", c.aR); S ("s_lpf", 0.9f); S ("s_fltEnv", 0.f);
         };
+        // de : tire un son FM musical (rapports harmoniques ou cloche, decay coherent, modulation de phase)
+        auto dice = std::make_unique<juce::TextButton> ("DICE");
+        u->addAndMakeVisible (*dice); auto* diceP = dice.get(); owned.push_back (std::move (dice));
+        diceP->setTooltip ("Random musical FM sound");
+        diceP->onClick = [this]
+        {
+            static juce::Random rnd;
+            static const int harmonic[] { 3, 3, 5, 5, 6, 7, 4, 1, 10, 12, 8, 16 };           // surtout 1:1, 2:1, 3:1, 4:1, 3:2, 1:2, cloches
+            const int ratioIdx = harmonic[rnd.nextInt ((int) (sizeof (harmonic) / sizeof (harmonic[0])))];
+            const float dec = 0.1f + rnd.nextFloat() * 0.7f, sustained = rnd.nextFloat() < 0.25f ? 1.f : 0.f;
+            auto S = [this] (const char* n, float v) { proc.setParamReal (n, v); };
+            S ("s_fmType", 1.f); S ("s_fmDir", 0.f); S ("s_fmWave", 1.f); S ("s_fmRatio", (float) ratioIdx);
+            S ("s_fm", 0.12f + rnd.nextFloat() * 0.3f); S ("s_fmEnvAmt", sustained > 0.f ? rnd.nextFloat() * 0.3f : 0.3f + rnd.nextFloat() * 0.6f);
+            S ("s_fmDec", dec); S ("s_fmAtt", sustained > 0.f ? rnd.nextFloat() * 0.5f : 0.f); S ("s_fmFb", rnd.nextFloat() < 0.4f ? rnd.nextFloat() * 0.35f : 0.f);
+            S ("s_fmKey", 0.3f + rnd.nextFloat() * 0.4f); S ("s_fmVel", 0.2f + rnd.nextFloat() * 0.5f); S ("s_fmFine", 0.f); S ("s_fmAT", rnd.nextFloat() < 0.5f ? 0.3f : 0.f);
+            S ("s_wave1", 3.f); S ("s_wave2", 3.f); S ("s_lvl1", 0.8f); S ("s_lvl2", 0.f); S ("s_lpf", 0.9f); S ("s_fltEnv", 0.f);
+            S ("s_aA", sustained > 0.f ? rnd.nextFloat() * 0.5f : 0.f); S ("s_aD", juce::jmin (0.95f, dec + 0.1f)); S ("s_aS", sustained > 0.f ? 0.8f : rnd.nextFloat() * 0.2f); S ("s_aR", 0.2f + rnd.nextFloat() * 0.5f);
+        };
+        auto more = std::make_unique<juce::TextButton> ("MORE");
+        more->setClickingTogglesState (true); u->addAndMakeVisible (*more); auto* moreP = more.get(); owned.push_back (std::move (more));
+        moreP->setTooltip ("Advanced FM controls");
+        moreP->onClick = [u, moreP] { moreP->setButtonText (moreP->getToggleState() ? "BACK" : "MORE"); u->resized(); };
         u->layoutFn = [=] (juce::Rectangle<int> r)
         {
-            const int dw = juce::jmin (96, r.getWidth() / 4), x = r.getX() + dw + 6, w = r.getWidth() - dw - 6;
-            tPal->setBounds (x, r.getY(), 90, 10);  palP->setBounds (x, r.getY() + 12, w / 2 - 4, 26);
-            tDir->setBounds (x + w / 2, r.getY(), 90, 10); dir->setBounds (x + w / 2, r.getY() + 12, w / 2, 30);
-            tRat->setBounds (x, r.getY() + 46, 90, 10);  ratio->setBounds (x, r.getY() + 58, w / 2 - 4, 26);
-            tWav->setBounds (x + w / 2, r.getY() + 46, 90, 10); wave->setBounds (x + w / 2, r.getY() + 58, w / 2, 30);
-            const int ky = r.getY() + 92, kh = (r.getHeight() - 92) / 2, cw = w / 3;
-            int i = 0; for (auto* k : { envAmt, att, dec, fine, vel, at }) { k->setBounds (x + (i % 3) * cw, ky + (i / 3) * kh, cw, kh); ++i; }
-            depth->setBounds (r.getX(), r.getY() + 12, dw, r.getHeight() - 12);
+            const bool adv = moreP->getToggleState();
+            const int dw = juce::jmin (110, r.getWidth() / 3), x = r.getX() + dw + 6, w = r.getWidth() - dw - 6;
+            for (auto* c : std::vector<juce::Component*> { tPal, palP, diceP, ratio, envAmt, dec, att, vel, at })                           // page principale
+                c->setVisible (! adv);
+            for (auto* c : std::vector<juce::Component*> { tDir, dir, tWav, wave, tTyp, type, fine, fb, key })                              // page avancee
+                c->setVisible (adv);
+            depth->setVisible (true); moreP->setVisible (true);
+            depth->setBounds (r.getX(), r.getY() + 20, dw, r.getHeight() - 20);
+            const int ky = r.getY() + 46, kh = (r.getHeight() - 46) / 2, cw = w / 3;
+            if (! adv)
+            {
+                tPal->setBounds (x, r.getY(), 90, 10);
+                palP->setBounds (x, r.getY() + 12, w / 2, 28); diceP->setBounds (x + w / 2 + 4, r.getY() + 12, w / 4 - 4, 28); moreP->setBounds (x + w * 3 / 4 + 4, r.getY() + 12, w / 4 - 4, 28);
+                int i = 0; for (auto* k : { ratio, envAmt, dec, att, vel, at }) { k->setBounds (x + (i % 3) * cw, ky + (i / 3) * kh, cw, kh); ++i; }
+            }
+            else
+            {
+                tDir->setBounds (x, r.getY(), 90, 10); dir->setBounds (x, r.getY() + 12, w / 3 - 4, 30);
+                tWav->setBounds (x + w / 3, r.getY(), 90, 10); wave->setBounds (x + w / 3, r.getY() + 12, w / 3 - 4, 30);
+                tTyp->setBounds (x + 2 * w / 3, r.getY(), 90, 10); type->setBounds (x + 2 * w / 3, r.getY() + 12, w / 3, 30);
+                moreP->setBounds (r.getX() + 2, r.getY() - 2, dw - 4, 20);
+                int i = 0; for (auto* k : { fb, key, fine }) { k->setBounds (x + i * cw, ky, cw, kh); ++i; }
+            }
         };
     }
     startTimerHz (10);

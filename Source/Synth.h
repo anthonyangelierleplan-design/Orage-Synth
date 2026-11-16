@@ -10,7 +10,7 @@ namespace orage
 constexpr int kVoices = 6, kLfos = 4, kMacros = 8, kSlots = 16, kLanes = 8;
 enum Assign { AsPoly, AsMono, AsUnison, AsShare, AsChord };
 enum ModSrc { MsNone, MsLfo1, MsLfo2, MsLfo3, MsLfo4, MsMac1, MsMac2, MsMac3, MsMac4, MsEnv, MsVel, MsWheel, MsAmpEnv, MsKey, MsRandom, MsChanAT, MsPolyAT, MsMac5, MsMac6, MsMac7, MsMac8, MsArp1, MsArp2, MsArp3, MsArp4, MsArp5, MsArp6, MsArp7, MsArp8, kNumModSrc };
-inline const float kFmRatios[12] { 1.f, 0.5f, 2.f / 3.f, 1.f, 1.5f, 2.f, 3.f, 4.f, 5.f, 7.f, 3.5f, 1.41421356f };
+inline const float kFmRatios[18] { 1.f, 0.5f, 2.f / 3.f, 1.f, 1.5f, 2.f, 3.f, 4.f, 5.f, 7.f, 3.5f, 1.41421356f, 2.5f, 4.5f, 6.f, 8.f, 2.7568f, 5.4f };
 inline int macroSrc (int i) { return i < 4 ? MsMac1 + i : MsMac5 + (i - 4); }
 inline int laneSrc (int i)  { return i < 4 ? MsArp1 + i : MsArp5 + (i - 4); }
 enum ModDst { MdNone, MdPitch, MdPitch2, MdPw1, MdPw2, MdFm, MdRing, MdMix, MdHpf, MdLpf, MdReso, MdLevel, MdPan,
@@ -58,6 +58,7 @@ struct SynthParams
     float aA = 0.01f, aD = 0.3f, aS = 0.8f, aR = 0.25f;
     float fA = 0.01f, fD = 0.35f, fS = 0.2f, fR = 0.25f;
     int assign = 0, hold = 0;                 // affectation des touches (Poly, Mono, Unison, Share, Chord) et HOLD
+    int fmType = 0; float fmFb = 0.f, fmKey = 0.f;   // FM : 0 exponentielle (analogique) / 1 lineaire (modulation de phase, style DX) ; retour du modulateur sur lui-meme ; profondeur reduite dans l'aigu
     int fmDir = 0, fmRatio = 0, fmWave = 0;   // FM : sens (0 VCO2>VCO1, 1 VCO1>VCO2, 2 croisee), rapport de frequence (0 libre), onde du modulateur (0 = celle du VCO)
     float fmFine = 0.f, fmAtt = 0.f, fmDec = 0.4f, fmEnvAmt = 0.f, fmVel = 0.f, fmAT = 0.f;     // FM : desaccord fin, enveloppe de profondeur, vitesse, aftertouch
     float uniDetune = 0.3f;                   // ecart de desaccord des voix empilees
@@ -93,6 +94,7 @@ inline float osc (int wave, float ph, float dt, float pw)
     switch (wave)
     {
         case 0: return 2.f * ph - 1.f - blep (ph, dt);
+        case 3: return std::sin (6.2831853f * ph);                              // sinus (FM propre, style DX)
         case 1: { float t2 = ph - pw; if (t2 < 0.f) t2 += 1.f; return (ph < pw ? 1.f : -1.f) + blep (ph, dt) - blep (t2, dt); }
         default: { float t2 = ph + 0.5f; if (t2 >= 1.f) t2 -= 1.f; return 4.f * std::fabs (ph - 0.5f) - 1.f + 4.f * dt * (blamp (t2, dt) - blamp (ph, dt)); }
     }
@@ -821,7 +823,7 @@ private:
         const float n1 = v.pitch + 12.f * (float) P.oct1 + bend + v.nbend + md[MdPitch] * 12.f + v.uniCents * 0.01f + vibSt;
         const float n2 = v.pitch + 12.f * (float) P.oct2 + P.tune2 + P.fine2 * 0.01f + bend + v.nbend + md[MdPitch] * 12.f + md[MdPitch2] * 12.f + v.uniCents * 0.01f;
         // rapport de frequence entre les deux VCO (FM) : VCO2 suit VCO1 x rapport, la hauteur propre de VCO2 est ignoree
-        const float n2r = P.fmRatio > 0 ? n1 + 12.f * std::log2 (kFmRatios[std::min (11, P.fmRatio)]) + P.fmFine * 0.5f + md[MdPitch2] * 12.f : n2 + P.fmFine * 0.5f;
+        const float n2r = P.fmRatio > 0 ? n1 + 12.f * std::log2 (kFmRatios[std::min (17, P.fmRatio)]) + P.fmFine * 0.5f + md[MdPitch2] * 12.f : n2 + P.fmFine * 0.5f;
         const float f1 = 440.f * std::pow (2.f, (n1 - 69.f) / 12.f), f2 = 440.f * std::pow (2.f, (n2r - 69.f) / 12.f);
         const float pw1 = std::min (0.95f, std::max (0.05f, P.pw1 + md[MdPw1] * 0.45f));
         const float pw2 = std::min (0.95f, std::max (0.05f, P.pw2 + md[MdPw2] * 0.45f));
@@ -830,7 +832,8 @@ private:
         v.fmT += dtCtl;
         const float fAtt = 0.001f * std::pow (1000.f, P.fmAtt), fDec = 0.03f * std::pow (100.f, P.fmDec);
         const float fEnv = v.fmT < fAtt ? v.fmT / fAtt : std::exp (-(v.fmT - fAtt) / fDec * 3.f);
-        const float fmA = std::min (1.f, std::max (0.f, P.fm + md[MdFm] + P.fmEnvAmt * fEnv + P.fmVel * v.vel + P.fmAT * v.patS)), ringA = std::min (1.f, std::max (0.f, P.ring + md[MdRing]));
+        const float fmKeyS = 1.f / (1.f + P.fmKey * std::max (0.f, (v.pitch - 60.f) / 12.f) * 0.8f);   // profondeur FM reduite dans l'aigu (evite le grincement)
+        const float fmA = std::min (1.f, std::max (0.f, P.fm + md[MdFm] + P.fmEnvAmt * fEnv + P.fmVel * v.vel + P.fmAT * v.patS)) * fmKeyS, ringA = std::min (1.f, std::max (0.f, P.ring + md[MdRing]));
         const float l2 = std::min (1.f, std::max (0.f, P.lvl2 + md[MdMix]));
 
         // ---- filtres
@@ -870,13 +873,28 @@ private:
             const float foldA = cc[10], foldS = cc[11], level = cc[12], lv1 = cc[13], l2 = cc[14], noiseA = cc[15];
             // FM audio (sens au choix) ; VCO2 est recale par VCO1 si le hard sync est actif
             // increments de phase bornes sous Nyquist (une FM extreme sur une note aigue pouvait les faire exploser -> phase hors [0,1[ -> NaN)
-            const float inc1 = std::min (0.49f, std::max (0.f, (P.fmDir != 1 && fmA > 1e-5f) ? dt1 * std::pow (2.f, fmA * 2.5f * v.prev2) : dt1));
-            const float inc2 = std::min (0.49f, std::max (0.f, (P.fmDir != 0 && fmA > 1e-5f) ? dt2 * std::pow (2.f, fmA * 2.5f * v.prev1) : dt2));
+            float inc1, inc2, pm1 = 0.f, pm2 = 0.f;
+            if (P.fmType == 0)                                                    // FM exponentielle (analogique) : la profondeur module la frequence en octaves
+            {
+                const float fb = P.fmFb * 1.2f;
+                inc1 = std::min (0.49f, std::max (0.f, (P.fmDir != 1 && fmA > 1e-5f) ? dt1 * std::pow (2.f, fmA * 2.5f * v.prev2) : dt1));
+                inc2 = std::min (0.49f, std::max (0.f, (P.fmDir != 0 && fmA > 1e-5f) ? dt2 * std::pow (2.f, fmA * 2.5f * v.prev1) : dt2));
+                if (fb > 1e-4f) { if (P.fmDir != 1) inc2 = std::min (0.49f, inc2 * std::pow (2.f, fb * v.prev2)); if (P.fmDir != 0) inc1 = std::min (0.49f, inc1 * std::pow (2.f, fb * v.prev1)); }
+            }
+            else                                                                  // FM lineaire (modulation de phase) : la hauteur reste stable, comme sur un DX
+            {
+                inc1 = std::min (0.49f, dt1); inc2 = std::min (0.49f, dt2);
+                const float beta = fmA * fmA * 12.f / 6.2831853f;                 // indice en cycles : 0..~1,9 (12 rad) ; courbe quadratique = reglage fin des petits indices
+                const float fbc = P.fmFb * P.fmFb * 7.f / 6.2831853f;
+                if (fmA > 1e-5f) { if (P.fmDir != 1) pm1 = beta * v.prev2; if (P.fmDir != 0) pm2 = beta * v.prev1; }
+                if (fbc > 1e-5f) { if (P.fmDir != 1) pm2 += fbc * v.prev2; if (P.fmDir != 0) pm1 += fbc * v.prev1; }
+            }
             v.ph1 += inc1;
             if (v.ph1 >= 1.f) { v.ph1 -= std::floor (v.ph1); if (P.sync) v.ph2 = v.ph1 * inc2 / std::max (inc1, 1e-6f); }
             v.ph2 += inc2; if (v.ph2 >= 1.f) v.ph2 -= std::floor (v.ph2);
-            const float o1 = sy::osc (P.wave1, v.ph1, std::min (0.45f, inc1), pw1);
-            const float o2 = sy::osc (P.wave2, v.ph2, std::min (0.45f, inc2), pw2);
+            auto wrapP = [] (float x) { return x - std::floor (x); };
+            const float o1 = sy::osc (P.wave1, pm1 != 0.f ? wrapP (v.ph1 + pm1) : v.ph1, std::min (0.45f, inc1), pw1);
+            const float o2 = sy::osc (P.wave2, pm2 != 0.f ? wrapP (v.ph2 + pm2) : v.ph2, std::min (0.45f, inc2), pw2);
             if (P.fmWave == 0) { v.prev1 = o1; v.prev2 = o2; }
             else                                                                  // modulateur dedie : sinus, triangle ou carre
             {

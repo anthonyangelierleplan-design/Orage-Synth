@@ -107,7 +107,7 @@ const std::vector<SynDef>& synDefs()
         auto F = [&v] (const juce::String& id, const juce::String& nm, float mn, float mx, float d) { v.push_back ({ id, nm, mn, mx, d, kFloat, {} }); };
         auto B = [&v] (const juce::String& id, const juce::String& nm, bool d) { v.push_back ({ id, nm, 0, 1, d ? 1.f : 0.f, kBool, {} }); };
         auto C = [&v] (const juce::String& id, const juce::String& nm, const juce::String& ch, int d) { v.push_back ({ id, nm, 0, 0, (float) d, kChoice, ch }); };
-        const juce::String waves ("Saw|Pulse|Triangle"), octs ("-2|-1|0|+1|+2");
+        const juce::String waves ("Saw|Pulse|Triangle|Sine"), octs ("-2|-1|0|+1|+2");
         C ("s_wave1", "VCO1 Wave", waves, 0);  C ("s_oct1", "VCO1 Octave", octs, 2);
         C ("s_wave2", "VCO2 Wave", waves, 0);  C ("s_oct2", "VCO2 Octave", octs, 2);
         F ("s_tune2", "VCO2 Tune", -12, 12, 0);  F ("s_fine2", "VCO2 Fine", -100, 100, 0);
@@ -157,7 +157,7 @@ const std::vector<SynDef>& synDefs()
               F (q + "Amt", "Lane " + juce::String (k) + " Amount", -1, 1, 0.5f);
               F (q + "Glide", "Lane " + juce::String (k) + " Glide", 0, 1, 0);
           } }
-        C ("s_fmDir", "FM Direction", "2>1|1>2|Both", 0);  C ("s_fmRatio", "FM Ratio", "Free|1:2|2:3|1:1|3:2|2:1|3:1|4:1|5:1|7:1|7:2|x1.41", 0);  C ("s_fmWave", "FM Wave", "Osc|Sine|Tri|Square", 0);
+        C ("s_fmDir", "FM Direction", "2>1|1>2|Both", 0);  C ("s_fmRatio", "FM Ratio", "Free|1:2|2:3|1:1|3:2|2:1|3:1|4:1|5:1|7:1|7:2|x1.41|5:2|9:2|6:1|8:1|x2.76|x5.4", 0);  C ("s_fmWave", "FM Wave", "Osc|Sine|Tri|Square", 0);
         F ("s_fmFine", "FM Fine", -1, 1, 0);  F ("s_fmAtt", "FM Attack", 0, 1, 0);  F ("s_fmDec", "FM Decay", 0, 1, 0.4f);
         F ("s_fmEnvAmt", "FM Env Amount", 0, 1, 0);  F ("s_fmVel", "FM Velocity", 0, 1, 0);  F ("s_fmAT", "FM Aftertouch", 0, 1, 0);
         C ("s_arpType", "Arp Type", "Arp|Seq", 0);  B ("s_seqRec", "Step Record", false);
@@ -165,6 +165,7 @@ const std::vector<SynDef>& synDefs()
         F ("s_fltLfo", "Filter LFO1 Amount", 0, 1, 0);
         C ("s_arpRatchet", "Arp Ratchet", "1x|2x|3x|4x", 0);  B ("s_arpTriplet", "Arp Triplet", false);
         F ("s_vib", "VCO1 LFO Amount", 0, 1, 0);  F ("s_vibWheel", "VCO1 LFO + Wheel", 0, 1, 0);  F ("s_vibAT", "VCO1 LFO + Aftertouch", 0, 1, 0);
+        C ("s_fmType", "FM Type", "Exponential|Linear (DX)", 0);  F ("s_fmFb", "FM Feedback", 0, 1, 0);  F ("s_fmKey", "FM Key Scaling", 0, 1, 0);
         return v;
     }();
     return defs;
@@ -963,6 +964,7 @@ orage::SynthParams OrageAudioProcessor::readSynth()
     s.fltLfo = f();
     arpParams.ratchet = n() + 1; arpTriplet = b();
     s.vib = f(); s.vibWheel = f(); s.vibAT = f();
+    s.fmType = n(); s.fmFb = f(); s.fmKey = f();
     jassert (i == rawSyn.size());
     s.quality = quality.load();
     {                                                                       // lissage des reglages (pas de crenelage quand on tourne un potard MIDI 7 bits)

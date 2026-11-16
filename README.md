@@ -110,3 +110,13 @@ Façade façon Korg MS20 : zones délimitées par des traits blancs sérigraphi�
 - **Faces animées** : chaque module du rack affiche une grille transparente avec des composants (résistance, condensateur, diode, circuit intégré, bobine, lampe) reliés par des pistes. Ils s'allument de gauche à droite avec le niveau de sortie du module, et des impulsions courent sur les pistes ; un module contourné reste éteint.
 - **Presets** : à chaque chargement, les modules sans effet (mix à zéro, octaver éteint, filtre ouvert, etc.) sont retirés du rack (2,4 modules par preset en moyenne, contre 11). Un module reste s'il est câblé, modulé par le preset ou ciblé par un câble CV. Les macros qui visaient un module retiré sont redirigées vers un paramètre du synthé. Le module peut toujours être ajouté à la main.
 - **Plucks / Keys** : decay (amp et filtre) ×1,8 et release ×1,8 (borné 0,35–0,75), pour des notes moins sèches.
+
+## v21b (FM plus musicale, oscilloscope réglable)
+- **Onde SINUS** sur les deux VCO (4ᵉ choix, après Saw / Pulse / Triangle) : indispensable pour une FM propre.
+- **FM linéaire (modulation de phase, façon DX)** : sélecteur FM TYPE dans la page avancée. La FM « exponentielle » d'origine reste (EXP, défaut, les presets existants sont inchangés) mais elle fait dériver la hauteur : mesure à 440 Hz, rapport 2:1, profondeur 0,4 → fréquence moyenne 494 Hz en EXP (+200 cents), 439 Hz en LINEAR. Test : `tools/tests/fm_lineaire.cpp`.
+- **FEEDBACK** (retour du modulateur sur lui-même, timbres riches sans stridence) et **KEY SCALE** (profondeur réduite dans l'aigu : sur la note 96, centroïde 6,1 kHz → 4,0 kHz).
+- **18 rapports** (ajout de 5:2, 9:2, 6:1, 8:1, ×2.76, ×5.4 pour cloches et gongs) sur un potard RATIO à crans.
+- **Panneau FM** : page principale (CHARACTER, DICE, AMOUNT, RATIO, ENV AMT, DECAY, ATTACK, VELOCITY, AFTERTOUCH) et page avancée (MORE : direction, modulateur, type, feedback, key scale, fine).
+- **CHARACTER** (17) : Bell, E-Piano, Tine, Marimba, Glass, Brass, Organ, Gong, Wood, String, FM Bass, Clav, Choir, Space, Laser, Metal, Growl. Un clic règle ondes, ratio, indice, enveloppes FM et d'amplitude ; le modulateur reste muet (on entend la porteuse seule).
+- **DICE** : tire un son FM musical (rapports harmoniques ou cloche, decay cohérent, modulation de phase).
+- **Oscilloscope** : gain auto étendu à +52 dB, boutons − / + / AUTO (pas de 3 dB, Maj : 0,5 dB), molette (1 dB, Maj : 0,25 dB), double-clic sur AUTO : remise à zéro. Réglages mémorisés (`scope.txt`).
