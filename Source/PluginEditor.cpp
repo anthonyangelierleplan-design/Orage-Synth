@@ -466,7 +466,7 @@ void OrageLookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, int w,
                                          float startAngle, float endAngle, juce::Slider& s)
 {
     const auto c = juce::Rectangle<float> ((float) x, (float) y, (float) w, (float) h).getCentre();
-    const bool numbered = (bool) s.getProperties()["numbered"];
+    const bool numbered = false;
     const float r = (float) juce::jmin (w, h) * 0.5f, kr = r * (numbered ? 0.58f : 0.66f);
     const float angle = startAngle + pos * (endAngle - startAngle);
     drawKnobBody (g, c, kr, angle, s.isEnabled() ? 1.f : 0.5f);
@@ -486,7 +486,6 @@ KnobUnit::KnobUnit (juce::AudioProcessorValueTreeState& apvts, const juce::Strin
     if (auto* prm = apvts.getParameter (id))
         slider.setDoubleClickReturnValue (true, prm->convertFrom0to1 (prm->getDefaultValue()));
     if (slider.getMinimum() < 0.0 && slider.getMaximum() > 0.0) slider.detent = 0.0;           // cran au zero des reglages +/-
-    if (loText == "0" && hiText == "10") slider.getProperties().set ("numbered", true);
     if (slider.getMinimum() == 0.0 && slider.getMaximum() == 1.0)
         slider.textFromValueFunction = [] (double v) { return juce::String (v * 10.0, 1); };
     addAndMakeVisible (slider);
@@ -511,7 +510,7 @@ void KnobUnit::timerCallback()
     {
         OrageAudioProcessor::KnobMod km[2]; const int n = proc->knobMods (modDst, km);
         int hs = n * 977 + (int) (slider.getValue() * 1000.0);
-        for (int k = 0; k < n; ++k) hs += km[k].src * 131 * (k + 1) + (int) (km[k].amt * 1000.f) + (int) (proc->modSourceLive (km[k].src) * 1000.f);
+        for (int k = 0; k < n; ++k) hs += km[k].src * 131 * (k + 1) + km[k].dir * 7919 + (int) (km[k].amt * 1000.f) + (int) (proc->modSourceLive (km[k].src) * 1000.f);
         if (hs != hash || n != nMods) { hash = hs; nMods = n; repaint(); }
         const int wantMs = n > 0 ? 40 : 160;
         if (getTimerInterval() != wantMs) startTimer (wantMs);
@@ -544,6 +543,13 @@ void KnobUnit::mouseDown (const juce::MouseEvent& e)
         fam ("Assigner \xc3\xa0  >  ENVELOPPES", { MsEnv, MsAmpEnv });
         fam ("Assigner \xc3\xa0  >  JEU", { MsVel, MsWheel, MsChanAT, MsPolyAT, MsKey, MsRandom });
         fam ("Assigner \xc3\xa0  >  PISTES ARP", { MsArp1, MsArp2, MsArp3, MsArp4, MsArp5, MsArp6, MsArp7, MsArp8 });
+        static const char* const dirName[3] { "Avant  (l'anneau part du potard vers le haut)", "Arri\xc3\xa8re  (l'anneau part du potard vers le bas)", "Les deux  (l'anneau s'\xc3\xa9largit des deux c\xc3\xb4t\xc3\xa9s)" };
+        for (int k = 0; k < n; ++k)                                            // sens de chaque anneau : avant / arriere / les deux
+        {
+            juce::PopupMenu sd;
+            for (int d = 0; d < 3; ++d) sd.addItem (300 + km[k].slot * 3 + d, juce::String::fromUTF8 (dirName[d]), true, km[k].dir == d);
+            m.addSubMenu (juce::String::fromUTF8 ("Sens de l'anneau  >  ") + kModSrcNames[km[k].src], sd);
+        }
         for (int k = 0; k < n; ++k)
             m.addItem (200 + km[k].slot, juce::String::fromUTF8 ("Supprimer : ") + kModSrcNames[km[k].src] + "  (" + juce::String (juce::roundToInt (km[k].amt * 100.f)) + " %)");
         if (n >= 2) m.addItem (999, juce::String::fromUTF8 ("2 sources d\xc3\xa9j\xc3\xa0 : supprime-en une pour en changer"), false);
@@ -565,6 +571,7 @@ void KnobUnit::mouseDown (const juce::MouseEvent& e)
     {
         if (r >= 100 && r < 200) pr->assignKnobMod (dst, r - 100);
         else if (r >= 200 && r < 300) pr->clearKnobMod (r - 200);
+        else if (r >= 300 && r < 400) pr->setKnobModDir ((r - 300) / 3, (r - 300) % 3);
         else if (r == 1) { if (learning) pr->cancelMidiLearn(); else pr->startMidiLearn (id); }
         else if (r == 2) pr->clearMidiAssign (id);
         else if (r == 3) pr->defaultMidiAssign (id);
@@ -609,7 +616,7 @@ bool KnobUnit::modInterceptor (const juce::MouseEvent& e, int phase)
     if (ringSlot < 0) return true;
     if (phase == 1)
     {
-        const float amt = juce::jlimit (-1.f, 1.f, ringStartAmt + (dragStartY - e.position.y) / 150.f);
+        const float amt = juce::jlimit (0.f, 1.f, ringStartAmt + (dragStartY - e.position.y) / 150.f);       // la quantite grandit vers le haut ; le sens (avant / arriere / les deux) est celui du routage
         proc->setKnobModAmt (ringSlot, amt);
         dragText = dragText.upToFirstOccurrenceOf ("  ", false, false) + "  " + juce::String (juce::roundToInt (amt * 100.f)) + " %";
         repaint();
@@ -628,21 +635,21 @@ void KnobUnit::paintOverChildren (juce::Graphics& g)
     const float r = juce::jmin (sb.getWidth(), sb.getHeight()) * 0.5f;
     const float sa = juce::MathConstants<float>::pi * 1.2f, ea = juce::MathConstants<float>::pi * 2.8f;
     const float base = (float) slider.valueToProportionOfLength (slider.getValue());
-    const bool numbered = (bool) slider.getProperties()["numbered"] && sb.getWidth() >= 58.f;
+    const bool numbered = false;                                                 // chiffres 0..10 supprimes
     const float sw = juce::jlimit (1.5f, 2.2f, r * 0.047f);
     for (int k = 0; k < n; ++k)
     {
         const float rad = r * (numbered ? (k == 0 ? 0.705f : 0.64f) : (k == 0 ? 0.82f : 0.74f));       // entre le corps du potard et les graduations : jamais sur les chiffres ni sur les bords
-        const float sc = OrageAudioProcessor::modScaleOfDst (modDst), span = km[k].amt * sc;
-        const float end = juce::jlimit (0.f, 1.f, base + span);
-        const float a0 = sa + juce::jmin (base, end) * (ea - sa), a1 = sa + juce::jmax (base, end) * (ea - sa);
+        const float sc = OrageAudioProcessor::modScaleOfDst (modDst), span = std::fabs (km[k].amt) * sc;
+        const float lo = juce::jlimit (0.f, 1.f, km[k].dir == 0 ? base : base - span), hi = juce::jlimit (0.f, 1.f, km[k].dir == 1 ? base : base + span);   // avant : [potard, +] ; arriere : [-, potard] ; les deux : [-, +]
+        const float a0 = sa + lo * (ea - sa), a1 = sa + hi * (ea - sa);
         juce::Path p; p.addCentredArc (c.x, c.y, rad, rad, 0.f, a0, juce::jmax (a1, a0 + 0.02f), true);
         g.setColour (juce::Colours::black.withAlpha (0.55f)); g.strokePath (p, juce::PathStrokeType (sw + 1.f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
         g.setColour (kRingCol[k]); g.strokePath (p, juce::PathStrokeType (sw, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
         const float live = proc->modSourceLive (km[k].src);                        // point vivant : ou le reglage est reellement en ce moment
         if (live > -50.f)
         {
-            const float pos = juce::jlimit (0.f, 1.f, base + span * live), a = sa + pos * (ea - sa);
+            const float pos = juce::jlimit (0.f, 1.f, base + sc * orage::slotMod (km[k].src, live, km[k].amt, km[k].dir)), a = sa + pos * (ea - sa);
             g.setColour (juce::Colours::white); g.fillEllipse (c.x + rad * std::sin (a) - 2.6f, c.y - rad * std::cos (a) - 2.6f, 5.2f, 5.2f);
             g.setColour (kRingCol[k]);           g.drawEllipse (c.x + rad * std::sin (a) - 2.6f, c.y - rad * std::cos (a) - 2.6f, 5.2f, 5.2f, 1.3f);
         }
@@ -682,7 +689,7 @@ void KnobUnit::paint (juce::Graphics& g)
     const float r = juce::jmin (sb.getWidth(), sb.getHeight()) * 0.5f;
     const float sa = juce::MathConstants<float>::pi * 1.2f, ea = juce::MathConstants<float>::pi * 2.8f;
     const float alpha = slider.isEnabled() ? 1.f : 0.45f;
-    const bool numbered = (bool) slider.getProperties()["numbered"] && sb.getWidth() >= 58.f;
+    const bool numbered = false;
     if (choices.size() > 8) text = baseText + "  " + choices[juce::jlimit (0, choices.size() - 1, juce::roundToInt (slider.getValue()))];
     if (! choices.isEmpty())                                                       // potard cranté : graduations nommées, la valeur active en clair
     {
@@ -696,20 +703,19 @@ void KnobUnit::paint (juce::Graphics& g)
             if (n <= 8) g.drawText (choices[i], (int) (c.x + r * (0.98f + 0.04f * std::abs (std::sin (a))) * std::sin (a)) - 24, (int) (c.y - r * 1.0f * std::cos (a)) - 6, 48, 12, juce::Justification::centred, false);
         }
     }
-    else
-    for (int i = 0; i <= 10; ++i)
+    else                                                                           // anneau lumineux fin (plus de chiffres 0..10) : plage, butees et repere du milieu
     {
-        const float a = sa + (float) i / 10.f * (ea - sa), rad = r * (numbered ? 0.755f : 0.93f), dot = (i % 5 == 0) ? 3.2f : 2.f;
-        g.setColour (look::print.withAlpha (0.88f * alpha));
-        g.fillEllipse (c.x + rad * std::sin (a) - dot * 0.5f, c.y - rad * std::cos (a) - dot * 0.5f, dot, dot);
-        if (numbered)                                                              // chiffres 0..10 autour du bouton, comme le MS20
+        juce::Path arc; arc.addCentredArc (c.x, c.y, r * 0.93f, r * 0.93f, 0.f, sa, ea, true);
+        g.setColour (juce::Colours::black.withAlpha (0.35f * alpha)); g.strokePath (arc, juce::PathStrokeType (2.6f));
+        g.setColour (look::print.withAlpha (0.42f * alpha));          g.strokePath (arc, juce::PathStrokeType (1.1f));
+        for (int i = 0; i <= 2; ++i)
         {
-            g.setFont (font (8.6f));                                               // chiffres un peu plus pres du potard : ils ne touchent plus ceux du potard voisin
-            g.drawText (juce::String (i), (int) (c.x + r * 0.88f * std::sin (a)) - 7, (int) (c.y - r * 0.88f * std::cos (a)) - 5, 14, 10,
-                        juce::Justification::centred, false);
+            const float a = sa + (float) i * 0.5f * (ea - sa), rad = r * 0.93f, dot = i == 1 ? 2.4f : 3.4f;
+            g.setColour (look::print.withAlpha (0.9f * alpha));
+            g.fillEllipse (c.x + rad * std::sin (a) - dot * 0.5f, c.y - rad * std::cos (a) - dot * 0.5f, dot, dot);
         }
     }
-    if (! numbered && choices.isEmpty())
+    if (! numbered && choices.isEmpty() && ! (loText == "0" && hiText == "10"))
     {
         g.setFont (font (9.5f));
         g.setColour (look::print.withAlpha (0.8f * alpha));
@@ -1640,7 +1646,16 @@ struct SettingsPanel : public juce::Component
             addAndMakeVisible (*lb); addAndMakeVisible (*hn); addAndMakeVisible (*cb);
             labels.push_back (std::move (lb)); hints.push_back (std::move (hn)); combos.push_back (std::move (cb));
         }
-        setSize (420, 24 + (int) combos.size() * 58);
+        // assignations MIDI : par defaut la table du Hydrasynth ; on peut tout vider (autre controleur) puis apprendre ses propres CC (clic droit sur un potard)
+        midiTitle.setText ("MIDI ASSIGNMENTS", juce::dontSendNotification);
+        midiTitle.setFont (juce::Font (juce::FontOptions (11.f, juce::Font::bold))); midiTitle.setColour (juce::Label::textColourId, juce::Colour (0xffe8d9a8));
+        midiHint.setText ("Default: Hydrasynth map. Clear all to use another controller, then right-click a knob > Assign MIDI.", juce::dontSendNotification);
+        midiHint.setFont (juce::Font (juce::FontOptions (9.5f))); midiHint.setColour (juce::Label::textColourId, juce::Colours::white.withAlpha (0.55f));
+        clearBtn.setButtonText ("CLEAR ALL ASSIGNMENTS"); hydraBtn.setButtonText ("RESTORE HYDRASYNTH MAP");
+        clearBtn.onClick = [this] { proc.clearAllMidiAssign(); };
+        hydraBtn.onClick = [this] { proc.resetMidiMap(); };
+        addAndMakeVisible (midiTitle); addAndMakeVisible (midiHint); addAndMakeVisible (clearBtn); addAndMakeVisible (hydraBtn);
+        setSize (420, 24 + (int) combos.size() * 58 + 78);
     }
     void paint (juce::Graphics& g) override { g.fillAll (juce::Colour (0xff1a1713)); }
     void resized() override
@@ -1651,10 +1666,13 @@ struct SettingsPanel : public juce::Component
             labels[k]->setBounds (12, y, 150, 16); combos[k]->setBounds (170, y - 2, getWidth() - 182, 24);
             hints[k]->setBounds (12, y + 22, getWidth() - 24, 14); y += 58;
         }
+        midiTitle.setBounds (12, y, 200, 16); midiHint.setBounds (12, y + 18, getWidth() - 24, 14);
+        clearBtn.setBounds (12, y + 40, (getWidth() - 32) / 2, 24); hydraBtn.setBounds (20 + (getWidth() - 32) / 2, y + 40, (getWidth() - 32) / 2, 24);
     }
     OrageAudioProcessor& proc;
     std::vector<std::unique_ptr<juce::Label>> labels, hints;
     std::vector<std::unique_ptr<juce::ComboBox>> combos;
+    juce::Label midiTitle, midiHint; juce::TextButton clearBtn, hydraBtn;
 };
 }
 #endif

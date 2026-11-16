@@ -135,7 +135,7 @@ const std::vector<SynDef>& synDefs()
         {
             const juce::String p ("s_slot" + juce::String (i)), n ("Mod " + juce::String (i));
             C (p + "Src", n + " Source", srcs.joinIntoString ("|"), 0);  C (p + "Dst", n + " Dest", dsts.joinIntoString ("|"), 0);
-            F (p + "Amt", n + " Amount", -1, 1, 0);
+            F (p + "Amt", n + " Amount", 0, 1, 0);                                     // quantite (0..1) ; le sens est dans s_slotNDir
         }
         F ("s_fold", "Wavefolder", 0, 1, 0);  F ("s_foldSym", "Fold Symmetry", -1, 1, 0);
         C ("s_arpOn", "Arp", "Off|On|Latch", 0);
@@ -161,11 +161,12 @@ const std::vector<SynDef>& synDefs()
         F ("s_fmFine", "FM Fine", -1, 1, 0);  F ("s_fmAtt", "FM Attack", 0, 1, 0);  F ("s_fmDec", "FM Decay", 0, 1, 0.4f);
         F ("s_fmEnvAmt", "FM Env Amount", 0, 1, 0);  F ("s_fmVel", "FM Velocity", 0, 1, 0);  F ("s_fmAT", "FM Aftertouch", 0, 1, 0);
         C ("s_arpType", "Arp Type", "Arp|Seq", 0);  B ("s_seqRec", "Step Record", false);
-        { juce::StringArray br; for (int k = 1; k <= 24; ++k) br.add ("Bend +/-" + juce::String (k) + " st"); C ("s_bendRange", "Pitch Bend Range", br.joinIntoString ("|"), 1); }
+        { juce::StringArray br; for (int k = 1; k <= 24; ++k) br.add ("+/-" + juce::String (k) + " st"); C ("s_bendRange", "Pitch Bend Range", br.joinIntoString ("|"), 1); }
         F ("s_fltLfo", "Filter LFO1 Amount", 0, 1, 0);
         C ("s_arpRatchet", "Arp Ratchet", "1x|2x|3x|4x", 0);  B ("s_arpTriplet", "Arp Triplet", false);
         F ("s_vib", "VCO1 LFO Amount", 0, 1, 0);  F ("s_vibWheel", "VCO1 LFO + Wheel", 0, 1, 0);  F ("s_vibAT", "VCO1 LFO + Aftertouch", 0, 1, 0);
         C ("s_fmType", "FM Type", "Exponential|Linear (DX)", 0);  F ("s_fmFb", "FM Feedback", 0, 1, 0);  F ("s_fmKey", "FM Key Scaling", 0, 1, 0);
+        for (int i = 1; i <= kSlots; ++i) C ("s_slot" + juce::String (i) + "Dir", "Mod " + juce::String (i) + " Direction", "Forward|Backward|Both", 0);       // sens de chaque routage (v22)
         return v;
     }();
     return defs;
@@ -249,7 +250,10 @@ void S (OrageAudioProcessor& p, std::initializer_list<KV> l)
 void M (OrageAudioProcessor& p, int slot, int src, int dst, float amt)
 {
     const juce::String b ("s_slot" + juce::String (slot));
-    p.setParamReal ((b + "Src").toRawUTF8(), (float) src); p.setParamReal ((b + "Dst").toRawUTF8(), (float) dst); p.setParamReal ((b + "Amt").toRawUTF8(), amt);
+    // les presets sont ecrits avec une quantite signee : on la traduit en (quantite, sens). Sources bipolaires (LFO, key, random) : LES DEUX ; sinon signe + = AVANT, signe - = ARRIERE
+    const int dir = orage::srcBipolar (src) ? 2 : (amt < 0.f ? 1 : 0);
+    p.setParamReal ((b + "Src").toRawUTF8(), (float) src); p.setParamReal ((b + "Dst").toRawUTF8(), (float) dst); p.setParamReal ((b + "Amt").toRawUTF8(), std::fabs (amt));
+    p.setParamReal ((b + "Dir").toRawUTF8(), (float) dir);
 }
 // ---- selection de macros preparee par categorie (slots 5..12 = macros 1..8). Les macros demarrent a 0 : le son du preset ne change pas tant qu'on n'y touche pas.
 struct MacroDef { int dst; float amt; };
@@ -813,6 +817,12 @@ void OrageAudioProcessor::resetMidiMap()
     for (int i = 0; i < kMaxMap; ++i) anchored[i] = caught[i] = false;
     learnIdx.store (-1); mapDirty.store (true);
 }
+void OrageAudioProcessor::clearAllMidiAssign()
+{
+    for (int i = 0; i < mapIds.size(); ++i) mapCc[(size_t) i].store (-1);
+    for (int i = 0; i < kMaxMap; ++i) anchored[i] = caught[i] = false;
+    learnIdx.store (-1); mapDirty.store (true);
+}
 void OrageAudioProcessor::clearMidiAssign (const juce::String& id)
 {
     const int i = mapIds.indexOf (id); if (i < 0) return;
@@ -965,6 +975,7 @@ orage::SynthParams OrageAudioProcessor::readSynth()
     arpParams.ratchet = n() + 1; arpTriplet = b();
     s.vib = f(); s.vibWheel = f(); s.vibAT = f();
     s.fmType = n(); s.fmFb = f(); s.fmKey = f();
+    for (auto& sl : s.slot) sl.dir = n();
     jassert (i == rawSyn.size());
     s.quality = quality.load();
     {                                                                       // lissage des reglages (pas de crenelage quand on tourne un potard MIDI 7 bits)
@@ -1033,7 +1044,11 @@ void OrageAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
         arp.setParams (ap);
         const bool arpOn = ap.on != 0;
         if (recActive != lastRec) { lastRec = recActive; synth.allNotesOff(); arp.allOff(); if (recActive) arpPat.recPos = 0; }
-        if (ap.on != lastArpOn || ap.assign != lastAssign) { lastArpOn = ap.on; lastAssign = ap.assign; synth.allNotesOff(); arp.allOff(); }
+        {   // arpegiateur allume / eteint, ou mode de jeu change PENDANT l'arpege : on repart propre. Mode change sans arpege : le synthe reprend les notes tenues lui-meme (aucune coupure)
+            const bool arpToggled = ap.on != lastArpOn, modeChanged = ap.assign != lastAssign;
+            lastArpOn = ap.on; lastAssign = ap.assign;
+            if (arpToggled || (modeChanged && ap.on != 0)) { synth.allNotesOff(); arp.allOff(); }
+        }
         if (chordLearn != lastLearn)
         {
             if (chordLearn) { learnN = 0; }
@@ -1204,6 +1219,7 @@ juce::ValueTree OrageAudioProcessor::captureState()
     auto state = apvts.copyState();
     state.setProperty ("lfoV2", 1, nullptr);                               // plage de vitesse des LFO elargie (0.05..300 Hz)
     state.setProperty ("ftV2", 1, nullptr);                                // filtres : numerotation 0..2 (circuits) depuis la v20
+    state.setProperty ("dirV3", 1, nullptr);                               // matrice : quantite 0..1 + sens par routage (v22)
     state.setProperty ("patch", juce::String (engine.serializePatch()), nullptr);
     state.setProperty ("rack", juce::String (engine.serializeRack()), nullptr);
     state.setProperty ("bypass", (int) engine.bypassMask.load(), nullptr);
@@ -1272,6 +1288,25 @@ void OrageAudioProcessor::applyState (juce::ValueTree state)
                 if (id.startsWith ("s_l") && id.endsWith ("Rate") && id.length() == 8)
                     c.setProperty ("value", (float) c.getProperty ("value", 0.4) * 0.7677f, nullptr);
             }
+#if ORAGE_SYNTH
+    if (! state.hasProperty ("dirV3"))                                     // ancien projet / preset : quantite signee -> (quantite, sens) pour que le son reste identique
+    {
+        for (int sl = 1; sl <= orage::kSlots; ++sl)
+        {
+            const juce::String b ("s_slot" + juce::String (sl));
+            juce::ValueTree amtN, srcN;
+            for (auto c : state)
+                if (c.hasProperty ("id")) { const auto id = c.getProperty ("id").toString(); if (id == b + "Amt") amtN = c; else if (id == b + "Src") srcN = c; }
+            if (! amtN.isValid()) continue;
+            const float amt = (float) amtN.getProperty ("value", 0.0);
+            const int src = srcN.isValid() ? juce::roundToInt ((float) srcN.getProperty ("value", 0.0)) : 0;
+            const int dir = orage::srcBipolar (src) ? 2 : (amt < 0.f ? 1 : 0);
+            amtN.setProperty ("value", std::fabs (amt), nullptr);
+            juce::ValueTree d ("PARAM"); d.setProperty ("id", b + "Dir", nullptr); d.setProperty ("value", dir, nullptr);
+            state.appendChild (d, nullptr);
+        }
+    }
+#endif
     apvts.replaceState (state);
 }
 
@@ -1340,7 +1375,7 @@ int OrageAudioProcessor::knobMods (int dst, KnobMod out[2]) const
     {
         const juce::String q ("s_slot" + juce::String (i));
         const int d = juce::roundToInt (apvts.getRawParameterValue (q + "Dst")->load()), s = juce::roundToInt (apvts.getRawParameterValue (q + "Src")->load());
-        if (d == dst && s > 0) out[n++] = { i, s, apvts.getRawParameterValue (q + "Amt")->load() };
+        if (d == dst && s > 0) out[n++] = { i, s, apvts.getRawParameterValue (q + "Amt")->load(), juce::roundToInt (apvts.getRawParameterValue (q + "Dir")->load()) };
     }
     return n;
 }
@@ -1360,18 +1395,20 @@ int OrageAudioProcessor::assignKnobMod (int dst, int src)
         if (juce::roundToInt (apvts.getRawParameterValue (q + "Src")->load()) == 0 && juce::roundToInt (apvts.getRawParameterValue (q + "Dst")->load()) == 0)
         {
             setParamReal ((q + "Src").toRawUTF8(), (float) src); setParamReal ((q + "Dst").toRawUTF8(), (float) dst); setParamReal ((q + "Amt").toRawUTF8(), 0.5f);
+            setParamReal ((q + "Dir").toRawUTF8(), orage::srcBipolar (src) ? 2.f : 0.f);                      // LFO / key / random : les deux sens ; le reste : vers l'avant
             return i;
         }
     }
     return -1;
 }
 
-void OrageAudioProcessor::setKnobModAmt (int slot, float amt) { setParamReal (("s_slot" + juce::String (slot) + "Amt").toRawUTF8(), juce::jlimit (-1.f, 1.f, amt)); }
+void OrageAudioProcessor::setKnobModAmt (int slot, float amt) { setParamReal (("s_slot" + juce::String (slot) + "Amt").toRawUTF8(), juce::jlimit (0.f, 1.f, amt)); }
+void OrageAudioProcessor::setKnobModDir (int slot, int dir) { setParamReal (("s_slot" + juce::String (slot) + "Dir").toRawUTF8(), (float) juce::jlimit (0, 2, dir)); }
 
 void OrageAudioProcessor::clearKnobMod (int slot)
 {
     const juce::String q ("s_slot" + juce::String (slot));
-    setParamReal ((q + "Src").toRawUTF8(), 0.f); setParamReal ((q + "Dst").toRawUTF8(), 0.f); setParamReal ((q + "Amt").toRawUTF8(), 0.f);
+    setParamReal ((q + "Src").toRawUTF8(), 0.f); setParamReal ((q + "Dst").toRawUTF8(), 0.f); setParamReal ((q + "Amt").toRawUTF8(), 0.f); setParamReal ((q + "Dir").toRawUTF8(), 0.f);
 }
 
 float OrageAudioProcessor::modSourceLive (int src) const

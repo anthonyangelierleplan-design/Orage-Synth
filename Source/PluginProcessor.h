@@ -64,10 +64,11 @@ public:
     // ---- anneaux de modulation : un potard = une destination de la matrice ; 2 sources au maximum par potard
     static int modDstOfParam (const juce::String& paramId);                  // 0 : ce potard n'a pas de destination de matrice
     static float modScaleOfDst (int dst);                                    // part de la plage du potard couverte par une quantite de 100 % (pour l'anneau)
-    struct KnobMod { int slot, src; float amt; };
+    struct KnobMod { int slot, src; float amt; int dir; };                  // amt = quantite 0..1 ; dir : 0 avant, 1 arriere, 2 les deux
     int  knobMods (int dst, KnobMod out[2]) const;                           // sources deja routees vers cette destination (2 max)
     int  assignKnobMod (int dst, int src);                                   // cree le routage (ou le reutilise) ; renvoie le slot, -1 si plus de place ; -2 si deja 2 sources
     void setKnobModAmt (int slot, float amt);
+    void setKnobModDir (int slot, int dir);
     void clearKnobMod (int slot);
     float modSourceLive (int src) const;                                     // valeur courante de la source pour l'affichage (macros, molette), -1 si inconnue
 #endif
@@ -87,7 +88,8 @@ public:
     void clearMidiAssign (const juce::String& id);
     void defaultMidiAssign (const juce::String& id);          // CC d'origine (macros : 16..23), sinon rien
     int  defaultCcOf (const juce::String& id) const;          // -1 si pas de CC d'origine
-    void resetMidiMap();
+    void resetMidiMap();                                      // table d'origine (Hydrasynth)
+    void clearAllMidiAssign();                                // aucune assignation : le plugin s'utilise avec n'importe quel controleur (apprentissage MIDI)
     juce::String midiMapToString() const;
     void midiMapFromString (const juce::String&);
     void markMidiMapDirty() { mapDirty.store (true); }

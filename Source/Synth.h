@@ -13,6 +13,18 @@ enum ModSrc { MsNone, MsLfo1, MsLfo2, MsLfo3, MsLfo4, MsMac1, MsMac2, MsMac3, Ms
 inline const float kFmRatios[18] { 1.f, 0.5f, 2.f / 3.f, 1.f, 1.5f, 2.f, 3.f, 4.f, 5.f, 7.f, 3.5f, 1.41421356f, 2.5f, 4.5f, 6.f, 8.f, 2.7568f, 5.4f };
 inline int macroSrc (int i) { return i < 4 ? MsMac1 + i : MsMac5 + (i - 4); }
 inline int laneSrc (int i)  { return i < 4 ? MsArp1 + i : MsArp5 + (i - 4); }
+// ---- matrice : SENS de chaque routage. 0 AVANT (l'anneau part du potard vers le haut), 1 ARRIERE (vers le bas), 2 LES DEUX (anneau symetrique autour du potard).
+//      Le son suit exactement l'anneau : la valeur reste dans la zone coloree, quelle que soit la source.
+inline bool srcBipolar (int s) { return (s >= MsLfo1 && s <= MsLfo4) || s == MsKey || s == MsRandom; }     // sources qui vont de -1 a +1 (les autres : 0 a 1)
+inline float slotMod (int src, float v, float amt, int dir)                                                // contribution signee, en fraction de la course de la destination
+{
+    const float a = std::fabs (amt);
+    const bool bi = srcBipolar (src);
+    const float u = bi ? 0.5f * (v + 1.f) : v;                                                              // source ramenee a 0..1
+    if (dir == 1) return -a * u;
+    if (dir == 2) return a * (bi ? v : 2.f * u - 1.f);
+    return a * u;
+}
 enum ModDst { MdNone, MdPitch, MdPitch2, MdPw1, MdPw2, MdFm, MdRing, MdMix, MdHpf, MdLpf, MdReso, MdLevel, MdPan,
               MdFold, MdFxPower, MdFxClip, MdFxUnc, MdFxHpf, MdFxLpf, MdFxPeak, MdFxDestroy, MdFxRate, MdFxSpring, MdFxMix, MdFxChaos, MdBbdTime, MdBbdFb, MdBbdMix,
               MdRevMix, MdRevDecay, MdRevDamp,
@@ -71,7 +83,7 @@ struct SynthParams
     float master = 0.7f;
     struct Lfo { float rate = 0.307f, slew = 0.f, fade = 0.f; int wave = 0, sync = 0, trig = 0; } lfo[kLfos];     // wave : 0 sin, 1 tri, 2 saw, 3 carre, 4 S&H
     float macro[kMacros] {};
-    struct Slot { int src = 0, dst = 0; float amt = 0.f; } slot[kSlots];
+    struct Slot { int src = 0, dst = 0; float amt = 0.f; int dir = 0; } slot[kSlots];     // amt = quantite (0..1), dir = sens (voir slotMod)
     struct Lane { int dst = 0; float amt = 0.f, glide = 0.f; } lane[kLanes];      // pistes de modulation de l'arpegiateur : destination directe (sans passer par la matrice)
 };
 
@@ -500,7 +512,7 @@ public:
         const int oldAssign = P.assign; const bool oldHold = P.hold != 0;
         P = p; Tg = p;
         if (! smInit) { for (int i = 0; i < kSmN; ++i) sm[i] = sm1[i] = p.*kSm[i]; smInit = true; }
-        if (P.assign != oldAssign) allNotesOff();
+        if (P.assign != oldAssign) remapAssign (oldAssign);                 // changement de mode note tenue : le son continue dans le nouveau mode (plus de coupure)
         else if (oldHold && ! P.hold) dropLatched();
     }
     void setChord (const int* iv, int n) { chordN = std::max (0, std::min (6, n)); for (int i = 0; i < chordN; ++i) chord[i] = iv[i]; }
@@ -619,6 +631,28 @@ private:
     int physCount() const { int c = 0; for (int i = 0; i < nKeys; ++i) c += keys[i].phys ? 1 : 0; return c; }
     float maxCents() const { return 45.f * std::pow (std::max (0.f, std::min (1.f, P.uniDetune)), 1.2f); }
     static void release (Voice& v) { v.aenv.off(); v.fenv.off(); v.gated = false; }
+    // Bascule de mode (POLY / MONO / UNISON / SHARE / CHORD) sans couper les notes tenues : les voix en cours sont reprises par le nouveau mode,
+    // celles qui deviennent inutiles partent en release naturelle (jamais de coupure sechement).
+    void remapAssign (int oldA)
+    {
+        if (P.assign == AsPoly)
+        {
+            bool used[kKeys] {};
+            for (auto& v : voices)
+            {
+                if (! (v.active && v.gated) || v.raw) continue;
+                int m = -1; for (int i = 0; i < nKeys; ++i) if (! used[i] && keys[i].note == v.note) { m = i; break; }
+                if (m >= 0) { used[m] = true; v.slot = -1; v.uniCents = 0.f; v.uniPan = 0.f; v.gainV = 1.f; }
+                else release (v);
+            }
+            for (int i = 0; i < nKeys; ++i) if (! used[i]) startVoice (keys[i].note, keys[i].vel, 0.f, 0.f, 1.f, -1, false);
+        }
+        else
+        {
+            if (oldA == AsPoly) for (int i = 0; i < kVoices; ++i) { auto& v = voices[i]; if (v.active && v.gated && ! v.raw) v.slot = i; }   // les voix poly deviennent les voix de pile
+            retarget();
+        }
+    }
     void releaseNote (int note, bool raw) { for (auto& v : voices) if (v.active && v.gated && v.note == note && v.raw == raw && v.slot < 0) release (v); }
     void dropLatched()                                                      // touches verrouillees (HOLD) : on les lache
     {
@@ -742,7 +776,7 @@ private:
         src[MsChanAT] = chanATs; src[MsPolyAT] = std::max (pa, chanATs);
         float acc[kFxMod] {};
         for (const auto& sl : P.slot)
-            if (sl.src > 0 && sl.amt != 0.f && fxIndex (sl.dst) >= 0) acc[fxIndex (sl.dst)] += src[sl.src] * sl.amt / modNative (sl.dst);
+            if (sl.src > 0 && sl.amt != 0.f && fxIndex (sl.dst) >= 0) acc[fxIndex (sl.dst)] += slotMod (sl.src, src[sl.src], sl.amt, sl.dir) / modNative (sl.dst);
         for (int i = 0; i < kLanes; ++i)
             if (P.lane[i].amt != 0.f && fxIndex (P.lane[i].dst) >= 0) acc[fxIndex (P.lane[i].dst)] += laneC[i] * P.lane[i].amt / modNative (P.lane[i].dst);
         for (int i = 0; i < kFxMod; ++i) fxOut[i] = std::min (2.f, std::max (-2.f, acc[i]));
@@ -807,7 +841,7 @@ private:
         src[MsChanAT] = chanATs; src[MsPolyAT] = std::max (v.patS, chanATs);
         float md[kNumModDst] {};
         for (const auto& s : P.slot)
-            if (s.src > 0 && s.dst > 0 && s.amt != 0.f) md[s.dst] += src[s.src] * s.amt / modNative (s.dst);
+            if (s.src > 0 && s.dst > 0 && s.amt != 0.f) md[s.dst] += slotMod (s.src, src[s.src], s.amt, s.dir) / modNative (s.dst);
         for (int i = 0; i < kLanes; ++i)
             if (P.lane[i].dst > 0 && P.lane[i].amt != 0.f) md[P.lane[i].dst] += laneC[i] * P.lane[i].amt / modNative (P.lane[i].dst);
 

@@ -120,3 +120,12 @@ Façade façon Korg MS20 : zones délimitées par des traits blancs sérigraphi�
 - **CHARACTER** (17) : Bell, E-Piano, Tine, Marimba, Glass, Brass, Organ, Gong, Wood, String, FM Bass, Clav, Choir, Space, Laser, Metal, Growl. Un clic règle ondes, ratio, indice, enveloppes FM et d'amplitude ; le modulateur reste muet (on entend la porteuse seule).
 - **DICE** : tire un son FM musical (rapports harmoniques ou cloche, decay cohérent, modulation de phase).
 - **Oscilloscope** : gain auto étendu à +52 dB, boutons − / + / AUTO (pas de 3 dB, Maj : 0,5 dB), molette (1 dB, Maj : 0,25 dB), double-clic sur AUTO : remise à zéro. Réglages mémorisés (`scope.txt`).
+
+## v22 (nouvel agencement de la page SYNTH, matrice orientée, modes de jeu sans coupure)
+- **Page SYNTH refaite selon le flux du signal** : ① Sources (VCO 1, VCO 2, MIXER) → ② VC FILTER (au centre : choix du modèle, courbe de réponse en direct, CUTOFF / PEAK / EG AMOUNT / DRIVE en grand, KEY TRACK, LFO 1, SEM MORPH, passe-haut) → ③ Enveloppes (filtre et ampli avec courbes ADSR en direct) et LFO / S&H. Bandeau du bas : FM, WAVEFOLDE, MACROS, KEY ASSIGN (avec DETUNE, PORTAMENTO, plage du bend) et **raccourci ARP** (OFF / ON / LATCH, RATE, GATE). SYNC et RING sont passés dans VCO 2.
+- **Habillage** : flancs en bois à vis laiton, aération en haut à droite, lunettes métal autour des écrans (courbes), onglets décalés. Plus de chiffres 0–10 autour des potards : un anneau lumineux fin avec ses repères.
+- **PATCHBAY / MODULATION** : les deux languettes n'apparaissent que sur l'onglet EFFECTS.
+- **Modes de jeu sans coupure** : changer Poly / Mono / Unison / Share / Chord (ou HOLD) avec une note tenue ne la coupe plus ; le son continue dans le nouveau mode (`remapAssign`). Seul le changement d'ARP ou de mode avec l'arpégiateur actif relâche les notes.
+- **Matrice : sens par routage** (FORWARD / BACKWARD / BOTH, colonne DIRECTION du panneau MATRIX et clic droit sur un potard → « Sens de l'anneau »). La quantité devient 0..1 et le sens est un réglage à part (`s_slotNDir`). L'anneau suit le sens et le son aussi : « avant » part vers le haut, « arrière » vers le bas, « les deux » s'ouvre des deux côtés du point du potard. Les anciens projets et presets sont migrés sans changer le son (propriété d'état `dirV3`).
+- **SETTINGS → MIDI ASSIGNMENTS** : *CLEAR ALL ASSIGNMENTS* efface toutes les assignations MIDI (pour un autre contrôleur) ; *RESTORE HYDRASYNTH MAP* remet la table d'origine, qui reste la valeur par défaut.
+- Test : `tools/tests/modes_matrice.cpp`.

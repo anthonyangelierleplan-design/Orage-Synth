@@ -393,6 +393,9 @@ private:
     juce::TextButton patchToggle, stripToggle;           // tiroirs : replier le patchbay (colonne de droite) / le bandeau LFO-S&H-ENV
     bool patchOpen = true, stripOpen = true;
     void updateDrawers();
+public:
+    void setDrawerTogglesVisible (bool v) { patchToggle.setVisible (v); stripToggle.setVisible (v); }   // languettes PATCHBAY / MODULATION : onglet EFFECTS seulement
+private:
     juce::TextButton settingsBtn;                       // synthe : panneau des reglages globaux (qualite, lissage, aftertouch)
     juce::Label midiMon;
 
