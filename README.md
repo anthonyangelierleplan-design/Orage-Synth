@@ -129,3 +129,11 @@ Façade façon Korg MS20 : zones délimitées par des traits blancs sérigraphi�
 - **Matrice : sens par routage** (FORWARD / BACKWARD / BOTH, colonne DIRECTION du panneau MATRIX et clic droit sur un potard → « Sens de l'anneau »). La quantité devient 0..1 et le sens est un réglage à part (`s_slotNDir`). L'anneau suit le sens et le son aussi : « avant » part vers le haut, « arrière » vers le bas, « les deux » s'ouvre des deux côtés du point du potard. Les anciens projets et presets sont migrés sans changer le son (propriété d'état `dirV3`).
 - **SETTINGS → MIDI ASSIGNMENTS** : *CLEAR ALL ASSIGNMENTS* efface toutes les assignations MIDI (pour un autre contrôleur) ; *RESTORE HYDRASYNTH MAP* remet la table d'origine, qui reste la valeur par défaut.
 - Test : `tools/tests/modes_matrice.cpp`.
+
+## v22b (retours de test)
+- **Drive du Ladder** : le DRIVE compense maintenant la perte de graves due au PEAK (comme le contour d'un Moog) : gain de sortie 1 + PEAK × (1,2 + 2,3 × drive). La courbe du filtre montre cette compensation et l'accent des aigus que le drive ajoute avant le filtre (tous modèles).
+- **Reprise MIDI SCALE** : à chaque demi-tour du potard, la correspondance repart du point courant. Les butées (0 et 100 %) restent donc toujours atteignables, avant elles pouvaient rester à 90 % si le potard de l'Hydrasynth était déjà en butée. Test : `tools/tests/reprise_midi_chord.cpp` (PICKUP et DIRECT inchangés, vérifiés).
+- **Potard LFO du bloc filtre** : il pilote maintenant **LFO 2** (LFO 1 est déjà sur la hauteur du VCO 1). Potard renommé « LFO 2 ».
+- **CHORD LEARN** : les touches jouées pendant l'apprentissage sonnent (notes simples). L'accord appris est l'ensemble des notes tenues ensemble ; la note la plus basse est la fondamentale (plus de dépendance à l'ordre des doigts). L'apprentissage s'arrête tout seul au relâchement de toutes les touches (2 notes minimum).
+- **Tuiles MODULES** : elles suivent l'ordre du rack (modules du rack d'abord, dans l'ordre où ils sont placés, puis les autres) et se réordonnent quand on déplace un module.
+- Titre **WAVEFOLDER** complet (module élargi).

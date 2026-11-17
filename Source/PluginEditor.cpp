@@ -1458,6 +1458,16 @@ void RackView::layoutUnits (const std::vector<ModuleUnit*>& list, ModuleUnit* dr
     if (getHeight() != total) setSize (w, total);
 }
 
+void OrageAudioProcessorEditor::layoutTiles()
+{
+    tilePos.assign (tiles.size(), 0);
+    int pos = 0;
+    for (int n : proc.engine.getRack())                                                    // d'abord les modules du rack, dans l'ordre du rack
+        for (size_t i = 0; i < tiles.size(); ++i) if (kTileNodes[i] == n) tilePos[i] = pos++;
+    for (size_t i = 0; i < tiles.size(); ++i) if (! proc.engine.inRack (kTileNodes[i])) tilePos[i] = pos++;   // puis les autres, dans l'ordre d'origine
+    for (size_t i = 0; i < tiles.size(); ++i) tiles[i]->setBounds (8, 32 + tilePos[i] * 23, 124, 21);
+}
+
 void RackView::dragStart (ModuleUnit* u, int grab) { temp = order; dragU = u; dragGrab = grab; startTimerHz (60); }
 
 void RackView::dragMove (ModuleUnit* u, int pointerY, int grab)
@@ -2022,6 +2032,7 @@ void OrageAudioProcessorEditor::buildUnits()
 void OrageAudioProcessorEditor::rackChangedByUser (const std::vector<int>& newOrder)
 {
     proc.engine.setRack (newOrder);
+    layoutTiles();
     patchBay.repaint();
 }
 
@@ -2036,6 +2047,7 @@ void OrageAudioProcessorEditor::refreshRack()
     rackView.setUnits (list);
     patchPanel.layoutJacks();
     for (size_t i = 0; i < tiles.size(); ++i) tiles[i]->setToggleState (proc.engine.inRack (kTileNodes[i]), juce::dontSendNotification);
+    layoutTiles();
     patchBay.repaint();
     lastRackHash = 0;
     for (auto& s : proc.engine.rackSlot) lastRackHash = lastRackHash * 31u + (uint32_t) (s.load() + 2);
@@ -2276,7 +2288,7 @@ void OrageAudioProcessorEditor::resized()
     }
 
     // ---- panneau lateral
-    for (size_t i = 0; i < tiles.size(); ++i) tiles[i]->setBounds (8, 32 + (int) i * 23, 124, 21);
+    layoutTiles();
     knobById.at ("mix")->setBounds (4, 308, 66, 94);
     knobById.at ("output")->setBounds (70, 308, 66, 94);
     foot.setBounds (41, 414, 58, 90);

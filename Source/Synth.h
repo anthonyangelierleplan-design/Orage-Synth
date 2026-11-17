@@ -77,7 +77,7 @@ struct SynthParams
     int ftype = 0;                            // filtre passe-bas : 0 MS-10 (circuit), 1 Ladder CEM3320 (circuit), 2 SEM (circuit)
     int quality = 1;                          // 0 performance (filtres x2, folder/saturation x4), 1 qualite (x4/x4), 2 high fidelity (x8/x8)
     float vib = 0.f, vibWheel = 0.f, vibAT = 0.f;   // vibrato VCO1 : quantite de LFO1 sur la hauteur (+ molette, + aftertouch)
-    float fltLfo = 0.f;                       // quantite de LFO1 sur le cutoff (potard du bloc filtre, comme sur l'Hydrasynth)
+    float fltLfo = 0.f;                       // quantite de LFO2 sur le cutoff (LFO 1 est deja sur la hauteur du VCO 1) (potard du bloc filtre, comme sur l'Hydrasynth)
     float semMorph = 0.f;                     // SEM : LP -> notch -> HP
     float fold = 0.f, foldSym = 0.f;           // wavefolder : quantite, symetrie
     float master = 0.7f;
@@ -845,7 +845,7 @@ private:
         for (int i = 0; i < kLanes; ++i)
             if (P.lane[i].dst > 0 && P.lane[i].amt != 0.f) md[P.lane[i].dst] += laneC[i] * P.lane[i].amt / modNative (P.lane[i].dst);
 
-        if (P.fltLfo != 0.f) md[MdLpf] += src[MsLfo1] * P.fltLfo / modNative (MdLpf);
+        if (P.fltLfo != 0.f) md[MdLpf] += src[MsLfo2] * P.fltLfo / modNative (MdLpf);
         for (int k = 0; k < 8; ++k) v.envM[k] = md[MdAmpA + k];
         const float aA2 = tm (P.aA, md[MdAmpA]), aD2 = tm (P.aD, md[MdAmpD]), aS2 = std::min (1.f, std::max (0.f, P.aS + md[MdAmpS])), aR2 = tm (P.aR, md[MdAmpR]);
         const float glideV = std::min (1.f, std::max (0.f, P.glide + md[MdGlide]));
@@ -949,7 +949,7 @@ private:
             else if (P.ftype == 1)
             {
                 const float kq = cc[16], g2 = sy::gHalfN (gL, facFlt) * (1.f + kCemTune * std::min (1.f, std::max (0.f, (kq - 3.8f) * 4.2f)));
-                lp = v.osV.run (dx, facFlt, [&v, g2, kq] (float u) { return v.cem.run (u, g2, kq); }) * (1.f + 1.2f * res);
+                lp = v.osV.run (dx, facFlt, [&v, g2, kq] (float u) { return v.cem.run (u, g2, kq); }) * (1.f + res * (1.2f + 2.3f * (drive - 1.f) / 5.f));   // le DRIVE rend les graves que la resonance retire (compensation, comme le contour d'un Moog)
             }
             else
             {

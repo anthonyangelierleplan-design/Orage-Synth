@@ -135,8 +135,8 @@ private:
     orage::ArpParams arpParams;
     struct MidiEv { int pos; int type; int a; float v; };       // type : 0 note on, 1 note off, 2 all off, 3 bend, 4 molette, 5 aftertouch poly, 6 aftertouch canal, 7/8/9 notes brutes de l'arpegiateur (simple / pile unison / off)
     std::vector<MidiEv> evs;
-    int lastArpOn = 0, lastAssign = 0, chordN = 3, chordIv[6] { 4, 7, 11, 0, 0, 0 }, learnN = 0, learnNotes[6] {};
-    bool chordLearn = false, lastLearn = false, seqRec = false, lastRec = false;
+    int lastArpOn = 0, lastAssign = 0, chordN = 3, chordIv[6] { 4, 7, 11, 0, 0, 0 }, learnHeldN = 0;
+    bool chordLearn = false, lastLearn = false, learnHeld[128] {}, learnPeak[128] {}, seqRec = false, lastRec = false;
     bool handleCC (int cc, int value);
     void applyMapped (int i, float v, float prevHw);
     juce::StringArray mapIds;                                   // identifiants de tous les parametres assignables
@@ -147,6 +147,7 @@ private:
     float hwPos[128];                                           // derniere position connue de chaque potard du clavier (thread audio)
     float lastSetV[kMaxMap], aCur[kMaxMap], aHw[kMaxMap], lastIn[kMaxMap];
     bool  caught[kMaxMap], anchored[kMaxMap];
+    signed char lastDir[kMaxMap];
     juce::File midiMapFile() const;
     float arpStepHz (double bpm) const;
     float arpRateKnob = 0.55f; int arpSyncDiv = 0; bool arpTriplet = false;

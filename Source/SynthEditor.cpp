@@ -318,6 +318,8 @@ void FilterView::paint (juce::Graphics& g)
             if (type == 2) { const C hp = (s * s) * lp; H = morph < 0.5f ? lp + C (2.f * morph) * hp : C (2.f - 2.f * morph) * lp + hp; }
             else H = lp;
         }
+        { const float dN = juce::jlimit (0.f, 1.f, v (6)); const C sE (0.f, hz / 1200.f); H *= C (1.f) + C (4.5f * dN) * (sE / (C (1.f) + sE));      // DRIVE : accent des aigus avant le filtre
+          if (type == 1) H *= 1.f + res * (1.2f + 2.3f * dN); }                                                                                   // Ladder : le drive compense la perte de graves due au PEAK
         if (hpf > 0.005f) { const C sh (0.f, hz / fh); H *= (sh * sh) / (sh * sh + sh / qH + C (1.f)); }
         const float db = 20.f * std::log10 (std::abs (H) + 1e-6f);
         const float px = b.getX() + (float) i, py = Y (db);
@@ -616,7 +618,7 @@ SynthPanel::SynthPanel (OrageAudioProcessor& p, int pg) : proc (p), page (pg)
     {
         auto* u = unit ("VC FILTER");
         auto* a = knob (*u, "s_lpf", "CUTOFF"); auto* b = knob (*u, "s_lpfRes", "PEAK"); auto* c = knob (*u, "s_fltEnv", "EG AMOUNT"); auto* e = knob (*u, "s_drive", "DRIVE");
-        auto* d = knob (*u, "s_key", "KEY TRACK"); auto* lf = knob (*u, "s_fltLfo", "LFO 1"); auto* mo = knob (*u, "s_semMorph", "SEM MORPH");
+        auto* d = knob (*u, "s_key", "KEY TRACK"); auto* lf = knob (*u, "s_fltLfo", "LFO 2"); auto* mo = knob (*u, "s_semMorph", "SEM MORPH");
         auto* hc = knob (*u, "s_hpf", "HP CUTOFF"); auto* hr = knob (*u, "s_hpfRes", "HP PEAK");
         auto* ft = selector (*u, "s_ftype", juce::StringArray { "MS-10", "LADDER CEM3320", "SEM" });
         auto fv = std::make_unique<FilterView> (proc.apvts); auto* fvp = fv.get(); u->addAndMakeVisible (*fv); owned.push_back (std::move (fv));
@@ -907,7 +909,7 @@ void SynthPanel::resized()
         units[3]->fullHeight = 496; units[3]->setBounds (cx + srcW + gap, 0, fltW, 496);
         const int eh[3] { 146, 146, 188 }; int y = 0;
         for (int k = 0; k < 3; ++k) { units[(size_t) (4 + k)]->fullHeight = eh[k]; units[(size_t) (4 + k)]->setBounds (W - 10 - envW, y, envW, eh[k]); y += eh[k] + gap; }
-        row (504, 224, { { 10, 436.f }, { 7, 140.f }, { 8, 320.f }, { 9, 250.f }, { 11, 190.f } });
+        row (504, 224, { { 10, 430.f }, { 7, 168.f }, { 8, 298.f }, { 9, 250.f }, { 11, 190.f } });
     }
     paintFacade (tex, W, getHeight(), false);
 }

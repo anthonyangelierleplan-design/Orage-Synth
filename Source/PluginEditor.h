@@ -385,6 +385,8 @@ private:
     juce::Viewport viewport;
     PlatePanel side { "MODULES" };
     std::vector<std::unique_ptr<juce::TextButton>> tiles;       // une par module audio
+    std::vector<int> tilePos;                                   // rang d'affichage de chaque tuile : les modules du rack d'abord, dans l'ordre du rack
+    void layoutTiles();
     PatchBay patchBay;
     PatchPanel patchPanel { *this };
     std::unique_ptr<OrageDialog> dialog;

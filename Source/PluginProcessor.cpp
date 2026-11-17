@@ -162,7 +162,7 @@ const std::vector<SynDef>& synDefs()
         F ("s_fmEnvAmt", "FM Env Amount", 0, 1, 0);  F ("s_fmVel", "FM Velocity", 0, 1, 0);  F ("s_fmAT", "FM Aftertouch", 0, 1, 0);
         C ("s_arpType", "Arp Type", "Arp|Seq", 0);  B ("s_seqRec", "Step Record", false);
         { juce::StringArray br; for (int k = 1; k <= 24; ++k) br.add ("+/-" + juce::String (k) + " st"); C ("s_bendRange", "Pitch Bend Range", br.joinIntoString ("|"), 1); }
-        F ("s_fltLfo", "Filter LFO1 Amount", 0, 1, 0);
+        F ("s_fltLfo", "Filter LFO2 Amount", 0, 1, 0);
         C ("s_arpRatchet", "Arp Ratchet", "1x|2x|3x|4x", 0);  B ("s_arpTriplet", "Arp Triplet", false);
         F ("s_vib", "VCO1 LFO Amount", 0, 1, 0);  F ("s_vibWheel", "VCO1 LFO + Wheel", 0, 1, 0);  F ("s_vibAT", "VCO1 LFO + Aftertouch", 0, 1, 0);
         C ("s_fmType", "FM Type", "Exponential|Linear (DX)", 0);  F ("s_fmFb", "FM Feedback", 0, 1, 0);  F ("s_fmKey", "FM Key Scaling", 0, 1, 0);
@@ -775,7 +775,7 @@ OrageAudioProcessor::OrageAudioProcessor()
             if (mapIds.size() < kMaxMap) { mapIds.add (rp->paramID); mapParams.push_back (rp); }
     for (auto& c : mapCc) c.store (-1);
     for (auto& v : hwPos) v = -1.f;
-    for (int i = 0; i < kMaxMap; ++i) { lastSetV[i] = -1.f; aCur[i] = aHw[i] = lastIn[i] = 0.f; caught[i] = anchored[i] = false; }
+    for (int i = 0; i < kMaxMap; ++i) { lastDir[i] = 0; lastSetV[i] = -1.f; aCur[i] = aHw[i] = lastIn[i] = 0.f; caught[i] = anchored[i] = false; }
     resetMidiMap();
     if (const auto f = midiMapFile(); f.existsAsFile()) midiMapFromString (f.loadFileAsString());
     mapDirty.store (false);
@@ -798,7 +798,7 @@ int OrageAudioProcessor::defaultCcOf (const juce::String& id) const
         { "bbdFb", 14 }, { "bbdTime", 15 },
         { "s_pw1", 24 }, { "s_pw2", 26 }, { "s_fm", 30 },                   // wavscan OSC1/OSC2 -> largeur d'impulsion ; Mutator1 Depth -> FM
         { "s_ring", 43 }, { "s_lvl1", 44 }, { "s_lvl2", 46 },               // RM12 Depth ; OSC1 Vol ; OSC2 Vol
-        { "s_drive", 50 }, { "s_key", 51 }, { "s_fltEnv", 54 }, { "s_fltLfo", 52 },             // Filter1 Drive / Keytrack / LFO1amt / ENV1amt
+        { "s_drive", 50 }, { "s_key", 51 }, { "s_fltEnv", 54 }, { "s_fltLfo", 52 },             // Filter1 Drive / Keytrack / LFO2amt / ENV1amt
         { "s_hpf", 55 }, { "s_hpfRes", 56 },                                // Filter2 Cutoff / Res -> passe-haut
         { "bbdTone", 63 }, { "springDecay", 65 }, { "springDrip", 67 },
         { "s_lpfRes", 71 }, { "s_l1Rate", 72 }, { "s_l2Rate", 73 }, { "s_lpf", 74 }, { "s_l3Rate", 76 }, { "s_l4Rate", 78 },
@@ -1051,15 +1051,7 @@ void OrageAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
         }
         if (chordLearn != lastLearn)
         {
-            if (chordLearn) { learnN = 0; }
-            else if (learnN > 0)
-            {
-                int iv[6], n = 0; const int root = learnNotes[0];
-                for (int k = 1; k < learnN && n < 6; ++k) iv[n++] = learnNotes[k] - root;
-                if (n == 0) { iv[0] = 0; n = 1; }
-                for (int k = 0; k < n; ++k) chordIv[k] = iv[k];
-                chordN = n;
-            }
+            if (chordLearn) { std::fill (std::begin (learnHeld), std::end (learnHeld), false); std::fill (std::begin (learnPeak), std::end (learnPeak), false); learnHeldN = 0; }
             lastLearn = chordLearn;
         }
         synth.setChord (chordIv, chordN); arp.setChord (chordIv, chordN);
@@ -1134,17 +1126,38 @@ void OrageAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
             else if (m.isChannelPressure() || m.isAftertouch()) lastMidiMsg.store ((4 << 16) | (m.getChannelPressureValue() & 127));
             if (m.isNoteOn())
             {
-                if (chordLearn && learnN < 6) learnNotes[learnN++] = m.getNoteNumber();
+                if (chordLearn)                                              // apprentissage : les touches SONNENT (notes simples), l'accord = tout ce qui est tenu ensemble
+                {
+                    if (learnHeldN == 0) std::fill (std::begin (learnPeak), std::end (learnPeak), false);
+                    if (! learnHeld[m.getNoteNumber()]) { learnHeld[m.getNoteNumber()] = true; ++learnHeldN; }
+                    learnPeak[m.getNoteNumber()] = true;
+                    evs.push_back ({ pos, 7, m.getNoteNumber(), m.getFloatVelocity() });
+                    continue;
+                }
                 if (recActive)
                 {
                     const int rp = juce::jlimit (0, orage::kArpSteps - 1, arpPat.recPos.load());
                     arpPat.seqNote[rp] = m.getNoteNumber(); arpPat.step[rp] = m.getFloatVelocity() >= 0.85f ? 2 : 1; arpPat.tie[rp] = 0;
                     arpPat.recPos = (rp + 1) % juce::jlimit (1, orage::kArpSteps, arpParams.len);
                 }
-                if (chordLearn) continue;                                    // en apprentissage, les touches ne jouent pas
                 if (arpOn) arp.noteOn (m.getNoteNumber(), m.getFloatVelocity()); else evs.push_back ({ pos, 0, m.getNoteNumber(), m.getFloatVelocity() });
             }
-            else if (m.isNoteOff())      { if (chordLearn) continue; if (arpOn) arp.noteOff (m.getNoteNumber()); else evs.push_back ({ pos, 1, m.getNoteNumber(), 0.f }); }
+            else if (m.isNoteOff() && chordLearn && learnHeld[m.getNoteNumber()])
+            {
+                learnHeld[m.getNoteNumber()] = false; --learnHeldN; evs.push_back ({ pos, 9, m.getNoteNumber(), 0.f });
+                if (learnHeldN == 0)                                         // tout est relache : l'accord est celui qui a ete tenu ensemble (au moins 2 notes), la note la plus basse est la fondamentale
+                {
+                    int nn[128], cnt = 0; for (int k = 0; k < 128; ++k) if (learnPeak[k]) nn[cnt++] = k;
+                    if (cnt >= 2)
+                    {
+                        int n = 0; for (int k = 1; k < cnt && n < 6; ++k) chordIv[n++] = nn[k] - nn[0];
+                        chordN = n; chordLearn = false; lastLearn = false;
+                        if (auto* q = apvts.getParameter ("s_chordLearn")) q->setValueNotifyingHost (0.f);
+                    }
+                    std::fill (std::begin (learnPeak), std::end (learnPeak), false);
+                }
+            }
+            else if (m.isNoteOff())      { if (arpOn) arp.noteOff (m.getNoteNumber()); else evs.push_back ({ pos, 1, m.getNoteNumber(), 0.f }); }
             else if (m.isAllNotesOff() || m.isAllSoundOff()) { pedal = false; for (int nt = 0; nt < 128; ++nt) keyDown[nt] = pedalHeld[nt] = false; arp.allOff(); evs.push_back ({ pos, 2, 0, 0.f }); }
             else if (m.isPitchWheel())   evs.push_back ({ pos, 3, 0, (float) (m.getPitchWheelValue() - 8192) / 8192.f * bendRange });
             else if (m.isAftertouch())   evs.push_back ({ pos, 5, m.getNoteNumber(), atShape ((float) m.getAfterTouchValue() / 127.f) });
@@ -1579,7 +1592,10 @@ void OrageAudioProcessor::applyMapped (int i, float v, float prevHw)
         }
         else
         {
-            if (external || ! anchored[i]) { anchored[i] = true; aCur[i] = cur; aHw[i] = prevHw >= 0.f ? prevHw : v; }
+            const int dir = v > prevHw + 0.002f ? 1 : (v < prevHw - 0.002f ? -1 : 0);                // sens du potard
+            if (external || ! anchored[i]) { anchored[i] = true; aCur[i] = cur; aHw[i] = prevHw >= 0.f ? prevHw : v; lastDir[i] = 0; }
+            else if (dir != 0 && lastDir[i] != 0 && dir != lastDir[i] && prevHw >= 0.f) { aCur[i] = cur; aHw[i] = prevHw; }   // demi-tour : on repart d'ici, donc chaque butee reste atteignable
+            if (dir != 0) lastDir[i] = (signed char) dir;
             if (v >= aHw[i]) out = aCur[i] + (v - aHw[i]) * (1.f - aCur[i]) / std::max (1.f - aHw[i], 1e-4f);
             else             out = aCur[i] - (aHw[i] - v) * aCur[i] / std::max (aHw[i], 1e-4f);
             out = juce::jlimit (0.f, 1.f, out);
