@@ -244,7 +244,7 @@ void S (OrageAudioProcessor& p, std::initializer_list<KV> l)
     {
         const juce::String id (kv.first);
         const bool lfoRate = id.startsWith ("s_l") && id.endsWith ("Rate") && id.length() == 8;      // la plage des LFO a change (v20b) : les presets d'usine gardent leur vitesse
-        p.setParamReal (kv.first, lfoRate ? kv.second * 0.7677f : kv.second);
+        p.setParamReal (kv.first, lfoRate ? kv.second * 0.6750f : kv.second);
     }
 }
 void M (OrageAudioProcessor& p, int slot, int src, int dst, float amt)
@@ -1230,6 +1230,7 @@ juce::AudioProcessorEditor* OrageAudioProcessor::createEditor()
 juce::ValueTree OrageAudioProcessor::captureState()
 {
     auto state = apvts.copyState();
+    state.setProperty ("lfoV3", 1, nullptr);                               // plage des LFO 0.05..1000 Hz
     state.setProperty ("lfoV2", 1, nullptr);                               // plage de vitesse des LFO elargie (0.05..300 Hz)
     state.setProperty ("ftV2", 1, nullptr);                                // filtres : numerotation 0..2 (circuits) depuis la v20
     state.setProperty ("dirV3", 1, nullptr);                               // matrice : quantite 0..1 + sens par routage (v22)
@@ -1300,6 +1301,14 @@ void OrageAudioProcessor::applyState (juce::ValueTree state)
                 const auto id = c.getProperty ("id").toString();
                 if (id.startsWith ("s_l") && id.endsWith ("Rate") && id.length() == 8)
                     c.setProperty ("value", (float) c.getProperty ("value", 0.4) * 0.7677f, nullptr);
+            }
+    if (! state.hasProperty ("lfoV3"))                                     // plage 0.05..300 Hz -> 0.05..1000 Hz : meme vitesse
+        for (auto c : state)
+            if (c.hasProperty ("id"))
+            {
+                const auto id = c.getProperty ("id").toString();
+                if (id.startsWith ("s_l") && id.endsWith ("Rate") && id.length() == 8)
+                    c.setProperty ("value", (float) c.getProperty ("value", 0.4) * 0.8784f, nullptr);
             }
 #if ORAGE_SYNTH
     if (! state.hasProperty ("dirV3"))                                     // ancien projet / preset : quantite signee -> (quantite, sens) pour que le son reste identique
@@ -1555,7 +1564,11 @@ void OrageAudioProcessor::pruneUnusedModules()
 bool OrageAudioProcessor::handleCC (int cc, int value)
 {
     if (cc < 0 || cc > 127) return false;
-    const float v = (float) value / 127.f;
+    // plage reellement envoyee par l'Hydrasynth pour certains potards (ex. GATE de l'ARP : 5 a 100 au lieu de 0 a 127) : recalee sur 0..1
+    static const struct { int cc, lo, hi; } kHwRange[] { { 107, 5, 100 } };
+    int lo = 0, hi = 127;
+    for (auto& r : kHwRange) if (r.cc == cc) { lo = r.lo; hi = r.hi; }
+    const float v = juce::jlimit (0.f, 1.f, (float) (value - lo) / (float) (hi - lo));
     const int ln = learnIdx.load();
     if (ln >= 0 && ln < mapIds.size() && cc != 0 && cc != 32 && cc != 64 && cc < 120)
     { mapCc[(size_t) ln].store (cc); learnIdx.store (-1); mapDirty.store (true); }

@@ -567,6 +567,16 @@ public:
         for (int i = 0; i < n; ++i) { L[i] = 0.f; R[i] = 0.f; }
         // LFO globaux (voix sans retrig)
         const float lfoHz[kLfos] = { hz (0) * std::pow (2.f, 3.f * fxOut[42]), hz (1) * std::pow (2.f, 3.f * fxOut[43]), hz (2) * std::pow (2.f, 3.f * fxOut[44]), hz (3) * std::pow (2.f, 3.f * fxOut[45]) };   // vitesse des LFO modulable (matrice, +/-3 octaves)
+        {   // LFO rapides : la modulation est echantillonnee plus finement (16 -> 2 echantillons) pour qu'un LFO a quelques centaines de Hz reste une vraie onde et non un escalier
+            float fastest = 0.f;
+            for (int i = 0; i < kLfos; ++i)
+            {
+                bool used = (i == 0 && P.vib + P.vibWheel + P.vibAT > 0.f) || (i == 1 && P.fltLfo != 0.f);
+                for (const auto& sl : P.slot) if (sl.src == MsLfo1 + i && sl.dst > 0 && sl.amt != 0.f) used = true;
+                if (used) fastest = std::max (fastest, lfoHz[i]);
+            }
+            kCtl = fastest > 700.f ? 2 : (fastest > 350.f ? 4 : (fastest > 160.f ? 8 : 16));
+        }
         for (int pos = 0; pos < n; pos += kCtl)
         {
             const int len = std::min (kCtl, n - pos);
@@ -600,7 +610,7 @@ public:
     }
 
 private:
-    static constexpr int kCtl = 16;
+    int kCtl = 16;                                                       // bloc de controle : 16 echantillons, raccourci a 8/4/2 quand un LFO utilise est rapide (LFO audio, jusqu'a 1 kHz)
     static constexpr float SynthParams::* kSm[] = { &SynthParams::lpf, &SynthParams::lpfRes, &SynthParams::hpf, &SynthParams::hpfRes, &SynthParams::drive, &SynthParams::semMorph, &SynthParams::fold, &SynthParams::foldSym,
         &SynthParams::fm, &SynthParams::ring, &SynthParams::lvl1, &SynthParams::lvl2, &SynthParams::noise, &SynthParams::pw1, &SynthParams::pw2, &SynthParams::fltEnv, &SynthParams::keytrack, &SynthParams::master };
     static constexpr int kSmN = (int) (sizeof (kSm) / sizeof (kSm[0]));
@@ -788,7 +798,7 @@ private:
     {
         const auto& l = P.lfo[i];
         if (l.sync > 0 && l.sync < 14) return bpm / 60.f / kLfoDivBeats[l.sync];
-        return 0.05f * std::pow (6000.f, l.rate);                        // 0.05 .. 300 Hz (v20b ; avant 0.05 .. 40 Hz)
+        return 0.05f * std::pow (20000.f, l.rate);                       // 0.05 .. 1000 Hz (v22c ; avant 300 Hz)
     }
 public:
     static float lfoWave (float ph, int wave, float sh)

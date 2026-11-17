@@ -41,6 +41,30 @@ int main()
             for (int k = 0; k < 2; ++k) { p.hwPos[107] = (k == 0 ? 1.f : 0.f); const float r = sweep (p, m, st, upDown, false); if (m != 1) chk (r > 0.97f, "va a fond apres montee-descente-montee"); }
         }
     }
+    { p.takeoverMode.store (2); auto* q = p.apvts.getParameter ("s_arpGate");
+      for (int v : { 100, 5 }) { juce::MidiBuffer mb; mb.addEvent (juce::MidiMessage::controllerEvent (1, 107, v), 0); run (p, mb); if (v == 100) chk (q->getValue() > 0.999f, "gate : CC 100 -> 100 %"); else chk (q->getValue() < 0.001f, "gate : CC 5 -> minimum"); } }
+    // LFO jusqu'a 1 kHz : un LFO sinus a 1000 Hz sur la hauteur cree des bandes laterales a f0 +/- 1000 Hz (vraie modulation audio)
+    {
+        auto setR = [&] (const char* id, float real) { p.setParamReal (id, real); };
+        p.resetModules(); setR ("s_l1Rate", 1.f); setR ("s_slot1Src", 1); setR ("s_slot1Dst", 1); setR ("s_arpOn", 0); setR ("s_assign", 0);
+        setR ("s_wave1", 3); setR ("s_lvl2", 0.f); setR ("s_lpf", 1.f); setR ("s_aS", 1.f);
+        auto sideEnergy = [&] (bool lfoOn)
+        {
+            setR ("s_slot1Amt", lfoOn ? 0.08f : 0.f);
+            { juce::MidiBuffer mb; mb.addEvent (juce::MidiMessage::noteOn (1, 69, 0.9f), 0); run (p, mb); }
+            for (int k = 0; k < 20; ++k) run (p, {});
+            std::vector<float> x; for (int k = 0; k < 8; ++k) { juce::AudioBuffer<float> b (2, 512); b.clear(); juce::MidiBuffer e; p.processBlock (b, e); for (int i = 0; i < 512; ++i) x.push_back (b.getSample (0, i)); }
+            auto bin = [&] (double f) { double re = 0, im = 0; for (size_t i = 0; i < x.size(); ++i) { const double w = 0.5 - 0.5 * std::cos (6.2831853 * i / (double) x.size()); re += w * x[i] * std::cos (6.2831853 * f * i / 48000.0); im += w * x[i] * std::sin (6.2831853 * f * i / 48000.0); } return std::sqrt (re * re + im * im) / x.size(); };
+            const double sb = bin (1440.0) + bin (-560.0 < 0 ? 560.0 : 560.0);
+            { juce::MidiBuffer mb; mb.addEvent (juce::MidiMessage::noteOff (1, 69), 0); run (p, mb); }
+            for (int k = 0; k < 400; ++k) run (p, {});
+            return sb;
+        };
+        const double off = sideEnergy (false), on = sideEnergy (true);
+        std::printf ("  bandes laterales : sans LFO %.5f, LFO 1 kHz %.5f, kCtl=%d\n", off, on, p.synth.kCtl);
+        chk (p.synth.kCtl == 2 || p.synth.kCtl == 16, "bloc de controle raccourci pour LFO rapide");
+        chk (on > off * 3.0, "LFO 1 kHz : bandes laterales audibles");
+    }
     // CHORD LEARN : les notes sonnent, accord = notes tenues ensemble, auto-fin
     {
         auto setB = [&] (const char* id, float v) { p.apvts.getParameter (id)->setValueNotifyingHost (v); };

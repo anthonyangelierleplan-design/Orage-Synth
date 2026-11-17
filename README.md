@@ -137,3 +137,8 @@ Façade façon Korg MS20 : zones délimitées par des traits blancs sérigraphi�
 - **CHORD LEARN** : les touches jouées pendant l'apprentissage sonnent (notes simples). L'accord appris est l'ensemble des notes tenues ensemble ; la note la plus basse est la fondamentale (plus de dépendance à l'ordre des doigts). L'apprentissage s'arrête tout seul au relâchement de toutes les touches (2 notes minimum).
 - **Tuiles MODULES** : elles suivent l'ordre du rack (modules du rack d'abord, dans l'ordre où ils sont placés, puis les autres) et se réordonnent quand on déplace un module.
 - Titre **WAVEFOLDER** complet (module élargi).
+
+## v22c (gate recalé, LFO jusqu'à 1 kHz)
+- **GATE de l'ARP (CC 107)** : l'Hydrasynth n'envoie que de 5 à 100 sur ce potard ; Orage recale cette plage sur 0–100 %. Les autres CC restent sur 0–127.
+- **LFO 0,05 – 1000 Hz** (avant 300 Hz) pour les 4 LFO du synthé. Les presets et les projets existants sont convertis (propriété d'état `lfoV3`) : même vitesse qu'avant.
+- **Précision** : quand un LFO utilisé (routé dans la matrice, vibrato, filtre) dépasse 160 / 350 / 700 Hz, le bloc de contrôle passe de 16 à 8 / 4 / 2 échantillons. À 1 kHz, la modulation reste une vraie onde (test : un LFO 1 kHz sur la hauteur crée bien les bandes latérales à f0 ± 1 kHz, `tools/tests/reprise_midi_chord.cpp`). Les LFO lents ne coûtent rien de plus ; le coût en CPU n'augmente que lorsqu'un LFO rapide est réellement utilisé.
