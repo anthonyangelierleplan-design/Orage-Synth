@@ -849,7 +849,7 @@ float OrageAudioProcessor::atShape (float x) const
 juce::String OrageAudioProcessor::midiMapToString() const
 {
     juce::String s ("M" + juce::String (takeoverMode.load()));
-    s << ";Q" << quality.load() << ";S" << ccSmooth.load() << ";AC" << atCurve.load() << ";AS" << atSpeed.load() << ";XM" << mpeOn.load() << ";XB" << mpeBend.load();
+    s << ";Q" << quality.load() << ";S" << ccSmooth.load() << ";AC" << atCurve.load() << ";AS" << atSpeed.load() << ";XM" << mpeOn.load() << ";XB" << mpeBend.load() << ";VP" << vcoPhase.load() << ";VM" << vcoModel.load();
     for (int i = 0; i < mapIds.size(); ++i)
     {
         const int cc = mapCc[(size_t) i].load();
@@ -866,7 +866,9 @@ void OrageAudioProcessor::midiMapFromString (const juce::String& str)
         if (tok.startsWith ("M") && ! tok.contains ("=")) { takeoverMode.store (juce::jlimit (0, 2, tok.substring (1).getIntValue())); continue; }
         if (! tok.contains ("="))                                               // reglages globaux : qualite, lissage, aftertouch
         {
-            if (tok.startsWith ("XM")) mpeOn.store (juce::jlimit (0, 1, tok.substring (2).getIntValue()));
+            if (tok.startsWith ("VP")) vcoPhase.store (juce::jlimit (0, 1, tok.substring (2).getIntValue()));
+            else if (tok.startsWith ("VM")) vcoModel.store (juce::jlimit (0, 1, tok.substring (2).getIntValue()));
+            else if (tok.startsWith ("XM")) mpeOn.store (juce::jlimit (0, 1, tok.substring (2).getIntValue()));
             else if (tok.startsWith ("XB")) mpeBend.store (juce::jlimit (0, 3, tok.substring (2).getIntValue()));
             else if (tok.startsWith ("AC")) atCurve.store (juce::jlimit (0, 3, tok.substring (2).getIntValue()));
             else if (tok.startsWith ("AS")) atSpeed.store (juce::jlimit (0, 5, tok.substring (2).getIntValue()));
@@ -1031,6 +1033,8 @@ void OrageAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
         }
         { static const float atC[6] { 1.f, 0.7f, 0.4f, 0.2f, 0.1f, 0.04f }; synth.setAtResponse (atC[juce::jlimit (0, 5, atSpeed.load())]); }
         synth.setParams (readSynth());
+        synth.setPhaseFree (vcoPhase.load() == 0);
+        synth.setVcoAnalog (vcoModel.load() == 0);
         {   // modulation globale (matrice, pistes) de l'arpegiateur : valeurs du bloc precedent
             const float* gm = synth.fxMod();
             arpParams.gate   = juce::jlimit (0.05f, 1.f, arpParams.gate + 0.5f * gm[39]);

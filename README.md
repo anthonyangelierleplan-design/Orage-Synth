@@ -150,3 +150,11 @@ Façade façon Korg MS20 : zones délimitées par des traits blancs sérigraphi�
 - Anciens projets : memes hauteurs et meme jeu (VCO 2 remis au neutre s'il etait desaccorde sans effet ; SEQ choisi avec ARP eteint -> type ARP).
 - **LINK des enveloppes** (bouton sur le panneau AMP) : l'enveloppe FILTRE pilote aussi le volume ; l'enveloppe AMP devient **ENV 2 libre** (ses ADSR restent reglables) : source ENV AMP de la matrice, ou raccourci DEST (VCO 2 pitch, VCO 1+2 pitch, FM, PWM, wavefold, niveau VCO 2, ring) + AMOUNT (+-1 = +-1 octave pour la hauteur). LINK eteint : rien ne change.
 - Tests : `tools/tests/seq_tempo_fm`, `tools/tests/env_link` ; `midi_hydrasynth` recompile de nouveau (acces aux membres prives retabli).
+
+## v22e (VCO)
+- **VCO surechantillonnes** (x2, x4 en High Fidelity) : dent de scie, carre, FM, retour et sync restent propres jusque dans l'aigu (pire raie parasite audible : -47 -> -66 dB en dent de scie au Sol 7 ; FM lineaire -15 -> -51 dB). Cout processeur : +1 a +4 %.
+- **Hard sync anti-repliement** : correction a l'instant exact du recalage (et le VCO 2 n'avance plus d'un echantillon de trop apres le recalage) : -24 -> -61 dB dans l'aigu, toutes formes d'onde.
+- **SETTINGS > VCO PHASE** : *Free running* (defaut, comme un vrai VCO : chaque note demarre ailleurs dans le cycle) ou *Reset* (attaque identique a chaque note).
+- **SETTINGS > VCO MODEL** : *Analog* (defaut : rampe legerement bombee, sommets du triangle arrondis, liaison capacitive ~5 Hz, petites differences entre les voix) ou *Clean digital*.
+- Test : `tools/tests/vco_phase_sync`.
+

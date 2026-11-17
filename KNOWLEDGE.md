@@ -114,3 +114,7 @@ Table de données (tools/presets/presets.py) → code C++ → banc de test qui j
 - Processeur : TYPE SEQ force ap.on = 1 (sauf enregistrement pas a pas).
 - LINK des enveloppes : le VCA doit rester au rythme audio -> quand LINK est allume, l'enveloppe audio `aenv` est cadencee avec les reglages FILTRE, et une 3e enveloppe `e2` (reglages AMP, cadencee au bloc) sert de source ENV AMP / raccourci. Fin de voix = `aenv` (release FILTRE). Parametres ajoutes en fin de liste : s_envLink, s_env2Dst, s_env2Amt.
 
+## v22e : VCO (identique a Zephyr v3c, voir son KNOWLEDGE)
+- Hard sync : polyBLEP au recalage (sortie VCO retardee d'un echantillon), surechantillonnage de la section VCO (x2 / x4), phase libre, modele analogique (rampe courbee, liaison 5 Hz, tolerances par voix).
+- Mesure du repliement : FFT Blackman-Harris, pire raie hors harmoniques sous 16 kHz.
+
