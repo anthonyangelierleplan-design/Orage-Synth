@@ -107,3 +107,8 @@ Table de données (tools/presets/presets.py) → code C++ → banc de test qui j
 - Program Change : ne jamais charger un preset depuis le thread audio ; poser un atomic + `AsyncUpdater`, et un compteur que l'éditeur surveille pour se rafraîchir.
 - Pédale de sustain : retenir les note-off dans le processeur (indépendant du moteur de voix).
 - Ajouter un paramètre = toujours à la FIN de la liste des paramètres (et de sa lecture), pour rester compatible avec les états sauvegardés.
+
+## v22d : FM, sequenceur
+- Rapport FM : la hauteur du VCO 2 = VCO 1 x rapport ; ajouter 12*oct2 + tune2 + fine2 par-dessus, sinon ces potards sont morts.
+- SEQ : dans Arp, ne jamais remettre phase/stepCount a zero sur noteOn en mode SEQ ; faire tourner l'horloge a vide quand aucune touche n'est tenue ; caler sur le DAW au debut du bloc (position en pas = ppq x pas par temps) en comparant les positions "sans swing" (pas pair long de 1+sw, impair de 1-sw), recaler seulement si l'ecart > 0,02 pas.
+- Processeur : TYPE SEQ force ap.on = 1 (sauf enregistrement pas a pas).

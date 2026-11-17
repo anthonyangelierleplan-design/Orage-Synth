@@ -1040,7 +1040,9 @@ void OrageAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
         // ---- evenements du bloc : MIDI direct, ou arpegiateur (qui genere ses propres notes)
         evs.clear();
         const bool recActive = arpParams.seq && seqRec;                    // enregistrement pas a pas : les touches jouent normalement et remplissent les pas
-        orage::ArpParams ap = arpParams; if (recActive) ap.on = 0;
+        orage::ArpParams ap = arpParams;
+        if (ap.seq && ap.on == 0) ap.on = 1;                               // TYPE SEQ : le sequenceur joue meme ARP eteint (les touches transposent le motif)
+        if (recActive) ap.on = 0;
         arp.setParams (ap);
         const bool arpOn = ap.on != 0;
         if (recActive != lastRec) { lastRec = recActive; synth.allNotesOff(); arp.allOff(); if (recActive) arpPat.recPos = 0; }
@@ -1167,6 +1169,11 @@ void OrageAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
         }
         {
             orage::Arp::Ev ae[256];
+            {   // SEQ calé sur la mesure du DAW quand le transport joue (cadence synchronisee, sans modulation de vitesse)
+                const bool synced = arpSyncDiv > 0 && arpSyncDiv < 14 && std::abs (synth.fxMod()[38]) < 1.0e-4f;
+                const double stepsPerBeat = synced ? (arpTriplet ? 1.5 : 1.0) / (double) kLfoDivBeats[arpSyncDiv] : 0.0;
+                arp.setHost (synced && playing && hasPpq, ppq * stepsPerBeat);
+            }
             const int ac = arp.process (total, arpStepHz (bpm) * std::pow (2.f, 2.f * synth.fxMod()[38]), ae, 256);
             arpStepShown.store (arp.currentStep());
             for (int k = 0; k < ac; ++k)
@@ -1233,6 +1240,7 @@ juce::ValueTree OrageAudioProcessor::captureState()
     state.setProperty ("lfoV3", 1, nullptr);                               // plage des LFO 0.05..1000 Hz
     state.setProperty ("lfoV2", 1, nullptr);                               // plage de vitesse des LFO elargie (0.05..300 Hz)
     state.setProperty ("ftV2", 1, nullptr);                                // filtres : numerotation 0..2 (circuits) depuis la v20
+    state.setProperty ("ov22d", 1, nullptr);                               // OCTAVE / TUNE du VCO 2 actifs avec un rapport FM, SEQ sans ARP (v22d)
     state.setProperty ("dirV3", 1, nullptr);                               // matrice : quantite 0..1 + sens par routage (v22)
     state.setProperty ("patch", juce::String (engine.serializePatch()), nullptr);
     state.setProperty ("rack", juce::String (engine.serializeRack()), nullptr);
@@ -1311,6 +1319,15 @@ void OrageAudioProcessor::applyState (juce::ValueTree state)
                     c.setProperty ("value", (float) c.getProperty ("value", 0.4) * 0.8784f, nullptr);
             }
 #if ORAGE_SYNTH
+    if (! state.hasProperty ("ov22d"))                                     // ancien projet : memes hauteurs et meme jeu qu'avant
+    {
+        std::map<juce::String, juce::ValueTree> pv;
+        for (auto c : state) if (c.hasProperty ("id")) pv[c.getProperty ("id").toString()] = c;
+        auto val = [&] (const char* id, float d) { auto it = pv.find (id); return it != pv.end() ? (float) it->second.getProperty ("value", d) : d; };
+        auto set = [&] (const char* id, float v) { auto it = pv.find (id); if (it != pv.end()) it->second.setProperty ("value", v, nullptr); };
+        if (juce::roundToInt (val ("s_fmRatio", 0.f)) > 0) { set ("s_oct2", 2.f); set ("s_tune2", 0.f); set ("s_fine2", 0.f); }   // ces reglages etaient sans effet avec un rapport FM
+        if (juce::roundToInt (val ("s_arpType", 0.f)) == 1 && juce::roundToInt (val ("s_arpOn", 0.f)) == 0) set ("s_arpType", 0.f); // SEQ choisi mais ARP eteint : jouait normalement
+    }
     if (! state.hasProperty ("dirV3"))                                     // ancien projet / preset : quantite signee -> (quantite, sens) pour que le son reste identique
     {
         for (int sl = 1; sl <= orage::kSlots; ++sl)

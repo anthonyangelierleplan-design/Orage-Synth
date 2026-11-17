@@ -12,6 +12,7 @@
 #include <thread>
 #include <mutex>
 
+#define private public
 #include "PluginProcessor.h"
 #undef private
 // MIDI : carte Hydrasynth par defaut, Program Change, sustain, pitch bend
