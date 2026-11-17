@@ -118,3 +118,6 @@ Table de données (tools/presets/presets.py) → code C++ → banc de test qui j
 - Hard sync : polyBLEP au recalage (sortie VCO retardee d'un echantillon), surechantillonnage de la section VCO (x2 / x4), phase libre, modele analogique (rampe courbee, liaison 5 Hz, tolerances par voix).
 - Mesure du repliement : FFT Blackman-Harris, pire raie hors harmoniques sous 16 kHz.
 
+## v22e : audit (voir aussi Zephyr v3c)
+- Voix reutilisee : garder son etat (pas de `*v = Voice()` si elle sonne). Reverb Hermite + dampHz x0,73 + passe-bas 8 kHz = meme couleur. BBD : bruit d'horloge x min(1, 0,03 + 20 x enveloppe du signal) (compander). Surechantillonneur x4 elliptique.
+

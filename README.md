@@ -158,3 +158,11 @@ Façade façon Korg MS20 : zones délimitées par des traits blancs sérigraphi�
 - **SETTINGS > VCO MODEL** : *Analog* (defaut : rampe legerement bombee, sommets du triangle arrondis, liaison capacitive ~5 Hz, petites differences entre les voix) ou *Clean digital*.
 - Test : `tools/tests/vco_phase_sync`.
 
+## v22e (audit enveloppes et effets)
+- **Plus de clic quand une voix est reutilisee** (vol de voix a la 13e note, MONO qui rejoue pendant le release) : la voix garde son etat comme sur un vrai synthe. Mesure : saut de +23 dB (vol) et +39 dB (MONO) -> au niveau du jeu normal.
+- **Reverb en interpolation cubique** : plus propre (-52 -> -58 dB), meme couleur (amortissement et filtre de sortie recales, moins d'1 dB d'ecart).
+- **BBD** : le souffle d'horloge suit maintenant le compresseur-expandeur d'un vrai BBD : present avec le signal, il s'efface dans le silence (-63 -> -93 dB).
+- **Surechantillonneur elliptique** (-95 dB) pour la distorsion. Limite connue : une fuzz tres poussee sur des notes tres aigues (vers 3 kHz) replie encore un peu ; aux hauteurs habituelles c'est propre (-68 a -100 dB).
+- Verifies sans defaut : enveloppes, crepitement des reglages, denormaux, bruit residuel. L'instabilite de la distorsion (UNC) est voulue.
+- Tests : `tools/tests/continuite_voix`, `tools/tests/audit_effets_orage`.
+
