@@ -148,4 +148,5 @@ Façade façon Korg MS20 : zones délimitées par des traits blancs sérigraphi�
 - **Sequenceur sans arpegiateur** : TYPE = SEQ suffit, plus besoin d'allumer l'ARP (les touches transposent le motif ; LATCH reste disponible).
 - **Sequenceur en tempo** : changer de note ne relance plus l'horloge ; elle continue meme entre deux notes. Quand le DAW joue (cadence synchronisee), les pas sont cales sur sa mesure. Une touche a peine en retard (< 30 ms) fait quand meme partir le pas en cours ; apres une longue pause (un motif entier), le motif repart du debut.
 - Anciens projets : memes hauteurs et meme jeu (VCO 2 remis au neutre s'il etait desaccorde sans effet ; SEQ choisi avec ARP eteint -> type ARP).
-- Tests : `tools/tests/seq_tempo_fm` ; `midi_hydrasynth` recompile de nouveau (acces aux membres prives retabli).
+- **LINK des enveloppes** (bouton sur le panneau AMP) : l'enveloppe FILTRE pilote aussi le volume ; l'enveloppe AMP devient **ENV 2 libre** (ses ADSR restent reglables) : source ENV AMP de la matrice, ou raccourci DEST (VCO 2 pitch, VCO 1+2 pitch, FM, PWM, wavefold, niveau VCO 2, ring) + AMOUNT (+-1 = +-1 octave pour la hauteur). LINK eteint : rien ne change.
+- Tests : `tools/tests/seq_tempo_fm`, `tools/tests/env_link` ; `midi_hydrasynth` recompile de nouveau (acces aux membres prives retabli).

@@ -136,6 +136,7 @@ private:
     void timerCallback() override;
     void mouseDown (const juce::MouseEvent&) override;
     std::vector<KnobUnit*> macroKnobs;
+    ModuleUnit* envLinkUnit = nullptr; ModuleUnit* envFltUnit = nullptr; juce::ComboBox* envLinkDst = nullptr;   // LINK des enveloppes
     KnobUnit* knob (juce::Component& parent, const char* id, const juce::String& text, const char* lo = "0", const char* hi = "10");
     ModuleUnit* unit (const juce::String& title);
 
