@@ -147,7 +147,7 @@ const std::vector<SynDef>& synDefs()
         for (int i = 5; i <= kMacros; ++i) F ("s_m" + juce::String (i), "Macro " + juce::String (i), 0, 1, 0);
         F ("s_arpRate", "Arp Rate", 0, 1, 0.55f);  C ("s_arpSync", "Arp Sync", divs.joinIntoString ("|"), 0);
         F ("s_arpGate", "Arp Gate", 0.05f, 1, 0.5f);  F ("s_arpSwing", "Arp Swing", 0, 1, 0);  F ("s_arpChance", "Arp Chance", 0, 1, 1);
-        B ("s_arpFree", "Arp Free Run", false);
+        B ("s_arpFree", "Arp Free Run", false);  B ("s_arpThru", "Arp Keys Thru", false);
         { juce::StringArray lens; for (int k = 1; k <= 16; ++k) lens.add (juce::String (k) + (k == 1 ? " STEP" : " STEPS")); C ("s_arpLen", "Arp Steps", lens.joinIntoString ("|"), 7);
           for (int k = 1; k <= kLanes; ++k)
           {
@@ -982,7 +982,7 @@ orage::SynthParams OrageAudioProcessor::readSynth()
     arpParams.assign = s.assign; arpParams.hold = s.hold != 0;
     for (int k = 4; k < kMacros; ++k) s.macro[k] = f();
     arpRateKnob = f(); arpSyncDiv = n();
-    arpParams.gate = f(); arpParams.swing = f(); arpParams.chance = f(); arpParams.free = b();
+    arpParams.gate = f(); arpParams.swing = f(); arpParams.chance = f(); arpParams.free = b();  arpThru = b();
     arpParams.len = n() + 1;
     for (int k = 0; k < kLanes; ++k) { arpParams.laneLen[k] = n() + 1; s.lane[k].dst = n(); s.lane[k].amt = f(); s.lane[k].glide = f(); }
     s.fmDir = n(); s.fmRatio = n(); s.fmWave = n(); s.fmFine = f(); s.fmAtt = f(); s.fmDec = f(); s.fmEnvAmt = f(); s.fmVel = f(); s.fmAT = f();
@@ -1087,7 +1087,7 @@ void OrageAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
                 const bool dn = m.getControllerValue() >= 64;
                 if (pedal && ! dn)
                     for (int nt = 0; nt < 128; ++nt)
-                        if (pedalHeld[nt]) { pedalHeld[nt] = false; keyDown[nt] = false; if (arpOn) arp.noteOff (nt); else evs.push_back ({ pos, 1, nt, 0.f }); }
+                        if (pedalHeld[nt]) { pedalHeld[nt] = false; keyDown[nt] = false; if (arpOn) { arp.noteOff (nt); if (arpThru) evs.push_back ({ pos, 1, nt, 0.f }); } else evs.push_back ({ pos, 1, nt, 0.f }); }
                 pedal = dn;
             }
             const bool mpeMember = mpeOn.load() != 0 && m.getChannel() >= 2;                 // MPE : le canal 1 est le canal maitre, 2..16 portent une note chacun
@@ -1121,7 +1121,7 @@ void OrageAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
                     chNote[ch] = m.getNoteNumber(); chOn[ch] = true;
                     keyDown[m.getNoteNumber()] = true; pedalHeld[m.getNoteNumber()] = false;
                     lastMidiMsg.store ((1 << 16) | (m.getNoteNumber() << 8) | m.getVelocity());
-                    if (arpOn) arp.noteOn (m.getNoteNumber(), m.getFloatVelocity());
+                    if (arpOn) { arp.noteOn (m.getNoteNumber(), m.getFloatVelocity()); if (arpThru) evs.push_back ({ pos, 0, m.getNoteNumber(), m.getFloatVelocity() }); }
                     else
                     {
                         evs.push_back ({ pos, 0, m.getNoteNumber(), m.getFloatVelocity() });
@@ -1135,7 +1135,7 @@ void OrageAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
                     chOn[ch] = false;
                     if (pedal) { pedalHeld[m.getNoteNumber()] = true; continue; }
                     keyDown[m.getNoteNumber()] = false;
-                    if (arpOn) arp.noteOff (m.getNoteNumber()); else evs.push_back ({ pos, 1, m.getNoteNumber(), 0.f });
+                    if (arpOn) { arp.noteOff (m.getNoteNumber()); if (arpThru) evs.push_back ({ pos, 1, m.getNoteNumber(), 0.f }); } else evs.push_back ({ pos, 1, m.getNoteNumber(), 0.f });
                     continue;
                 }
             }
@@ -1162,7 +1162,7 @@ void OrageAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
                     arpPat.seqNote[rp] = m.getNoteNumber(); arpPat.step[rp] = m.getFloatVelocity() >= 0.85f ? 2 : 1; arpPat.tie[rp] = 0;
                     arpPat.recPos = (rp + 1) % juce::jlimit (1, orage::kArpSteps, arpParams.len);
                 }
-                if (arpOn) arp.noteOn (m.getNoteNumber(), m.getFloatVelocity()); else evs.push_back ({ pos, 0, m.getNoteNumber(), m.getFloatVelocity() });
+                if (arpOn) { arp.noteOn (m.getNoteNumber(), m.getFloatVelocity()); if (arpThru) evs.push_back ({ pos, 0, m.getNoteNumber(), m.getFloatVelocity() }); } else evs.push_back ({ pos, 0, m.getNoteNumber(), m.getFloatVelocity() });
             }
             else if (m.isNoteOff() && chordLearn && learnHeld[m.getNoteNumber()])
             {
@@ -1179,7 +1179,7 @@ void OrageAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
                     std::fill (std::begin (learnPeak), std::end (learnPeak), false);
                 }
             }
-            else if (m.isNoteOff())      { if (arpOn) arp.noteOff (m.getNoteNumber()); else evs.push_back ({ pos, 1, m.getNoteNumber(), 0.f }); }
+            else if (m.isNoteOff())      { if (arpOn) { arp.noteOff (m.getNoteNumber()); if (arpThru) evs.push_back ({ pos, 1, m.getNoteNumber(), 0.f }); } else evs.push_back ({ pos, 1, m.getNoteNumber(), 0.f }); }
             else if (m.isAllNotesOff() || m.isAllSoundOff()) { pedal = false; for (int nt = 0; nt < 128; ++nt) keyDown[nt] = pedalHeld[nt] = false; arp.allOff(); evs.push_back ({ pos, 2, 0, 0.f }); }
             else if (m.isPitchWheel())   evs.push_back ({ pos, 3, 0, (float) (m.getPitchWheelValue() - 8192) / 8192.f * bendRange });
             else if (m.isAftertouch())   evs.push_back ({ pos, 5, m.getNoteNumber(), atShape ((float) m.getAfterTouchValue() / 127.f) });
