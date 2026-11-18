@@ -486,7 +486,7 @@ SynthPanel::SynthPanel (OrageAudioProcessor& p, int pg) : proc (p), page (pg)
             });
             auto* dir = knob (*u, "s_arpMode", "MODE");  dir->setChoices ({ "UP", "DOWN", "UP-DN", "PLAYED", "RANDOM", "CONVRG" });
             auto* oct = knob (*u, "s_arpOct", "OCTAVE"); oct->setChoices ({ "1", "2", "3", "4" });
-            auto* free = toggle (*u, "s_arpFree", "FREE RUN"); auto* thru = toggle (*u, "s_arpThru", "THRU");
+            auto* free = toggle (*u, "s_arpFree", "FREE"); auto* thru = toggle (*u, "s_arpThru", "THRU");
             auto* type = selector (*u, "s_arpType", juce::StringArray { "ARP", "SEQ" });
             auto* t1 = tag (*u, "ON / LATCH"); auto* t4 = tag (*u, "TYPE  (SEQ = one stored note per step)");
             u->layoutFn = [=] (juce::Rectangle<int> r)
@@ -496,8 +496,8 @@ SynthPanel::SynthPanel (OrageAudioProcessor& p, int pg) : proc (p), page (pg)
                 const int rx = r.getX() + 2 * kw + 16, rw = r.getRight() - rx, y = r.getY();
                 t1->setBounds (rx, y, 100, 10);                                  on->setBounds (rx, y + 12, rw, 34);
                 trip->setBounds (rx, y + 52, rw / 2 - 3, 32);                    tap->setBounds (rx + rw / 2 + 3, y + 52, rw - rw / 2 - 3, 32);
-                t4->setBounds (rx, y + 92, rw, 10);                              type->setBounds (rx, y + 104, rw / 2 - 3, 32);
-                free->setBounds (rx + rw / 2 + 3, y + 104, (rw - rw / 2 - 3) / 2 - 1, 32); thru->setBounds (rx + rw / 2 + 3 + (rw - rw / 2 - 3) / 2 + 1, y + 104, (rw - rw / 2 - 3) / 2 - 1, 32);
+                t4->setBounds (rx, y + 92, rw, 10);                              type->setBounds (rx, y + 104, rw * 2 / 5 - 2, 32);
+                free->setBounds (rx + rw * 2 / 5 + 2, y + 104, rw * 3 / 10 - 2, 32); thru->setBounds (rx + rw * 7 / 10 + 2, y + 104, rw - rw * 7 / 10 - 2, 32);
             };
         }
         {
