@@ -65,6 +65,9 @@ int main()
         chk (p.synth.kCtl == 2 || p.synth.kCtl == 16, "bloc de controle raccourci pour LFO rapide");
         chk (on > off * 3.0, "LFO 1 kHz : bandes laterales audibles");
     }
+    { p.applyControllerProfile (1); chk (p.mpeOn.load() == 1 && p.mpeBend.load() == 3 && p.ccOfParam ("s_arpGate") == -1 && p.takeoverMode.load() == 2, "profil Osmose : MPE, bend 48, table vide");
+      juce::String s = p.midiMapToString(); p.applyControllerProfile (0); chk (p.ccOfParam ("s_arpGate") == 107, "profil Hydrasynth : table d'origine");
+      p.midiMapFromString (s); chk (p.controller.load() == 1 && p.ccOfParam ("s_arpGate") == -1, "profil Osmose sauvegarde / relu"); p.applyControllerProfile (0); }
     // CHORD LEARN : les notes sonnent, accord = notes tenues ensemble, auto-fin
     {
         auto setB = [&] (const char* id, float v) { p.apvts.getParameter (id)->setValueNotifyingHost (v); };

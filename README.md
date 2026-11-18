@@ -166,3 +166,5 @@ Façade façon Korg MS20 : zones délimitées par des traits blancs sérigraphi�
 - Verifies sans defaut : enveloppes, crepitement des reglages, denormaux, bruit residuel. L'instabilite de la distorsion (UNC) est voulue.
 - Tests : `tools/tests/continuite_voix`, `tools/tests/audit_effets_orage`.
 
+## v22f (profil de contrôleur : Hydrasynth / Osmose CE)
+- **SETTINGS → CONTROLLER** : *Hydrasynth* (table MIDI d'origine) ou *Osmose CE*. Le profil Osmose active le MPE (canal 1 maître, une note par canal), règle le bend par note sur ±48 (valeur MPE d'origine de l'Osmose), vide la table MIDI (l'Osmose n'a pas de potards) et passe la reprise en DIRECT (slider et pédales sont absolus). Le slider de modulation (CC1) pilote déjà la molette ; la pression par note, le CC74 (axe aftertouch de l'Osmose) et le bend par touche sont gérés par le MPE existant. Pédales : clic droit sur un potard > Assign MIDI. Le choix est sauvé avec les réglages globaux. « RESTORE HYDRASYNTH MAP » revient au profil Hydrasynth.
