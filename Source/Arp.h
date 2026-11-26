@@ -109,7 +109,7 @@ public:
             }
         };
         if (P.on == 0) { off (0); if (running) { lanesOut (0, true); running = false; } phase = 0.999999f; stepCount = 0; return cnt; }
-        base = std::max (0.f, stepHz) / fs;
+        incBase = std::max (0.f, stepHz) / fs;
         const float stepLen = stepHz > 0.01f ? fs / stepHz : fs;
         sw = std::min (0.5f, std::max (0.f, P.swing) * 0.5f);
         // nouveau pas : sa vitesse s'applique, le reste de phase deja parcouru est converti a la nouvelle cadence
@@ -245,14 +245,14 @@ private:
     Key keys[kKeys];
     int nKeys = 0, idx = 0, chord[6] { 0, 4, 7, 11, 0, 0 }, chordN = 4, stepCount = 0, ratchetN = 1, lastSub = -1, chordOct = 0;
     int snd[kMaxChordNotes] {}, nSnd = 0, cur[kMaxChordNotes] { 60 }, nCur = 0;          // notes qui sonnent / notes du pas en cours (CHORD : plusieurs)
-    float base = 0.f, sw = 0.f, curMul = 1.f;
+    float incBase = 0.f, sw = 0.f, curMul = 1.f;
     bool soundingStack = false, running = false, stepOdd = false, active = false, tieNow = false;
     float fs = 44100.f, phase = 0.999999f, curVel = 0.8f;
     double idle = 1.0e12, hostStep = 0.0; bool hostLock = false;
     bool go0() const { return nKeys > 0 || P.free; }
     int patLen() const { return std::max (1, std::min (kArpSteps, P.len)); }
     float mulAt (int k) const { return pat != nullptr && k >= 0 ? speedMul (pat->speed[k % patLen()].load()) : 1.f; }
-    float incOf (float mul, bool odd) const { return base * mul / (odd ? (1.f - sw) : (1.f + sw)); }
+    float incOf (float mul, bool odd) const { return incBase * mul / (odd ? (1.f - sw) : (1.f + sw)); }
     // duree d'un pas en pas "droits" (swing et vitesse du pas compris) : le pas pair dure 1+sw, l'impair 1-sw, divise par la vitesse
     double durOf (int k) const { return (double) ((k & 1) ? (1.f - sw) : (1.f + sw)) / (double) mulAt (k); }
     int cycleSteps() const { const int L = patLen(); return (L & 1) ? 2 * L : L; }    // le motif + la parite du swing se repetent tous les M pas
