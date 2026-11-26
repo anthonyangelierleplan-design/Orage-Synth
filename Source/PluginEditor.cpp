@@ -227,10 +227,11 @@ void saveDrawerPref (int v) { const auto f = drawerFile(); f.getParentDirectory(
 juce::File scopeFile() { return juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory).getChildFile ("Foudre Audio").getChildFile ("scope.txt"); }
 void saveThemePref (int i) { const auto f = themeFile(); f.getParentDirectory().createDirectory(); f.replaceWithText (juce::String (i)); }
 
-const int kTileNodes[] = { orage::NOct, orage::NDist, orage::NColor, orage::NFilter, orage::NDestroy, orage::NComp, orage::NSpring, orage::NStut, orage::NBbd, orage::NVerb, orage::NGate };
+const int kTileNodes[] = { orage::NOct, orage::NDist, orage::NColor, orage::NFilter, orage::NDestroy, orage::NComp, orage::NSpring, orage::NStut, orage::NBbd, orage::NVerb, orage::NGate, orage::NTape };
+constexpr int kTileShift = 23;                       // 12e tuile (CASSETTE, v23) : la section MASTER descend d'une rangee
 const char* nodeName (int n)
 {
-    static const char* names[kNumNodes] { "INPUT", "OCTAVER", "DISTORSION", "COLOR", "FILTER", "DESTROY", "COMP", "SPRING", "GATE", "BBD DELAY", "REVERB", "STUTTER", "OUTPUT" };
+    static const char* names[kNumNodes] { "INPUT", "OCTAVER", "DISTORSION", "COLOR", "FILTER", "DESTROY", "COMP", "SPRING", "GATE", "BBD DELAY", "REVERB", "STUTTER", "CASSETTE", "OUTPUT" };
     return names[juce::jlimit (0, (int) kNumNodes - 1, n)];
 }
 
@@ -367,6 +368,10 @@ void baGlyph (juce::Graphics& g, int id, juce::Rectangle<float> r, juce::Colour 
     case 8: for (int i = 0; i < 4; ++i) { const float hh = h * .45f * std::pow (.72f, (float) i), xx = x + w * ((float) i + .5f) / 4.f; p.startNewSubPath (xx, cy - hh); p.lineTo (xx, cy + hh); } break;
     case 9: p.addRectangle (x + w * .05f, y + h * .12f, w * .9f, h * .76f); p.addEllipse (x + w * .5f - w * .14f, cy - h * .14f, w * .28f, h * .28f); p.addEllipse (x + w * .5f - w * .3f, cy - h * .3f, w * .6f, h * .6f); break;
     case 10: for (int i = 0; i < 4; ++i) { const float xx = x + w * ((float) i + .5f) / 4.f, hh = h * (i == 0 ? .5f : .34f); p.addRectangle (xx - w * .07f, cy - hh, w * .14f, hh * 2.f); } break;
+    case 11: p.addRoundedRectangle (x + w * .02f, y + h * .12f, w * .96f, h * .76f, h * .08f);                    // cassette : boitier, deux bobines, fenetre
+             p.addEllipse (x + w * .30f - h * .15f, cy - h * .15f, h * .3f, h * .3f); p.addEllipse (x + w * .70f - h * .15f, cy - h * .15f, h * .3f, h * .3f);
+             p.startNewSubPath (x + w * .30f, cy + h * .15f); p.lineTo (x + w * .70f, cy + h * .15f);
+             p.startNewSubPath (x + w * .22f, y + h * .88f); p.lineTo (x + w * .30f, y + h * .74f); p.lineTo (x + w * .70f, y + h * .74f); p.lineTo (x + w * .78f, y + h * .88f); break;
     default: p.startNewSubPath (x + w * .62f, y); p.lineTo (x + w * .2f, y + h * .56f); p.lineTo (x + w * .5f, y + h * .56f); p.lineTo (x + w * .36f, y + h); p.lineTo (x + w * .82f, y + h * .4f); p.lineTo (x + w * .54f, y + h * .4f); p.closeSubPath(); break;
     }
     g.strokePath (p, juce::PathStrokeType (sw, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
@@ -382,8 +387,8 @@ void baCrest (juce::Graphics& g, juce::Rectangle<float> r, juce::Colour fill, in
 }
 int baIndex (const juce::String& t)
 {
-    static const char* keys[11] { "NOISE GATE", "OCTAVER", "DISTORSION", "COLOR", "FILTER", "DESTROY", "TUBE COMP", "SPRING", "BBD", "PLATE", "STUTTER" };
-    for (int i = 0; i < 11; ++i) if (t.startsWithIgnoreCase (keys[i])) return i;
+    static const char* keys[12] { "NOISE GATE", "OCTAVER", "DISTORSION", "COLOR", "FILTER", "DESTROY", "TUBE COMP", "SPRING", "BBD", "PLATE", "STUTTER", "CASSETTE" };
+    for (int i = 0; i < 12; ++i) if (t.startsWithIgnoreCase (keys[i])) return i;
     return -1;
 }
 struct BaTone { juce::uint32 tint; float mix, sat, bright; juce::uint32 cream; };
@@ -393,7 +398,7 @@ BaTone baTone()
                                { 0xffc97a4e, 0.32f, 0.86f, 1.00f, 0xfff3e0d2 }, { 0xff8a8a90, 0.50f, 0.52f, 0.86f, 0xffe4e0d4 } };
     return t[juce::jlimit (0, 3, look::themeIdx)];
 }
-const juce::uint32 kBaBody[11] { 0xff2c3036, 0xff1d8f8c, 0xffc7432e, 0xffb98a22, 0xff3b78ad, 0xffa8132a, 0xff3a9a72, 0xffbd5876, 0xff6a4d98, 0xff1c6670, 0xff7b8a2e };
+const juce::uint32 kBaBody[12] { 0xff2c3036, 0xff1d8f8c, 0xffc7432e, 0xffb98a22, 0xff3b78ad, 0xffa8132a, 0xff3a9a72, 0xffbd5876, 0xff6a4d98, 0xff1c6670, 0xff7b8a2e, 0xff8c6a4a };
 } // namespace
 
 void paintFacade (juce::Image& img, int W, int H, bool frame) { paintFacadeImpl (img, W, H, frame); }
@@ -585,7 +590,19 @@ void KnobUnit::mouseDown (const juce::MouseEvent& e)
 void KnobUnit::resized()
 {
     auto b = getLocalBounds().withTrimmedBottom (16);
-    if (! choices.isEmpty()) b = b.withSizeKeepingCentre ((int) (juce::jmin (b.getWidth(), b.getHeight()) * 0.74f), (int) (juce::jmin (b.getWidth(), b.getHeight()) * 0.74f));   // potard cranté : place pour les libellés autour
+    if (! choices.isEmpty() && choices.size() <= 8)                                 // potard cranté : place pour les libellés autour (les plus longs sur les cotes ne doivent pas sortir du cadre)
+    {
+        const juce::Font f (juce::FontOptions (8.8f, juce::Font::bold));
+        int side = 0;
+        for (int i = 0; i < choices.size(); ++i)
+        {
+            const float a = juce::MathConstants<float>::pi * (1.2f + 1.6f * (choices.size() > 1 ? (float) i / (float) (choices.size() - 1) : 0.5f));
+            side = juce::jmax (side, (int) ((float) juce::GlyphArrangement::getStringWidthInt (f, choices[i]) * std::abs (std::sin (a))));
+        }
+        const int d = juce::jmin ((int) (juce::jmin (b.getWidth(), b.getHeight()) * 0.74f), (int) ((float) (b.getWidth() - 2 * side - 8) / 1.04f));
+        b = b.withSizeKeepingCentre (d, d);
+    }
+    else if (! choices.isEmpty()) b = b.withSizeKeepingCentre ((int) (juce::jmin (b.getWidth(), b.getHeight()) * 0.74f), (int) (juce::jmin (b.getWidth(), b.getHeight()) * 0.74f));
     slider.setBounds (b);
 }
 
@@ -700,7 +717,12 @@ void KnobUnit::paint (juce::Graphics& g)
             const float a = sa + (n > 1 ? (float) i / (float) (n - 1) : 0.5f) * (ea - sa);
             g.setColour ((i == cur ? look::cvRing : look::print).withAlpha ((i == cur ? 1.f : 0.85f) * alpha));
             g.fillEllipse (c.x + r * 0.74f * std::sin (a) - 1.8f, c.y - r * 0.74f * std::cos (a) - 1.8f, 3.6f, 3.6f);
-            if (n <= 8) g.drawText (choices[i], (int) (c.x + r * (0.98f + 0.04f * std::abs (std::sin (a))) * std::sin (a)) - 24, (int) (c.y - r * 1.0f * std::cos (a)) - 6, 48, 12, juce::Justification::centred, false);
+            if (n <= 8)                                                            // l'etiquette s'ecarte du potard de la moitie de sa largeur sur les cotes : jamais masquee par le bouton
+            {
+                const float tw = (float) juce::GlyphArrangement::getStringWidthInt (g.getCurrentFont(), choices[i]), sn = std::sin (a);
+                const float lx = c.x + (r * 1.02f + 0.5f * tw * std::abs (sn)) * sn;
+                g.drawText (choices[i], (int) lx - 30, (int) (c.y - r * 1.0f * std::cos (a)) - 6, 60, 12, juce::Justification::centred, false);
+            }
         }
     }
     else                                                                           // anneau lumineux fin (plus de chiffres 0..10) : plage, butees et repere du milieu
@@ -1977,6 +1999,13 @@ void OrageAudioProcessorEditor::buildUnits()
         };
     }
 
+    {   // CASSETTE : bande / VHS fatiguee, facon Boards of Canada (tout a zero = transparent)
+        auto* u = newUnit (NTape, "CASSETTE  /  VHS", kModH, false);
+        auto* a = mk (*u, "tapeWow", "WOW"); auto* b = mk (*u, "tapeFlutter", "FLUTTER"); auto* c = mk (*u, "tapeSat", "SATURATE");
+        auto* d = mk (*u, "tapeAge", "AGE"); auto* e = mk (*u, "tapeHiss", "HISS"); auto* f = mk (*u, "tapeCrunch", "CRUNCH"); auto* m = mk (*u, "tapeMix", "MIX");
+        u->layoutFn = [=] (juce::Rectangle<int> r) { place (r, { a, b, c, d, e, f, m }, 0, 86); };
+    }
+
     // ---------------- bandeau de modulation (fixe) : sources CV a droite de chaque module
     auto strip = [&] (const char* title, const char* prefix, int srcIdx, bool hasSync)
     {
@@ -2014,8 +2043,8 @@ void OrageAudioProcessorEditor::buildUnits()
         side.addAndMakeVisible (*b);
         tiles.push_back (std::move (b));
     }
-    side.subtitles.push_back ({ "MASTER", 286 });
-    side.subtitles.push_back ({ "RESET", 516 });
+    side.subtitles.push_back ({ "MASTER", 286 + kTileShift });
+    side.subtitles.push_back ({ "RESET", 516 + kTileShift });
     for (int n = 0; n < kNumNodes; ++n)                                                   // toutes les prises vivent dans le panneau patchbay
     {
         if (n != NOut) patchPanel.audioOut[n] = patchBay.makeJack (patchPanel, JackKind::AudioOut, n);
@@ -2298,12 +2327,12 @@ void OrageAudioProcessorEditor::resized()
 
     // ---- panneau lateral
     layoutTiles();
-    knobById.at ("mix")->setBounds (4, 308, 66, 94);
-    knobById.at ("output")->setBounds (70, 308, 66, 94);
-    foot.setBounds (41, 414, 58, 90);
-    clearRackBtn.setBounds (8, 544, 124, 28);
-    clearPatchBtn.setBounds (8, 578, 124, 28);
-    resetBtn.setBounds (8, 612, 124, 28);
+    knobById.at ("mix")->setBounds (4, 308 + kTileShift, 66, 94);
+    knobById.at ("output")->setBounds (70, 308 + kTileShift, 66, 94);
+    foot.setBounds (41, 414 + kTileShift, 58, 90);
+    clearRackBtn.setBounds (8, 544 + kTileShift, 124, 28);
+    clearPatchBtn.setBounds (8, 578 + kTileShift, 124, 28);
+    resetBtn.setBounds (8, 612 + kTileShift, 124, 28);
 
     rebuildFacade();
 }

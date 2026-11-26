@@ -121,3 +121,12 @@ Table de données (tools/presets/presets.py) → code C++ → banc de test qui j
 ## v22e : audit (voir aussi Zephyr v3c)
 - Voix reutilisee : garder son etat (pas de `*v = Voice()` si elle sonne). Reverb Hermite + dampHz x0,73 + passe-bas 8 kHz = meme couleur. BBD : bruit d'horloge x min(1, 0,03 + 20 x enveloppe du signal) (compander). Surechantillonneur x4 elliptique.
 
+
+## v23 : cassette, CHORD, vitesse par pas
+- Nouveau module de rack : l'inserer AVANT NOut dans l'enum Node (NOut passe de 12 a 13) et monter la version du patch (v5) ; a la relecture, le dernier noeud d'un ancien patch = NOut, quel que soit le nombre de noeuds ; masque des sources = (1 << NOut) - 1. kMaxRack, kTileNodes, nodeName, baIndex/kBaBody/baGlyph, pruneUnusedModules (idle) et la colonne MODULES (decaler MASTER / RESET d'une rangee : kTileShift) suivent.
+- Effet a retard variable (wow) : interpolation Hermite = 2 echantillons de retard minimum ; a zero, ne PAS lire la ligne (sinon decalage de phase contre le dry du DRY/WET maitre).
+- Saturation de bande : tanh(drive x)/drive garde le gain unite a bas niveau mais perd 6 dB sur un signal fort a fond -> compensation 1 + 0,8 x SATURATE.
+- Arpegiateur multi-notes : `sounding` remplace par un tableau ; toutes les notes du pas s'eteignent avant le suivant.
+- Vitesse par pas : l'increment de phase = base x vitesse / (1 +/- swing) ; au changement de pas, convertir le reste de phase a la nouvelle cadence. Calage DAW : position = somme des durees des pas sur un cycle (motif, x2 si longueur impaire pour la parite du swing) ; avec toutes les vitesses a x1 on retombe exactement sur l'ancienne formule.
+- Potard cranté : la taille du bouton tient compte du libelle lateral le plus long (sinon le texte passe sous le bouton ou hors du cadre).
+- Banc local sans fenetre : compiler les modules JUCE a part (XRANDR/XINERAMA/XCURSOR/ALSA = 0, + juce_graphics_Harfbuzz.cpp, juce_graphics_Sheenbidi.c, juce_core_CompilationTime.cpp), puis `createComponentSnapshot` de l'editeur pour les captures, onglets ouverts en appelant `onClick` des boutons.

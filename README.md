@@ -168,3 +168,17 @@ Façade façon Korg MS20 : zones délimitées par des traits blancs sérigraphi�
 
 ## v22f (profil de contrôleur : Hydrasynth / Osmose CE)
 - **SETTINGS → CONTROLLER** : *Hydrasynth* (table MIDI d'origine) ou *Osmose CE*. Le profil Osmose active le MPE (canal 1 maître, une note par canal), règle le bend par note sur ±48 (valeur MPE d'origine de l'Osmose), vide la table MIDI (l'Osmose n'a pas de potards) et passe la reprise en DIRECT (slider et pédales sont absolus). Le slider de modulation (CC1) pilote déjà la molette ; la pression par note, le CC74 (axe aftertouch de l'Osmose) et le bend par touche sont gérés par le MPE existant. Pédales : clic droit sur un potard > Assign MIDI. Le choix est sauvé avec les réglages globaux. « RESTORE HYDRASYNTH MAP » revient au profil Hydrasynth.
+
+## v23 (cassette, arpège en accords, vitesse par pas)
+- **Module CASSETTE / VHS** (rack d'effets, 12e module) pour un son qui a l'air vieux, façon Boards of Canada. Ordre interne : vieil échantillonneur → enregistrement saturé → lecture qui pleure → bande usée → souffle.
+  - **WOW** : la hauteur flotte lentement (jusqu'à ~40 cents crête à crête, avec une dérive irrégulière du moteur). **FLUTTER** : tremblement rapide de la bande.
+  - **SATURATE** : saturation de bande suréchantillonnée ×4 (gain unité à bas niveau, un peu de compression). **AGE** : les aigus partent (19,5 kHz → 2,4 kHz), bosse de tête de lecture, petites pertes de niveau d'une bande usée au-delà de la moitié.
+  - **HISS** : souffle de bande. **CRUNCH** : vieil échantillonneur (fréquence 32 → 5,5 kHz, résolution 15 → 6,5 bits). **MIX**.
+  - Tout à zéro = transparent (aucun retard tant que WOW et FLUTTER sont à zéro). Placé en fin de chaîne par défaut (il « enregistre » tout le reste).
+  - Pas encore de destination de matrice pour ses potards.
+- **Arpégiateur : mode CHORD** (7e cran du potard MODE) : à chaque pas, l'accord tenu (ou l'accord mémorisé en KEY ASSIGN CHORD) est rejoué en bloc. OCTAVE fait monter l'accord d'une octave à chaque pas joué. Accents, silences, ratchets, gate et swing s'appliquent à l'accord entier.
+- **Vitesse par pas** : bouton **STEP SPEED** en haut à droite de NOTE STEPS (à côté de RATCHET) : la rangée du bas affiche la vitesse de chaque pas. Clic = vitesse suivante (×1 → ×2 → ×4 → ×½ → ×3/2), clic droit = ×1, glisser = même vitesse sur les pas voisins, molette = vitesse plus lente / plus rapide. Un pas ×2 dure deux fois moins longtemps (le motif avance plus vite), ×½ deux fois plus longtemps. En vue RATCHET, un petit badge rappelle la vitesse des pas modifiés. Marche en ARP comme en SEQ ; en SEQ calé sur le DAW, la position suit le morceau avec les vitesses.
+- **Potards crantés** : les libellés latéraux ne sont plus coupés (le potard laisse la place aux textes les plus longs).
+- **8 presets** : Faded Polaroid (Pad), Filmstrip Keys, Lullaby Sine (Lead), VHS Bass, Chord Pulse 82 (CHORD en 1/16, tenir un accord), Half-Speed Memory (SEQ avec pas ×2 et ×½), Rainy Projector (Texture), et Cassette Memories (Rack FX, aussi dans Orage FX). Niveaux calés sur ceux de leur catégorie.
+- Compatibilité : anciens projets relus à l'identique (patch v4 → v5, motif sans vitesse = ×1). Le potard MODE a un cran de plus : sur l'Hydrasynth (CC 108), la course est répartie sur 7 positions au lieu de 6.
+- Tests : `tools/tests/v23_cassette_arp.cpp` (sans JUCE), `tools/tests/v23_niveaux_presets.cpp`.
