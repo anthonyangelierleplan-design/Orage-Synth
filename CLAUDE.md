@@ -37,6 +37,8 @@ Carte du code : `Source/Synth.h` (voix, VCO, filtres circuit, enveloppes, LFO), 
 - Orage et Zephyr ont divergé : une fonction commune se reporte **à la main**, en gardant l'identité de chacun (ex. Orage v23 → Zephyr v4). Projet décidé : un dépôt commun **Foudre-Core** (ergonomie, thèmes, arpégiateur / séquenceur, modules identiques comme la cassette) ; les modules qui font la couleur de chaque synthé restent dans leur dépôt.
 
 ## Où on en est (26 nov. 2026)
+- En test (27 nov. 2026) : **v24** sur sa branche (Chord Seq, Arp/Seq rangé, filtres au même volume, patchbay cachée), pas encore fusionnée.
+  Code partagé : `FoudreAccords.h` de **Foudre-Core** (FetchContent, figé sur un commit dans `CMakeLists.txt`). Captures de l'interface : `foudre-banc capture <vst3> --onglet 1` (le plugin lit `FOUDRE_ONGLET`).
 - Dernière version : **v23** (module CASSETTE / VHS, arpège CHORD, vitesse par pas), fusionnée sur `main`. Dépôt nettoyé (README / CHANGELOG / tests automatiques).
 - Ses goûts : adore les 12 modules et l'arpégiateur / séquenceur ; joue en thème ORIGINAL ; la patchbay l'intéresse de moins en moins.
 - Idées discutées, pas commencées (lui demander par quoi commencer) :

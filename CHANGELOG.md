@@ -2,6 +2,14 @@
 
 Le plus récent en haut (v14 et suivantes ; les versions antérieures ne sont pas documentées). L'état actuel du plugin est décrit dans le README.
 
+## v24 (Chord Seq, Arp/Seq rangé, patchbay cachée, filtres au même volume)
+- **Chord Seq** : en SEQ, les notes jouées ensemble (moins de 60 ms d'écart) vont dans le même pas, jusqu'à 6 notes ; le pas affiche le nom de l'accord (Fm7, D♭maj7, C/E…) et sa basse. Bouton CHORD / 1 NOTE ; molette = transpose l'accord. Le nom des accords et le regroupement des notes viennent de Foudre-Core (`FoudreAccords.h`, commun avec Zephyr).
+- **Arp/Seq rangé** (doublons retirés) : un seul choix OFF / ARP / SEQ (avant : OFF-ON-LATCH puis ARP-SEQ) ; LATCH fusionné avec HOLD ; TRIPLET retiré (les triolets sont dans DIVISION) ; FREE renommé RUN ; « Free » de DIVISION renommé HZ (free) et le potard TEMPO renommé HZ, grisé quand l'horloge suit le tempo ; potard RATCHET global remplacé par ALL RATCHET sur la grille ; réglages inutiles grisés selon le mode (MODE / OCTAVE en SEQ, REC / REST / TIE / BACK / CHORD en ARP).
+- **Anciens projets convertis à l'identique** : LATCH → ARP + HOLD ; TRIPLET + 1/4, 1/8, 1/16 → 1/4T, 1/8T, 1/16T ; TRIPLET en horloge libre → HZ ×1,5 ; RATCHET global → chaque pas de la grille (le moteur gardait déjà le plus grand des deux). Mesure : projet converti et non converti identiques (0,0 dB). TRIPLET reste affiché dans le seul cas sans équivalent (triolet sur une division en mesures ou pointée).
+- **Patchbay cachée par défaut** : bouton PATCH ; s'ouvre d'elle-même si le projet a des câbles, avec leur nombre sur le bouton. Le son ne change pas (sans câble, le rack jouait déjà dans l'ordre).
+- **Filtres au même volume** (en gardant leur caractère) : à cutoff et résonance égaux, MS-10, LADDER et SEM sont à ±0,2 dB l'un de l'autre sur la note de mesure, ±2 dB sur une note deux octaves plus haut (avant : jusqu'à 4,7 dB d'écart). Correction mesurée au banc d'essai (table selon la position du cutoff par rapport à la note et la résonance) ; pas de correction filtre fermé sous la note. Les **anciens projets gardent l'ancien volume** ; les **presets d'usine** sont recalés à leur volume d'avant (60 presets, ±0,3 dB) ; le son Init baisse de 0,7 dB.
+- Tests : banc d'essai Foudre-Core (enregistrement d'accords, conversion d'anciens projets, niveaux des filtres et des presets), `tools/tests/accords.cpp` dans Foudre-Core.
+
 ## v23 (cassette, arpège en accords, vitesse par pas)
 - **Module CASSETTE / VHS** (rack d'effets, 12e module) pour un son qui a l'air vieux, façon Boards of Canada. Ordre interne : vieil échantillonneur → enregistrement saturé → lecture qui pleure → bande usée → souffle.
   - **WOW** : la hauteur flotte lentement (jusqu'à ~40 cents crête à crête, avec une dérive irrégulière du moteur). **FLUTTER** : tremblement rapide de la bande.

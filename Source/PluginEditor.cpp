@@ -780,9 +780,19 @@ SegmentSelector::SegmentSelector (juce::AudioProcessorValueTreeState& apvts, con
     attachment.sendInitialUpdate();
 }
 
-void SegmentSelector::paint (juce::Graphics& g)
+static void paintSegments (juce::Graphics& g, juce::Component& c, const juce::StringArray& labels, int selected);
+void SegmentSelector::paint (juce::Graphics& g) { paintSegments (g, *this, labels, selected); }
+void FuncSelector::paint (juce::Graphics& g) { paintSegments (g, *this, labels, selected); }
+void FuncSelector::mouseDown (const juce::MouseEvent& e)
 {
     const int n = labels.size();
+    selected = juce::jlimit (0, n - 1, (int) (e.position.x / ((float) getWidth() / (float) n)));
+    set (selected); repaint();
+}
+static void paintSegments (juce::Graphics& g, juce::Component& c, const juce::StringArray& labels, int selected)
+{
+    const int n = labels.size();
+    auto getWidth = [&c] { return c.getWidth(); }; auto getHeight = [&c] { return c.getHeight(); };
     const float w = (float) getWidth() / (float) juce::jmax (1, n);
     for (int i = 0; i < n; ++i)
     {
@@ -2310,7 +2320,7 @@ void OrageAudioProcessorEditor::resized()
         stripToggle.setButtonText (juce::String (stripOpen ? juce::CharPointer_UTF8 ("MODULATION  \xe2\x96\xbe") : juce::CharPointer_UTF8 ("MODULATION  \xe2\x96\xb8")));
     }
     patchPanel.setVisible (patchOpen);
-    cablesBtn.setVisible (patchOpen);                                         // le calque des cables n'a de sens que patchbay ouverte
+    cablesBtn.setVisible (patchOpen); clearPatchBtn.setVisible (patchOpen);                                         // le calque des cables n'a de sens que patchbay ouverte
     patchPanel.setBounds (W - 310, top, 300, H - top - 10);
     side.setBounds (10, top, 140, H - top - 10);
     viewport.setBounds (160, top, vpW, H - top - 8 - stripH);

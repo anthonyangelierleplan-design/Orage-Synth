@@ -1,4 +1,5 @@
 #pragma once
+#include "FoudreAccords.h"
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "Engine.h"
 #ifndef ORAGE_SYNTH
@@ -116,6 +117,7 @@ public:
     bool pedal = false, keyDown[128] = {}, pedalHeld[128] = {};
     std::atomic<int> wheelShown { 0 };      // valeur de la molette (CC1) 0..127 pour l'affichage
     std::atomic<int> arpStepShown { -1 };   // pas courant de l'arpegiateur (affichage)
+    std::atomic<bool> recGroupClose { false };   // v24 : REST / TIE / BACK (interface) ferment l'accord en cours
     orage::ArpPattern arpPat;               // motif de l'arpegiateur / sequenceur (pas + pistes de modulation), edite par l'interface
     orage::Arp arp;                         // arpegiateur (version instrument)
     orage::Engine engine;                   // rack + patchbay vivent ici ; l'editeur les lit et les modifie
@@ -153,6 +155,10 @@ private:
     signed char lastDir[kMaxMap];
     juce::File midiMapFile() const;
     float arpStepHz (double bpm) const;
+    bool seqChord = true;                    // Chord Seq (v24) : REC regroupe les notes jouees ensemble
+    double recClock = 0.0;                   // horloge (s) pour reconnaitre les notes jouees ensemble
+    foudre::accords::GroupeurAccord recGroup;
+    template <class Get, class Set> void normalizeArp (Get, Set, orage::ArpPattern&);
     bool fltLevelOn = true;                  // v24 : volume des filtres egalise (faux pour un projet d'avant la v24)
     float arpRateKnob = 0.55f; int arpSyncDiv = 0; bool arpTriplet = false;
     std::vector<std::atomic<float>*> rawSyn;

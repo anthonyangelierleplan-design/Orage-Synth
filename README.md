@@ -12,20 +12,25 @@ Dézipper et copier `Orage.vst3` et `Orage FX.vst3` dans `C:\Program Files\Commo
 ## Synthé (onglet SYNTH, rangé selon le trajet du signal)
 - **Sources** : 2 VCO SAW / PULSE / TRI / SIN, suréchantillonnés, modèle analogique ou numérique propre, phase libre ou recalée ; hard sync sans repliement, ring, bruit, glide ; vibrato du VCO 1 (LFO AMT, + WHEEL, + AFTER).
 - **FM** : linéaire (façon DX) ou exponentielle, FEEDBACK, KEY SCALE, 18 rapports, 17 caractères (CHARACTER) et DICE.
-- **Filtres circuit** : MS-10, LADDER CEM3320, SEM (morph LP / notch / HP) ; passe-haut, DRIVE, KEY TRACK, LFO 2, courbe de réponse en direct.
+- **Filtres circuit** : MS-10, LADDER CEM3320, SEM (morph LP / notch / HP) ; passe-haut, DRIVE, KEY TRACK, LFO 2, courbe de réponse en direct. Les trois filtres sonnent **au même volume** à réglage égal (chacun garde son timbre).
 - **Enveloppes** ADSR filtre et ampli (LINK : l'enveloppe filtre pilote aussi le volume, l'enveloppe ampli devient ENV 2 libre), **4 LFO** de 0,05 à 1000 Hz, **wavefolder**.
 - **Matrice 16 slots** avec un sens par routage (avant / arrière / les deux), anneaux de modulation sur les potards (clic droit > Assigner à), **8 macros**.
 - **KEY ASSIGN** : POLY / MONO / UNISON / SHARE / CHORD, HOLD ; changer de mode ne coupe pas la note.
 
 ## Arpégiateur et séquenceur (onglet ARP)
-- Grille de 16 pas (silence / note / accent), **ratchet** et **vitesse** par pas (×1, ×2, ×4, ×½, ×3/2), ratchet global, triolets, tap tempo, swing, chance, gate.
-- 7 modes : UP, DOWN, UP-DN, PLAYED, RANDOM, CONVRG, **CHORD** (l'accord entier à chaque pas) ; 1 à 4 octaves.
-- **SEQ** : une note mémorisée par pas, enregistrement pas à pas, calé sur le DAW.
+- Un seul choix **OFF / ARP / SEQ** : ARP joue les touches tenues, SEQ joue les pas mémorisés (transposés par la touche jouée). Les réglages qui ne servent pas dans le mode choisi sont grisés.
+- **HOLD** (les notes et le motif continuent quand on lâche les touches ; c'est aussi le HOLD de KEY ASSIGN), **RUN** (le séquenceur et les pistes tournent sans toucher le clavier), **THRU** (les touches jouées sonnent aussi).
+- Horloge : **DIVISION** calée sur le tempo (dont 1/4T, 1/8T, 1/16T pour les triolets) ou **HZ (free)** : horloge libre réglée par le potard HZ (grisé sinon) ; TAP TEMPO ; swing, chance, gate.
+- Grille de 16 pas (silence / note / accent), **ratchet** et **vitesse** par pas (×1, ×2, ×4, ×½, ×3/2) ; **ALL RATCHET** passe tous les pas au ratchet suivant.
+- **Chord Seq** : en SEQ, REC puis jouer ; les notes jouées ensemble (moins de 60 ms d'écart) vont dans le même pas, jusqu'à 6 notes, et le pas affiche le nom de l'accord (Fm7, D♭maj7, C/E…). Bouton **CHORD / 1 NOTE** (1 NOTE = une note par pas, comme avant). Molette sur un pas = transpose l'accord entier.
+- 7 modes d'arpège : UP, DOWN, UP-DN, PLAYED, RANDOM, CONVRG, **CHORD** (l'accord entier à chaque pas) ; 1 à 4 octaves.
+- **SEQ** : enregistrement pas à pas, calé sur le DAW.
 - **8 pistes de modulation** (destination, longueur, glide), aussi sources de la matrice.
 
 ## Effets (onglet EFFECTS / Orage FX)
 - 12 modules, rack réordonnable, bypass par module : OCTAVER, DISTORSION (avec incertitude), COLOR, FILTER, DESTROY, COMP (à lampe), SPRING, GATE, BBD DELAY, REVERB (shimmer, freeze), STUTTER, CASSETTE / VHS.
-- **PATCHBAY** (câbles audio et CV) et **MODULATION** (LFO 1, LFO 2, S&H, suiveur d'enveloppe) dans deux tiroirs repliables.
+- **PATCHBAY** (câbles audio et CV) **cachée par défaut** : sans câble, le rack joue les modules dans l'ordre. Le bouton **PATCH** (en haut à droite de l'onglet EFFECTS) la montre ; elle s'ouvre d'elle-même si le projet a des câbles (« PATCH · 3 câbles »).
+- **MODULATION** (LFO 1, LFO 2, S&H, suiveur d'enveloppe) dans un tiroir repliable.
 - Faces animées (circuits qui s'allument avec le niveau). Tous les modules démarrent neutres.
 
 ## MIDI et SETTINGS

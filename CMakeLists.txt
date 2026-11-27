@@ -11,6 +11,12 @@ FetchContent_Declare(JUCE
     GIT_SHALLOW TRUE)
 FetchContent_MakeAvailable(JUCE)
 
+# tronc commun Foudre Audio (code partage Orage / Zephyr : accords du sequenceur...). Fige sur un commit precis : le build reste reproductible.
+FetchContent_Declare(FoudreCore
+    GIT_REPOSITORY https://github.com/anthonyangelierleplan-design/Foudre-core.git
+    GIT_TAG 8192015c4eb29a12d389b53021c4dd577e70aeed)
+FetchContent_MakeAvailable(FoudreCore)
+
 if(DEFINED ENV{CI})
     set(ORAGE_COPY FALSE)   # sur GitHub Actions : pas de copie dans les dossiers systeme
 else()
@@ -47,6 +53,7 @@ target_compile_definitions(Orage PUBLIC
 target_link_libraries(Orage
     PRIVATE
         juce::juce_audio_utils
+        foudre::core
     PUBLIC
         juce::juce_recommended_config_flags
         juce::juce_recommended_lto_flags
@@ -79,6 +86,7 @@ target_compile_definitions(OrageSynth PUBLIC
 target_link_libraries(OrageSynth
     PRIVATE
         juce::juce_audio_utils
+        foudre::core
     PUBLIC
         juce::juce_recommended_config_flags
         juce::juce_recommended_lto_flags

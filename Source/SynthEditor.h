@@ -151,6 +151,7 @@ private:
     std::vector<std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>> sliderAtt;
     std::vector<std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment>> buttonAtt;
     std::vector<LfoView*> lfoViews;
+    std::vector<std::function<void()>> refreshers;   // v24 : reglages grises selon le mode (ARP / SEQ), libelles qui suivent l'etat
     std::vector<std::shared_ptr<void>> idAttachments;
     juce::Image tex;
 };
