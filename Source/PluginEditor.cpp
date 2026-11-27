@@ -231,7 +231,7 @@ const int kTileNodes[] = { orage::NOct, orage::NDist, orage::NColor, orage::NFil
 constexpr int kTileShift = 23;                       // 12e tuile (CASSETTE, v23) : la section MASTER descend d'une rangee
 const char* nodeName (int n)
 {
-    static const char* names[kNumNodes] { "INPUT", "OCTAVER", "DISTORSION", "COLOR", "FILTER", "DESTROY", "COMP", "SPRING", "GATE", "BBD DELAY", "REVERB", "STUTTER", "CASSETTE", "OUTPUT" };
+    static const char* names[kNumNodes] { "INPUT", "OCTAVER", "DISTORSION", "COLOR", "FILTER", "DESTROY", "COMP", "SPRING", "GATE", "BBD DELAY", "REVERB", "STUTTER", "TAPE", "OUTPUT" };
     return names[juce::jlimit (0, (int) kNumNodes - 1, n)];
 }
 
@@ -389,6 +389,7 @@ int baIndex (const juce::String& t)
 {
     static const char* keys[12] { "NOISE GATE", "OCTAVER", "DISTORSION", "COLOR", "FILTER", "DESTROY", "TUBE COMP", "SPRING", "BBD", "PLATE", "STUTTER", "CASSETTE" };
     for (int i = 0; i < 12; ++i) if (t.startsWithIgnoreCase (keys[i])) return i;
+    if (t.startsWithIgnoreCase ("TAPE")) return 11;                              // v25 : TAPE prend la face de CASSETTE
     return -1;
 }
 struct BaTone { juce::uint32 tint; float mix, sat, bright; juce::uint32 cream; };
@@ -2010,11 +2011,41 @@ void OrageAudioProcessorEditor::buildUnits()
         };
     }
 
-    {   // CASSETTE : bande / VHS fatiguee, facon Boards of Canada (tout a zero = transparent)
-        auto* u = newUnit (NTape, "CASSETTE  /  VHS", kModH, false);
+    {   // TAPE (v25) : magnetophone cale sur un Philips D6410 (Foudre-Core). Les projets d'avant gardent l'ancien CASSETTE dans le meme emplacement.
+        auto* u = newUnit (NTape, "TAPE", kModH, false);
         auto* a = mk (*u, "tapeWow", "WOW"); auto* b = mk (*u, "tapeFlutter", "FLUTTER"); auto* c = mk (*u, "tapeSat", "SATURATE");
         auto* d = mk (*u, "tapeAge", "AGE"); auto* e = mk (*u, "tapeHiss", "HISS"); auto* f = mk (*u, "tapeCrunch", "CRUNCH"); auto* m = mk (*u, "tapeMix", "MIX");
-        u->layoutFn = [=] (juce::Rectangle<int> r) { place (r, { a, b, c, d, e, f, m }, 0, 86); };
+        auto* t1 = mk (*u, "tpDrive", "DRIVE"); auto* t2 = mk (*u, "tpAlc", "ALC"); auto* t3 = mk (*u, "tpColor", "COLOR"); auto* t4 = mk (*u, "tpWow", "WOW");
+        auto* t5 = mk (*u, "tpFlutter", "FLUTTER"); auto* t6 = mk (*u, "tpHiss", "HISS"); auto* t7 = mk (*u, "tpHum", "HUM"); auto* t8 = mk (*u, "tpMix", "MIX");
+        auto* mono = addToggle (*u, "tpMono", "MONO");
+        auto* up = new juce::TextButton ("-> TAPE"); { std::unique_ptr<juce::Component> o (up); u->addAndMakeVisible (*up); ownedExtra.push_back (std::move (o)); }
+        up->setTooltip ("Old project : this slot still runs the old CASSETTE. Click to switch to the new TAPE module (the sound changes).");
+        up->onClick = [this] { if (auto* q = proc.apvts.getParameter ("tapeModel")) q->setValueNotifyingHost (1.f); };
+        t1->slider.setTooltip ("DRIVE : level sent to the tape. 50 % = Philips D6410 (clean pass), 100 % = saturated pass");
+        t2->slider.setTooltip ("ALC : automatic level control of the recorder (fast attack, slow release)");
+        t3->slider.setTooltip ("COLOR : the Philips sound : less bass, a treble bump around 8 kHz, nothing above 12 kHz");
+        t4->slider.setTooltip ("WOW : slow pitch drift. 50 % = Philips, more = seasick tape");
+        t5->slider.setTooltip ("FLUTTER : fast tremble of the capstan. 50 % = Philips");
+        t6->slider.setTooltip ("HISS : tape hiss. 100 % = the real Philips hiss; the first notches stay subtle");
+        t7->slider.setTooltip ("HUM : 50 Hz mains hum. 10 % = Philips");
+        tapeUnit = u;
+        u->layoutFn = [=] (juce::Rectangle<int> r)
+        {
+            const bool neuf = juce::roundToInt (proc.apvts.getRawParameterValue ("tapeModel")->load()) == 1;
+            for (auto* k : { a, b, c, d, e, f, m }) k->setVisible (! neuf);
+            for (auto* k : { t1, t2, t3, t4, t5, t6, t7, t8 }) k->setVisible (neuf);
+            mono->setVisible (neuf); up->setVisible (! neuf);
+            if (neuf)
+            {
+                place (r, { t1, t2, t3, t4, t5, t6, t7, t8 }, 0, 76);
+                mono->setBounds (r.getX() + 8 * 76 + 14, r.getCentreY() - 17, 90, 34);
+            }
+            else
+            {
+                place (r, { a, b, c, d, e, f, m }, 0, 86);
+                up->setBounds (r.getX() + 7 * 86 + 14, r.getCentreY() - 15, 100, 30);
+            }
+        };
     }
 
     // ---------------- bandeau de modulation (fixe) : sources CV a droite de chaque module
@@ -2253,6 +2284,12 @@ void OrageAudioProcessorEditor::timerCallback()
     if (vu != nullptr)       { vu->setValue (proc.engine.compGr.load()); vu->tick(); }
     if (gateLamp != nullptr) gateLamp->set (proc.engine.gateLed.load() > 0.5f);
 
+    if (tapeUnit != nullptr)                                                    // TAPE / ancien CASSETTE : titre et facade suivent le moteur du projet
+    {
+        const bool neuf = juce::roundToInt (proc.apvts.getRawParameterValue ("tapeModel")->load()) == 1;
+        const juce::String t = neuf ? "TAPE" : "CASSETTE  /  VHS  (old project)";
+        if (tapeUnit->title != t) { tapeUnit->title = t; tapeUnit->resized(); tapeUnit->repaint(); }
+    }
     if (const int nc = proc.engine.cableCount(); nc != lastCables)
     {   // projet ou preset charge avec des cables : la patchbay s'ouvre ; le compte de la languette suit
         const bool open = lastCables == 0 && nc > 0;

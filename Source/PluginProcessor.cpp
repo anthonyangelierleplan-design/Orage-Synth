@@ -95,6 +95,16 @@ const PDef kDefs[] = {
     { "tapeHiss",  "Cassette Hiss",    0,   1,  0,    kFloat,  nullptr },
     { "tapeCrunch","Cassette Crunch",  0,   1,  0,    kFloat,  nullptr },
     { "tapeMix",   "Cassette Mix",     0,   1,  1,    kFloat,  nullptr },
+    { "tapeModel", "Tape Model",       0,   1,  1,    kChoice, "Cassette (old)|Tape" },   // v25 : 0 = ancien moteur CASSETTE (anciens projets), 1 = TAPE
+    { "tpDrive",   "Tape Drive",       0,   1,  0,    kFloat,  nullptr },          // module TAPE (v25) : 50 % = Philips D6410, passe propre
+    { "tpAlc",     "Tape ALC",         0,   1,  0,    kFloat,  nullptr },
+    { "tpColor",   "Tape Color",       0,   1,  0,    kFloat,  nullptr },
+    { "tpWow",     "Tape Wow",         0,   1,  0,    kFloat,  nullptr },
+    { "tpFlutter", "Tape Flutter",     0,   1,  0,    kFloat,  nullptr },
+    { "tpHiss",    "Tape Hiss",        0,   1,  0,    kFloat,  nullptr },
+    { "tpHum",     "Tape Hum",         0,   1,  0,    kFloat,  nullptr },
+    { "tpMix",     "Tape Mix",         0,   1,  1,    kFloat,  nullptr },
+    { "tpMono",    "Tape Mono",        0,   1,  0,    kBool,   nullptr },
 };
 constexpr int kNumDefs = (int) (sizeof (kDefs) / sizeof (kDefs[0]));
 
@@ -722,38 +732,38 @@ void v18_Cosmic_Radio (OrageAudioProcessor& p)
 }
 #endif
 #if ORAGE_SYNTH
-// ---- v23 : presets "cassette" (son de synthe qui a l'air vieux : pleurage, bande usee, souffle, vieil echantillonneur) + CHORD et vitesse par pas
+// ---- v23 : presets "cassette" (son de synthe qui a l'air vieux) + CHORD et vitesse par pas. v25 : passes sur le module TAPE (Philips D6410)
 void v23_Faded_Polaroid (OrageAudioProcessor& p)
 {
     S (p, { {"s_wave1",0},{"s_wave2",0},{"s_tune2",0.14f},{"s_lvl1",0.6f},{"s_lvl2",0.55f},{"s_ftype",2},{"s_lpf",0.5f},{"s_lpfRes",0.18f},{"s_fltEnv",0.08f},{"s_aA",0.62f},{"s_aD",0.6f},{"s_aS",0.9f},{"s_aR",0.8f},{"s_l1Rate",0.1f},
             {"bbdTime",0.1f},{"bbdMod",0.8f},{"bbdMix",0.22f},{"bbdFb",0.05f},{"bbdPing",0},{"revMix",0.32f},{"revDecay",0.75f},{"revSize",0.65f},{"revDamp",0.55f},
-            {"tapeWow",0.55f},{"tapeFlutter",0.2f},{"tapeSat",0.3f},{"tapeAge",0.45f},{"tapeHiss",0.18f},{"output",-7.0f} });
+            {"tpDrive",0.4f},{"tpAlc",0.4f},{"tpColor",0.55f},{"tpWow",0.8f},{"tpFlutter",0.45f},{"tpHiss",0.15f},{"output",0.4f} });
     M (p, 1, MsLfo1, MdLpf, 0.08f);
     M (p, 2, MsPolyAT, MdLpf, 0.2f);
 }
 void v23_Filmstrip_Keys (OrageAudioProcessor& p)
 {
     S (p, { {"s_wave1",2},{"s_wave2",2},{"s_fm",0.3f},{"s_fmRatio",3},{"s_lvl1",0.7f},{"s_fmDec",0.35f},{"s_fmEnvAmt",0.45f},{"s_ftype",2},{"s_lpf",0.62f},{"s_lpfRes",0.08f},{"s_aD",0.55f},{"s_aS",0.25f},{"s_aR",0.35f},
-            {"revMix",0.25f},{"revDecay",0.6f},{"tapeWow",0.4f},{"tapeFlutter",0.25f},{"tapeSat",0.25f},{"tapeAge",0.5f},{"tapeHiss",0.12f},{"tapeCrunch",0.35f},{"output",-1.0f} });
+            {"revMix",0.25f},{"revDecay",0.6f},{"tpDrive",0.35f},{"tpAlc",0.3f},{"tpColor",0.65f},{"tpWow",0.7f},{"tpFlutter",0.5f},{"tpHiss",0.12f},{"output",4.9f} });
     M (p, 1, MsVel, MdFm, 0.2f);
 }
 void v23_Lullaby_Sine (OrageAudioProcessor& p)
 {
     S (p, { {"s_wave1",2},{"s_wave2",3},{"s_oct2",3},{"s_lvl1",0.8f},{"s_lvl2",0.18f},{"s_ftype",2},{"s_lpf",0.8f},{"s_lpfRes",0.05f},{"s_glide",0.12f},{"s_assign",1},{"s_aA",0.2f},{"s_aS",0.95f},{"s_aR",0.45f},
             {"bbdMix",0.2f},{"bbdSync",9},{"bbdFb",0.35f},{"bbdTone",0.3f},{"revMix",0.3f},{"revDecay",0.7f},
-            {"tapeWow",0.7f},{"tapeFlutter",0.3f},{"tapeSat",0.2f},{"tapeAge",0.4f},{"tapeHiss",0.1f},{"output",-2.2f} });
+            {"tpDrive",0.3f},{"tpColor",0.5f},{"tpWow",0.85f},{"tpFlutter",0.5f},{"tpHiss",0.1f},{"output",-0.0f} });
 }
 void v23_VHS_Bass (OrageAudioProcessor& p)
 {
     S (p, { {"s_wave1",0},{"s_oct1",1},{"s_wave2",1},{"s_oct2",1},{"s_lvl2",0.45f},{"s_tune2",0.06f},{"s_ftype",1},{"s_lpf",0.34f},{"s_lpfRes",0.3f},{"s_fltEnv",0.35f},{"s_fD",0.3f},{"s_fS",0.3f},{"s_assign",1},{"s_glide",0.05f},{"s_aS",0.9f},{"s_aR",0.15f},
-            {"tapeWow",0.18f},{"tapeFlutter",0.1f},{"tapeSat",0.55f},{"tapeAge",0.35f},{"tapeHiss",0.06f},{"output",5.0f} });
+            {"tpDrive",0.75f},{"tpAlc",0.5f},{"tpColor",0.35f},{"tpWow",0.45f},{"tpFlutter",0.35f},{"tpHiss",0.05f},{"output",9.7f} });
 }
 void v23_Chord_Pulse_82 (OrageAudioProcessor& p)
 {
     // accord rejoue en rythme (direction CHORD) : tenir un accord, les accents et les silences font le groove
     S (p, { {"s_wave1",1},{"s_wave2",0},{"s_pw1",0.35f},{"s_lvl2",0.5f},{"s_tune2",0.08f},{"s_ftype",2},{"s_lpf",0.5f},{"s_lpfRes",0.2f},{"s_fltEnv",0.35f},{"s_fD",0.22f},{"s_fS",0.1f},{"s_aD",0.3f},{"s_aS",0.2f},{"s_aR",0.15f},
             {"s_arpOn",1},{"s_arpMode",6},{"s_arpOct",0},{"s_arpSync",7},{"s_arpGate",0.55f},{"s_arpLen",15},
-            {"bbdMix",0.18f},{"bbdSync",9},{"bbdFb",0.3f},{"revMix",0.18f},{"tapeWow",0.15f},{"tapeFlutter",0.1f},{"tapeSat",0.3f},{"tapeAge",0.2f},{"output",-0.5f} });
+            {"bbdMix",0.18f},{"bbdSync",9},{"bbdFb",0.3f},{"revMix",0.18f},{"tpDrive",0.45f},{"tpColor",0.35f},{"tpWow",0.4f},{"tpFlutter",0.4f},{"output",2.4f} });
     setSteps (p, "2011201020112110");
     M (p, 1, MsVel, MdFltEnv, 0.2f);
 }
@@ -762,7 +772,7 @@ void v23_Half_Speed_Memory (OrageAudioProcessor& p)
     // sequence dont certains pas vont deux fois plus vite (x2) ou deux fois plus lentement (x1/2) : le motif "boite" comme une vieille bande
     S (p, { {"s_wave1",2},{"s_wave2",1},{"s_oct2",3},{"s_lvl1",0.75f},{"s_lvl2",0.2f},{"s_pw2",0.3f},{"s_ftype",2},{"s_lpf",0.6f},{"s_lpfRes",0.15f},{"s_fltEnv",0.3f},{"s_fD",0.3f},{"s_fS",0},{"s_aD",0.4f},{"s_aS",0},{"s_aR",0.35f},
             {"s_arpOn",1},{"s_arpSync",7},{"s_arpGate",0.5f},{"bbdMix",0.25f},{"bbdSync",9},{"bbdFb",0.35f},{"bbdTone",0.35f},{"revMix",0.3f},{"revDecay",0.7f},
-            {"tapeWow",0.5f},{"tapeFlutter",0.25f},{"tapeSat",0.2f},{"tapeAge",0.5f},{"tapeHiss",0.12f},{"tapeCrunch",0.25f},{"output",3.8f} });
+            {"tpDrive",0.3f},{"tpAlc",0.3f},{"tpColor",0.6f},{"tpWow",0.75f},{"tpFlutter",0.5f},{"tpHiss",0.12f},{"output",3.4f} });
     setSteps (p, "2111211121102111");
     setSeq (p, { 60, 67, 64, 71, 69, 67, 64, 62, 60, 67, 72, 71, 69, 67, 64, 67 });
     setSpeeds (p, "0011000000110003");
@@ -771,15 +781,64 @@ void v23_Rainy_Projector (OrageAudioProcessor& p)
 {
     S (p, { {"s_wave1",2},{"s_wave2",0},{"s_oct2",1},{"s_tune2",7.1f},{"s_lvl1",0.6f},{"s_lvl2",0.3f},{"s_noise",0.15f},{"s_ftype",2},{"s_lpf",0.45f},{"s_lpfRes",0.3f},{"s_aA",0.75f},{"s_aS",0.9f},{"s_aR",0.85f},{"s_l1Rate",0.08f},
             {"revMix",0.5f},{"revDecay",0.88f},{"revSize",0.85f},{"revDamp",0.6f},
-            {"tapeWow",0.8f},{"tapeFlutter",0.5f},{"tapeSat",0.35f},{"tapeAge",0.7f},{"tapeHiss",0.45f},{"tapeCrunch",0.2f},{"output",-5.6f} });
+            {"tpDrive",0.45f},{"tpAlc",0.5f},{"tpColor",0.85f},{"tpWow",0.9f},{"tpFlutter",0.65f},{"tpHiss",0.35f},{"tpHum",0.1f},{"tpMono",1},{"output",6.7f} });
     M (p, 1, MsLfo1, MdLpf, 0.15f);
 }
+// ---- v25 : presets facon Boards of Canada sur le module TAPE (cale sur un Philips D6410)
+void setChords (OrageAudioProcessor& p, std::initializer_list<std::initializer_list<int>> steps)
+{
+    int i = 0;
+    for (auto& st : steps)
+        if (i < orage::kArpSteps) { int nt[orage::kSeqChordMax]; int n = 0; for (int v : st) if (n < orage::kSeqChordMax) nt[n++] = v; p.arpPat.setStepNotes (i, nt, n); p.arpPat.tie[i] = 0; ++i; }
+    p.setParamReal ("s_arpLen", (float) (i - 1));
+    p.setParamReal ("s_arpType", 1);
+}
+void v25_Kodachrome_Fade (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",0},{"s_wave2",0},{"s_tune2",0.15f},{"s_lvl1",0.6f},{"s_lvl2",0.55f},{"s_ftype",2},{"s_lpf",0.45f},{"s_lpfRes",0.15f},{"s_fltEnv",0.05f},{"s_aA",0.7f},{"s_aD",0.6f},{"s_aS",0.9f},{"s_aR",0.8f},{"s_l1Rate",0.1f},
+            {"bbdTime",0.1f},{"bbdMod",0.8f},{"bbdMix",0.2f},{"bbdFb",0.05f},{"bbdPing",0},{"revMix",0.4f},{"revDecay",0.8f},{"revSize",0.7f},{"revDamp",0.55f},
+            {"tpDrive",0.35f},{"tpAlc",0.4f},{"tpColor",0.7f},{"tpWow",0.85f},{"tpFlutter",0.45f},{"tpHiss",0.12f},{"output",1.6f} });
+    M (p, 1, MsLfo1, MdLpf, 0.1f);
+}
+void v25_Summer_Camp_1979 (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",3},{"s_wave2",2},{"s_oct2",3},{"s_lvl1",0.8f},{"s_lvl2",0.2f},{"s_ftype",2},{"s_lpf",0.7f},{"s_lpfRes",0.05f},{"s_glide",0.08f},{"s_assign",1},{"s_aA",0.05f},{"s_aS",0.9f},{"s_aR",0.4f},
+            {"bbdMix",0.25f},{"bbdSync",9},{"bbdFb",0.3f},{"bbdTone",0.3f},{"revMix",0.3f},{"revDecay",0.7f},
+            {"tpDrive",0.3f},{"tpColor",0.6f},{"tpWow",0.95f},{"tpFlutter",0.6f},{"tpHiss",0.1f},{"output",3.6f} });
+}
+void v25_Pine_Forest_Signal (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",2},{"s_wave2",0},{"s_tune2",0.1f},{"s_lvl1",0.7f},{"s_lvl2",0.35f},{"s_ftype",2},{"s_lpf",0.55f},{"s_lpfRes",0.2f},{"s_fltEnv",0.4f},{"s_fD",0.25f},{"s_fS",0},{"s_aD",0.35f},{"s_aS",0},{"s_aR",0.3f},
+            {"s_arpOn",1},{"s_arpMode",2},{"s_arpOct",1},{"s_arpSync",7},{"s_arpGate",0.45f},
+            {"bbdMix",0.3f},{"bbdSync",9},{"bbdFb",0.4f},{"bbdTone",0.35f},{"revMix",0.35f},{"revDecay",0.75f},
+            {"tpDrive",0.3f},{"tpAlc",0.4f},{"tpColor",0.8f},{"tpWow",0.7f},{"tpFlutter",0.5f},{"tpHiss",0.2f},{"tpMono",1},{"output",6.8f} });
+}
+void v25_Overwound_Spool (OrageAudioProcessor& p)
+{
+    S (p, { {"s_wave1",0},{"s_oct1",1},{"s_wave2",1},{"s_oct2",1},{"s_lvl2",0.4f},{"s_tune2",0.05f},{"s_ftype",1},{"s_lpf",0.32f},{"s_lpfRes",0.25f},{"s_fltEnv",0.3f},{"s_fD",0.3f},{"s_fS",0.3f},{"s_assign",1},{"s_aS",0.9f},{"s_aR",0.15f},
+            {"tpDrive",0.85f},{"tpAlc",0.6f},{"tpColor",0.3f},{"tpWow",0.4f},{"tpFlutter",0.3f},{"output",8.0f} });
+}
+void v25_Film_Society (OrageAudioProcessor& p)
+{
+    // Chord Seq : quatre accords enregistres (Fm7, Dbmaj7, Ab, Eb), une demi-mesure chacun ; la touche jouee transpose (do 3 = tonalite d'origine)
+    S (p, { {"s_wave1",1},{"s_pw1",0.4f},{"s_wave2",0},{"s_tune2",0.1f},{"s_lvl2",0.5f},{"s_ftype",2},{"s_lpf",0.45f},{"s_lpfRes",0.15f},{"s_fltEnv",0.2f},{"s_fD",0.5f},{"s_fS",0.4f},{"s_aA",0.1f},{"s_aD",0.6f},{"s_aS",0.6f},{"s_aR",0.5f},
+            {"s_arpOn",1},{"s_arpSync",4},{"s_arpGate",0.92f},{"revMix",0.35f},{"revDecay",0.75f},
+            {"tpDrive",0.4f},{"tpAlc",0.5f},{"tpColor",0.65f},{"tpWow",0.7f},{"tpFlutter",0.5f},{"tpHiss",0.15f},{"output",0.2f} });
+    setChords (p, { { 53, 56, 60, 63 }, { 49, 53, 56, 60 }, { 56, 60, 63 }, { 51, 55, 58 } });
+    setSteps (p, "1111111111111111");
+}
 #endif
+void fRewind (OrageAudioProcessor& p)
+{
+    p.setParamReal ("power", 0.f); p.setParamReal ("compAmt", 0.f); p.setParamReal ("springMix", 0.f); p.setParamReal ("bbdFb", 0.f);
+    p.setParamReal ("tpDrive", 0.5f); p.setParamReal ("tpAlc", 1.f); p.setParamReal ("tpColor", 1.f); p.setParamReal ("tpWow", 0.5f); p.setParamReal ("tpFlutter", 0.5f);
+    p.setParamReal ("tpHiss", 0.25f); p.setParamReal ("tpHum", 0.05f); p.setParamReal ("tpMono", 1.f); p.setParamReal ("tpMix", 1.f); p.setParamReal ("output", 5.2f);
+}
 void fCassette (OrageAudioProcessor& p)
 {
     p.setParamReal ("power", 0.f); p.setParamReal ("compAmt", 0.f); p.setParamReal ("springMix", 0.f); p.setParamReal ("bbdFb", 0.f);
-    p.setParamReal ("tapeWow", 0.5f); p.setParamReal ("tapeFlutter", 0.25f); p.setParamReal ("tapeSat", 0.35f); p.setParamReal ("tapeAge", 0.5f);
-    p.setParamReal ("tapeHiss", 0.15f); p.setParamReal ("tapeCrunch", 0.1f); p.setParamReal ("tapeMix", 1.f); p.setParamReal ("output", 0.f);
+    p.setParamReal ("tpDrive", 0.5f); p.setParamReal ("tpAlc", 0.6f); p.setParamReal ("tpColor", 0.7f); p.setParamReal ("tpWow", 0.7f);
+    p.setParamReal ("tpFlutter", 0.5f); p.setParamReal ("tpHiss", 0.15f); p.setParamReal ("tpMix", 1.f); p.setParamReal ("output", 5.6f);
 }
 
 const Factory kFactory[] = {
@@ -807,6 +866,8 @@ const Factory kFactory[] = {
     { "Faded Polaroid", "Pad", v23_Faded_Polaroid }, { "Filmstrip Keys", "Pluck / Keys", v23_Filmstrip_Keys }, { "Lullaby Sine", "Lead", v23_Lullaby_Sine },
     { "VHS Bass", "Bass", v23_VHS_Bass }, { "Chord Pulse 82", "Arp / Seq", v23_Chord_Pulse_82 }, { "Half-Speed Memory", "Arp / Seq", v23_Half_Speed_Memory },
     { "Rainy Projector", "FX / Texture", v23_Rainy_Projector },
+    { "Kodachrome Fade", "Pad", v25_Kodachrome_Fade }, { "Summer Camp 1979", "Lead", v25_Summer_Camp_1979 }, { "Pine Forest Signal", "Arp / Seq", v25_Pine_Forest_Signal },
+    { "Overwound Spool", "Bass", v25_Overwound_Spool }, { "Film Society", "Arp / Seq", v25_Film_Society },
 #endif
     { "Waters Of Nazareth (depart)", "Rack FX", fWaters },
     { "Gated Fuzz Wall", "Rack FX", fGated },
@@ -815,6 +876,7 @@ const Factory kFactory[] = {
     { "Glitch Machine 1/16", "Rack FX", fGlitch },
     { "Spring Feedback", "Rack FX", fSpring },
     { "Cassette Memories", "Rack FX", fCassette },
+    { "Rewind Memory", "Rack FX", fRewind },
 };
 constexpr int kNumFactory = (int) (sizeof (kFactory) / sizeof (kFactory[0]));
 }
@@ -1029,6 +1091,7 @@ orage::Params OrageAudioProcessor::readParams() const
     p.revMix = f();  p.revSize = f();  p.revDecay = f();  p.revPre = f();  p.revDamp = f();  p.revMod = f();  p.revWidth = f();  p.revShimmer = f();  p.revLowCut = f();  p.revFreeze = b();
     p.stutOn = b();  p.stutMode = n();  p.stutDiv = n();  p.stutFeel = n();  p.stutLen = f();  p.stutDecay = f();  p.stutPitch = f();  p.stutMix = f();
     p.tapeWow = f();  p.tapeFlutter = f();  p.tapeSat = f();  p.tapeAge = f();  p.tapeHiss = f();  p.tapeCrunch = f();  p.tapeMix = f();
+    p.tapeModel = n();  p.tpDrive = f();  p.tpAlc = f();  p.tpColor = f();  p.tpWow = f();  p.tpFlutter = f();  p.tpHiss = f();  p.tpHum = f();  p.tpMix = f();  p.tpMono = b();
     jassert (i == kNumDefs);
     return p;
 }
@@ -1358,6 +1421,7 @@ juce::ValueTree OrageAudioProcessor::captureState()
     state.setProperty ("lfoV2", 1, nullptr);                               // plage de vitesse des LFO elargie (0.05..300 Hz)
     state.setProperty ("ftV2", 1, nullptr);                                // filtres : numerotation 0..2 (circuits) depuis la v20
     state.setProperty ("flt24", 1, nullptr);
+    state.setProperty ("tape25", 1, nullptr);                              // v25 : le module du rack est TAPE (tapeModel), sinon ancien CASSETTE
     state.setProperty ("arp24", 1, nullptr);                                // Arp/Seq range (v24) : LATCH = HOLD, triolets dans DIVISION, ratchet dans la grille                                // volume des filtres egalise (v24)
     state.setProperty ("ov22d", 1, nullptr);                               // OCTAVE / TUNE du VCO 2 actifs avec un rapport FM, SEQ sans ARP (v22d)
     state.setProperty ("dirV3", 1, nullptr);                               // matrice : quantite 0..1 + sens par routage (v22)
@@ -1414,6 +1478,12 @@ void OrageAudioProcessor::normalizeArp (Get val, Set set, orage::ArpPattern& pat
 
 void OrageAudioProcessor::applyState (juce::ValueTree state)
 {
+    if (! state.hasProperty ("tape25"))                                    // projet d'avant la v25 : le module du rack reste l'ancien CASSETTE (meme son)
+    {
+        bool fait = false;
+        for (auto c : state) if (c.hasProperty ("id") && c.getProperty ("id").toString() == "tapeModel") { c.setProperty ("value", 0, nullptr); fait = true; }
+        if (! fait) { juce::ValueTree d ("PARAM"); d.setProperty ("id", "tapeModel", nullptr); d.setProperty ("value", 0, nullptr); state.appendChild (d, nullptr); }
+    }
     fltLevelOn = state.hasProperty ("flt24");                               // ancien projet : les filtres gardent leur volume d'avant
     engine.loadPatch (state.getProperty ("patch", "").toString().toStdString());
     const auto rk = state.getProperty ("rack", "").toString();
@@ -1687,7 +1757,7 @@ void OrageAudioProcessor::loadFactoryPreset (int i)
             if (auto* o = apvts.getRawParameterValue ("output")) setParamReal ("output", o->load() + it->second);
     }
     if (i != 0) pruneUnusedModules();
-    if (kFactory[i].apply == fCassette) engine.removeFromRack (NDist);                // preset cassette seule : pas de distorsion dans la chaine
+    if (kFactory[i].apply == fCassette || kFactory[i].apply == fRewind) engine.removeFromRack (NDist);   // presets cassette seule : pas de distorsion dans la chaine
     presetName = kFactory[i].name;
     presetCategory = kFactory[i].category;
 }
@@ -1710,7 +1780,8 @@ void OrageAudioProcessor::pruneUnusedModules()
         q.bbdMix < 0.003f,                                                               // NBbd
         q.revMix < 0.003f,                                                               // NVerb
         ! q.stutOn,                                                                      // NStut
-        q.tapeMix < 0.003f || (q.tapeWow + q.tapeFlutter + q.tapeSat + q.tapeAge + q.tapeHiss + q.tapeCrunch) < 0.003f,   // NTape
+        q.tapeModel == 1 ? (q.tpMix < 0.003f || (q.tpDrive + q.tpAlc + q.tpColor + q.tpWow + q.tpFlutter + q.tpHiss + q.tpHum) < 0.003f)
+                         : (q.tapeMix < 0.003f || (q.tapeWow + q.tapeFlutter + q.tapeSat + q.tapeAge + q.tapeHiss + q.tapeCrunch) < 0.003f),   // NTape
         false };                                                                         // NOut
     bool keep[kNumNodes] {};
     for (int nd = 0; nd < kNumNodes; ++nd)                                              // modules touches par un cable audio : on les garde

@@ -7,6 +7,7 @@
 #include <cstdlib>
 #include <string>
 #include <vector>
+#include "FoudreTape.h"            // module TAPE (v25), commun avec Zephyr (Foudre-Core)
 
 namespace orage
 {
@@ -124,7 +125,9 @@ struct Params
     float revMix = 0.f, revSize = 0.5f, revDecay = 0.6f, revPre = 0.1f, revDamp = 0.4f, revMod = 0.3f, revWidth = 1.f, revShimmer = 0.f, revLowCut = 0.1f;  bool revFreeze = false;
     bool  stutOn = false;  int stutMode = 0, stutDiv = 4, stutFeel = 0;                 // module STUTTER : engage, mode (repeat / reverse / gate / offbeat), division, feeling (droit / triolet / pointe)
     float stutLen = 0.6f, stutDecay = 0.f, stutPitch = 0.5f, stutMix = 1.f;
-    float tapeWow = 0.f, tapeFlutter = 0.f, tapeSat = 0.f, tapeAge = 0.f, tapeHiss = 0.f, tapeCrunch = 0.f, tapeMix = 1.f;   // module CASSETTE (v23)
+    float tapeWow = 0.f, tapeFlutter = 0.f, tapeSat = 0.f, tapeAge = 0.f, tapeHiss = 0.f, tapeCrunch = 0.f, tapeMix = 1.f;   // module CASSETTE (v23) : ancien moteur, pour les projets d'avant la v25
+    int tapeModel = 1;                                                                                                   // 0 CASSETTE (ancien), 1 TAPE (v25)
+    float tpDrive = 0.f, tpAlc = 0.f, tpColor = 0.f, tpWow = 0.f, tpFlutter = 0.f, tpHiss = 0.f, tpHum = 0.f, tpMix = 1.f; bool tpMono = false;   // module TAPE (v25)
 };
 
 // ------------------------------------------------------------------ octaver (bascule /2 + redresseur)
@@ -1201,7 +1204,7 @@ public:
     {
         fs = sampleRate; fsOS = fs * 4.f;
         oct.prepare (fs); os.prepare (fs); storm.prepare (fsOS); cable.prepare (fs); comp.prepare (fs); gate.prepare (fs);
-        destroyer.prepare (fs); spring.prepare (fs); bbd.prepare (fs); verb.prepare (fs); stut.prepare (fs); tape.prepare (fs);
+        destroyer.prepare (fs); spring.prepare (fs); bbd.prepare (fs); verb.prepare (fs); stut.prepare (fs); tape.prepare (fs); tape2.prepare (fs);
         for (auto& e : extS) e = 0.f;
         hpC = onePoleCoef (60.f, fsOS);
         sagA = timeCoef (0.03f, fsOS); sagR = timeCoef (0.25f, fsOS);
@@ -1323,7 +1326,16 @@ private:
                 case NStut:    modStut (in, out[nd], n, nc); break;
                 case NComp:    modComp (in, out[nd], n, nc); break;
                 case NSpring:  modSpring (in, out[nd], n, nc); break;
-                case NTape:    tape.process (in, out[nd], n, nc, p.tapeWow, p.tapeFlutter, p.tapeSat, p.tapeAge, p.tapeHiss, p.tapeCrunch, p.tapeMix); break;
+                case NTape:
+                    if (p.tapeModel == 1)
+                    {   // TAPE (v25) : magnetophone cale sur un Philips D6410 (Foudre-Core)
+                        foudre::tape::Reglages r; r.drive = p.tpDrive; r.alc = p.tpAlc; r.color = p.tpColor; r.wow = p.tpWow; r.flutter = p.tpFlutter;
+                        r.hiss = p.tpHiss; r.hum = p.tpHum; r.mix = p.tpMix; r.mono = p.tpMono;
+                        out[nd] = in;
+                        tape2.process (out[nd].ch[0], nc > 1 ? out[nd].ch[1] : nullptr, n, r);
+                    }
+                    else tape.process (in, out[nd], n, nc, p.tapeWow, p.tapeFlutter, p.tapeSat, p.tapeAge, p.tapeHiss, p.tapeCrunch, p.tapeMix);
+                    break;
                 default:       modOut (in, io, n, nc); break;
             }
             done[nd] = true;
@@ -1655,7 +1667,7 @@ private:
     Params p;
     float fs = 44100.f, fsOS = 176400.f;
     Buf out[kNumNodes];
-    Octaver oct; Oversampler4 os; Storm storm; BadCable cable; TubeComp comp; Gate gate; Destroyer destroyer; Spring spring; Bbd bbd; Reverb verb; Stutter stut; Tape tape; ChaosMod chaos;
+    Octaver oct; Oversampler4 os; Storm storm; BadCable cable; TubeComp comp; Gate gate; Destroyer destroyer; Spring spring; Bbd bbd; Reverb verb; Stutter stut; Tape tape; foudre::tape::Tape tape2; ChaosMod chaos;
     Biquad lowB, midB, hiB; Svf hpfSvf, lpfSvf;
     DistChannel dch[2];
     Lfo lfo1, lfo2; SampleHold sh; Rng shRng; float envV = 0.f;

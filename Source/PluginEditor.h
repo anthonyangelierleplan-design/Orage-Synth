@@ -410,7 +410,9 @@ private:
     LedToggle cablesBtn, midiBtn;
     juce::TextButton patchToggle, stripToggle;           // tiroirs : replier le patchbay (colonne de droite) / le bandeau LFO-S&H-ENV
     bool patchOpen = false, stripOpen = true;
-    int lastCables = 0;                                   // nombre de cables du patch (affiche sur la languette PATCH)
+    int lastCables = 0;
+    ModuleUnit* tapeUnit = nullptr;                       // v25 : module TAPE (ou ancien CASSETTE selon le projet)
+    std::vector<std::unique_ptr<juce::Component>> ownedExtra;                                   // nombre de cables du patch (affiche sur la languette PATCH)
     void updateDrawers();
 public:
     void setDrawerTogglesVisible (bool v) { patchToggle.setVisible (v); stripToggle.setVisible (v); }   // languettes PATCHBAY / MODULATION : onglet EFFECTS seulement
