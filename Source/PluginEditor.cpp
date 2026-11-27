@@ -1767,14 +1767,6 @@ OrageAudioProcessorEditor::OrageAudioProcessorEditor (OrageAudioProcessor& p, ju
         const auto f = juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory).getChildFile ("Foudre Audio").getChildFile ("midishow.txt");
         f.getParentDirectory().createDirectory(); f.replaceWithText (look::showMidi ? "1" : "0");
     };
-    {
-        const int dv = loadDrawerPref(); patchOpen = (dv & 1) != 0; stripOpen = (dv & 2) != 0;
-        addAndMakeVisible (patchToggle); addAndMakeVisible (stripToggle);
-        patchToggle.onClick = [this] { patchOpen = ! patchOpen; updateDrawers(); };
-        stripToggle.onClick = [this] { stripOpen = ! stripOpen; updateDrawers(); };
-        patchToggle.setTooltip ("Replier / deplier le patchbay");
-        stripToggle.setTooltip ("Replier / deplier les LFO, S&H et suiveur d'enveloppe");
-    }
     addAndMakeVisible (settingsBtn);
     settingsBtn.setButtonText ("SETTINGS");
     settingsBtn.onClick = [this]
@@ -1782,6 +1774,15 @@ OrageAudioProcessorEditor::OrageAudioProcessorEditor (OrageAudioProcessor& p, ju
         juce::CallOutBox::launchAsynchronously (std::make_unique<SettingsPanel> (proc), settingsBtn.getScreenBounds(), getTopLevelComponent());
     };
 #endif
+    {   // tiroirs (v24) : la patchbay est cachee par defaut (le rack joue en simple chaine) ; elle s'ouvre d'elle-meme si le projet a des cables
+        const int dv = loadDrawerPref(); stripOpen = (dv & 2) != 0;
+        lastCables = proc.engine.cableCount(); patchOpen = lastCables > 0;
+        addAndMakeVisible (patchToggle); addAndMakeVisible (stripToggle);
+        patchToggle.onClick = [this] { patchOpen = ! patchOpen; updateDrawers(); };
+        stripToggle.onClick = [this] { stripOpen = ! stripOpen; updateDrawers(); };
+        patchToggle.setTooltip ("Montrer / cacher la patchbay (cables entre les modules). Sans cable, le rack joue les modules dans l'ordre.");
+        stripToggle.setTooltip ("Replier / deplier les LFO, S&H et suiveur d'enveloppe");
+    }
     addAndMakeVisible (patchBay);
 
     setSize (1440, kFxH);
@@ -2242,6 +2243,13 @@ void OrageAudioProcessorEditor::timerCallback()
     if (vu != nullptr)       { vu->setValue (proc.engine.compGr.load()); vu->tick(); }
     if (gateLamp != nullptr) gateLamp->set (proc.engine.gateLed.load() > 0.5f);
 
+    if (const int nc = proc.engine.cableCount(); nc != lastCables)
+    {   // projet ou preset charge avec des cables : la patchbay s'ouvre ; le compte de la languette suit
+        const bool open = lastCables == 0 && nc > 0;
+        lastCables = nc;
+        if (open) patchOpen = true;
+        resized(); repaint();
+    }
     const uint32_t h = patchBay.stateHash();                                  // cables : on ne redessine que si quelque chose a bouge
     if (h != lastPatchHash) { lastPatchHash = h; patchBay.repaint(); }
     for (auto& k : knobs)
@@ -2269,8 +2277,6 @@ void OrageAudioProcessorEditor::timerCallback()
 void OrageAudioProcessorEditor::updateDrawers()
 {
     saveDrawerPref ((patchOpen ? 1 : 0) | (stripOpen ? 2 : 0));
-    patchToggle.setButtonText (juce::String (patchOpen ? juce::CharPointer_UTF8 ("PATCHBAY  \xe2\x96\xbe") : juce::CharPointer_UTF8 ("PATCHBAY  \xe2\x96\xb8")));
-    stripToggle.setButtonText (juce::String (stripOpen ? juce::CharPointer_UTF8 ("MODULATION  \xe2\x96\xbe") : juce::CharPointer_UTF8 ("MODULATION  \xe2\x96\xb8")));
     resized();
     repaint();
 }
@@ -2298,10 +2304,13 @@ void OrageAudioProcessorEditor::resized()
     patchToggle.setBounds (W - 310, 72, 148, 20);
     stripToggle.setBounds (W - 158, 72, 148, 20);
     {   // le texte des languettes suit l'etat (sans reappeler resized)
-        patchToggle.setButtonText (juce::String (patchOpen ? juce::CharPointer_UTF8 ("PATCHBAY  \xe2\x96\xbe") : juce::CharPointer_UTF8 ("PATCHBAY  \xe2\x96\xb8")));
+        juce::String pt = "PATCH";
+        if (lastCables > 0) pt << juce::String (juce::CharPointer_UTF8 (" \xc2\xb7 ")) << lastCables << juce::String (juce::CharPointer_UTF8 (lastCables > 1 ? " c\xc3\xa2" "bles" : " c\xc3\xa2" "ble"));
+        patchToggle.setButtonText (pt + juce::String (patchOpen ? juce::CharPointer_UTF8 ("  \xe2\x96\xbe") : juce::CharPointer_UTF8 ("  \xe2\x96\xb8")));
         stripToggle.setButtonText (juce::String (stripOpen ? juce::CharPointer_UTF8 ("MODULATION  \xe2\x96\xbe") : juce::CharPointer_UTF8 ("MODULATION  \xe2\x96\xb8")));
     }
     patchPanel.setVisible (patchOpen);
+    cablesBtn.setVisible (patchOpen);                                         // le calque des cables n'a de sens que patchbay ouverte
     patchPanel.setBounds (W - 310, top, 300, H - top - 10);
     side.setBounds (10, top, 140, H - top - 10);
     viewport.setBounds (160, top, vpW, H - top - 8 - stripH);

@@ -153,6 +153,7 @@ private:
     signed char lastDir[kMaxMap];
     juce::File midiMapFile() const;
     float arpStepHz (double bpm) const;
+    bool fltLevelOn = true;                  // v24 : volume des filtres egalise (faux pour un projet d'avant la v24)
     float arpRateKnob = 0.55f; int arpSyncDiv = 0; bool arpTriplet = false;
     std::vector<std::atomic<float>*> rawSyn;
     juce::ValueTree captureState();

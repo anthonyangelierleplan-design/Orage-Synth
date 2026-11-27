@@ -1161,6 +1161,13 @@ public:
         if (src < 0 || src >= kNumSrc || dst < 0 || dst >= kNumCv) return;
         if (on) cvIn[dst].fetch_or (1u << src); else cvIn[dst].fetch_and (~(1u << src));
     }
+    int cableCount() const                                                    // nombre de cables branches (audio + modulation)
+    {
+        int n = 0;
+        for (auto& a : audioIn) for (uint32_t v = a.load(); v != 0; v &= v - 1) ++n;
+        for (auto& c : cvIn)    for (uint32_t v = c.load(); v != 0; v &= v - 1) ++n;
+        return n;
+    }
     void clearPatch() { for (auto& a : audioIn) a.store (0); for (auto& c : cvIn) c.store (0); }
     std::string serializePatch() const
     {

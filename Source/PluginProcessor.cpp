@@ -1055,7 +1055,7 @@ orage::SynthParams OrageAudioProcessor::readSynth()
     for (auto& sl : s.slot) { sl.src = n(); sl.dst = n(); sl.amt = f(); }
     s.fold = f(); s.foldSym = f();
     arpParams.on = n(); arpParams.dir = n(); arpParams.range = n();
-    s.ftype = n(); s.semMorph = f();
+    s.ftype = n(); s.semMorph = f();  s.fltLevel = fltLevelOn;
     s.assign = n(); s.hold = b() ? 1 : 0; s.uniDetune = f(); chordLearn = b();
     arpParams.assign = s.assign; arpParams.hold = s.hold != 0;
     for (int k = 4; k < kMacros; ++k) s.macro[k] = f();
@@ -1338,6 +1338,7 @@ juce::ValueTree OrageAudioProcessor::captureState()
     state.setProperty ("lfoV3", 1, nullptr);                               // plage des LFO 0.05..1000 Hz
     state.setProperty ("lfoV2", 1, nullptr);                               // plage de vitesse des LFO elargie (0.05..300 Hz)
     state.setProperty ("ftV2", 1, nullptr);                                // filtres : numerotation 0..2 (circuits) depuis la v20
+    state.setProperty ("flt24", 1, nullptr);                                // volume des filtres egalise (v24)
     state.setProperty ("ov22d", 1, nullptr);                               // OCTAVE / TUNE du VCO 2 actifs avec un rapport FM, SEQ sans ARP (v22d)
     state.setProperty ("dirV3", 1, nullptr);                               // matrice : quantite 0..1 + sens par routage (v22)
     state.setProperty ("patch", juce::String (engine.serializePatch()), nullptr);
@@ -1360,6 +1361,7 @@ juce::ValueTree OrageAudioProcessor::captureState()
 
 void OrageAudioProcessor::applyState (juce::ValueTree state)
 {
+    fltLevelOn = state.hasProperty ("flt24");                               // ancien projet : les filtres gardent leur volume d'avant
     engine.loadPatch (state.getProperty ("patch", "").toString().toStdString());
     const auto rk = state.getProperty ("rack", "").toString();
     if (rk.isNotEmpty()) engine.loadRack (rk.toStdString()); else engine.setDefaultRack();
@@ -1581,6 +1583,7 @@ void OrageAudioProcessor::loadFactoryPreset (int i)
 {
     i = juce::jlimit (0, kNumFactory - 1, i);
     resetModules();
+    fltLevelOn = true;
 #if ORAGE_SYNTH
     arpPat.reset();
 #endif
@@ -1598,6 +1601,23 @@ void OrageAudioProcessor::loadFactoryPreset (int i)
     }
     if (i != 0) applyMacroSet (*this, kFactory[i].category);
 #endif
+    {   // v24 : volume des filtres egalise -> chaque preset d'usine garde son volume d'avant (dB, mesure au banc : accord do-sol-do, velocite 100)
+        static const std::map<juce::String, float> flvTrimDb {
+            { "Velvet Dawn", 0.6f }, { "Glass Cathedral", -1.2f }, { "Ocean Floor", -0.7f }, { "Tidal Choir", 0.5f }, { "Cold Aurora", 0.5f },
+            { "Moon Sync", 0.8f }, { "Warm Brass Pad", -0.3f }, { "Hollow Wind", 0.5f }, { "Slow Motion Chord", 0.4f }, { "Giant Space", -1.1f },
+            { "Pulse Silk", 0.7f }, { "Blue Hour", 0.6f }, { "Fat Moog", -0.5f }, { "Solo SEM", 0.6f }, { "Ladder Sync Lead", -0.4f }, { "Soft Sine Lead", 0.4f },
+            { "Pulse Width Lead", 0.3f }, { "Wavefold Lead", 0.6f }, { "Unison Monster", -0.6f }, { "FM Brass Lead", -0.7f }, { "Whistle", 0.5f },
+            { "Glide Mono", 0.4f }, { "Cry Baby", 0.7f }, { "Ring Lead", 0.4f }, { "Glass Pluck", 0.7f }, { "Marimba Ring", 0.6f }, { "FM E-Piano", 0.5f },
+            { "FM Bell", 0.4f }, { "Electric Clav", 0.6f }, { "Harpsichord", 0.7f }, { "Wurly Drive", 0.3f }, { "Kalimba", 0.5f }, { "Brass Stab", -0.3f },
+            { "Vibes", 0.6f }, { "Pluck Pad Hybrid", -1.0f }, { "Trance Gate Arp", -1.2f }, { "Arp Rain", 0.7f }, { "Acid Lanes", 0.6f }, { "Pulse Climb", -1.0f },
+            { "Random Dreams", 0.7f }, { "Seq Pluck", 0.6f }, { "Ratchet Pluck", 0.6f }, { "Polymeter Drift", 0.5f }, { "Bass Sequence", -0.4f },
+            { "Stutter Sequencer", 0.7f }, { "Wind Machine", -1.9f }, { "Metal Rain", 0.8f }, { "Alien Choir", 0.7f }, { "Ring Wobble", 0.6f },
+            { "Sample And Hold Cloud", 0.8f }, { "Noise Riser", -1.9f }, { "Cosmic Radio", 0.6f }, { "Faded Polaroid", 0.4f }, { "Filmstrip Keys", 0.5f },
+            { "Lullaby Sine", 0.3f }, { "VHS Bass", -0.7f }, { "Chord Pulse 82", 0.5f }, { "Half-Speed Memory", 0.7f }, { "Rainy Projector", 0.4f },
+            { "Cassette Memories", 0.5f } };
+        if (const auto it = flvTrimDb.find (kFactory[i].name); it != flvTrimDb.end())
+            if (auto* o = apvts.getRawParameterValue ("output")) setParamReal ("output", o->load() + it->second);
+    }
     if (i != 0) pruneUnusedModules();
     if (kFactory[i].apply == fCassette) engine.removeFromRack (NDist);                // preset cassette seule : pas de distorsion dans la chaine
     presetName = kFactory[i].name;

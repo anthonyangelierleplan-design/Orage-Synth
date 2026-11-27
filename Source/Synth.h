@@ -78,6 +78,7 @@ struct SynthParams
     int fmDir = 0, fmRatio = 0, fmWave = 0;   // FM : sens (0 VCO2>VCO1, 1 VCO1>VCO2, 2 croisee), rapport de frequence (0 libre), onde du modulateur (0 = celle du VCO)
     float fmFine = 0.f, fmAtt = 0.f, fmDec = 0.4f, fmEnvAmt = 0.f, fmVel = 0.f, fmAT = 0.f;     // FM : desaccord fin, enveloppe de profondeur, vitesse, aftertouch
     float uniDetune = 0.3f;                   // ecart de desaccord des voix empilees
+    bool fltLevel = true;                     // v24 : volume des filtres egalise (coupe pour les anciens projets : ils sonnent comme avant)
     int ftype = 0;                            // filtre passe-bas : 0 MS-10 (circuit), 1 Ladder CEM3320 (circuit), 2 SEM (circuit)
     int quality = 1;                          // 0 performance (filtres x2, folder/saturation x4), 1 qualite (x4/x4), 2 high fidelity (x8/x8)
     float vib = 0.f, vibWheel = 0.f, vibAT = 0.f;   // vibrato VCO1 : quantite de LFO1 sur la hauteur (+ molette, + aftertouch)
@@ -390,6 +391,49 @@ struct Cem3320
 };
 // ---- SEM "circuit" : filtre a variables d'etat Oberheim SEM : melangeur A12 (entree - LP - amortissement*BP), deux integrateurs CA3080 (tanh) A13/A15 precedes de diviseurs,
 // suiveurs Q39/Q40, BP en A14, LP en A16, amortissement fixe par le potard RES (50k) avec ecretage par les diodes D11/D12. Trapezoide + Newton 2x2 (retour implicite).
+// ---- volume des filtres egalise (v24) : a meme cutoff et meme resonance, les 3 filtres sonnent au meme volume (+-1,5 dB) ; chacun garde son timbre.
+// Table mesuree au banc d'essai (foudre-banc, LUFS, dent de scie, enveloppe de filtre a 0) : ecart (dB) entre le filtre et la moyenne des 3.
+// Filtre ferme sous la note : pas de correction (un filtre ferme doit rester discret). Anciens projets : correction coupee (SynthParams::fltLevel).
+constexpr int kFlvX = 6, kFlvR = 6, kFlvT = 3;
+constexpr float kFlvXs[kFlvX] { -0.51f, 0.91f, 2.33f, 3.76f, 5.18f, 6.60f };   // octaves entre la coupure et la fondamentale de la note
+constexpr float kFlvRs[kFlvR] { 0.00f, 0.20f, 0.40f, 0.60f, 0.75f, 0.90f };   // resonance
+constexpr float kFlvDb[kFlvT][kFlvX][kFlvR] {
+    { {  0.00f,  0.00f,  0.00f,  0.00f,  0.00f,  0.00f },
+      {  0.90f, -1.07f, -1.17f, -1.40f, -1.23f, -1.37f },
+      {  0.47f, -0.70f, -0.87f, -0.80f, -0.57f, -0.37f },
+      {  0.30f, -0.60f, -0.93f, -0.97f, -0.67f,  0.30f },
+      {  0.27f, -0.57f, -0.93f, -1.07f, -0.97f, -0.37f },
+      {  0.30f, -0.57f, -0.93f, -1.13f, -1.17f, -0.93f } },
+    { {  0.00f,  0.00f,  0.00f,  0.00f,  0.00f,  0.00f },
+      {  1.00f,  1.13f,  1.53f,  2.40f,  2.77f,  2.83f },
+      {  0.17f,  1.40f,  1.93f,  2.10f,  2.13f,  1.73f },
+      {  0.00f,  1.50f,  2.17f,  2.43f,  2.23f,  0.70f },
+      { -0.03f,  1.53f,  2.27f,  2.63f,  2.63f,  1.93f },
+      { -0.10f,  1.53f,  2.37f,  2.77f,  2.93f,  2.67f } },
+    { {  0.00f,  0.00f,  0.00f,  0.00f,  0.00f,  0.00f },
+      { -1.90f, -0.07f, -0.37f, -1.00f, -1.53f, -1.47f },
+      { -0.63f, -0.70f, -1.07f, -1.30f, -1.57f, -1.37f },
+      { -0.30f, -0.90f, -1.23f, -1.47f, -1.57f, -1.00f },
+      { -0.23f, -0.97f, -1.33f, -1.57f, -1.67f, -1.57f },
+      { -0.20f, -0.97f, -1.43f, -1.63f, -1.77f, -1.73f } },
+};
+
+inline float fltLevelGain (int type, float octAboveNote, float res)
+{
+    type = std::min (kFlvT - 1, std::max (0, type));
+    auto idx = [] (const float* a, int n, float v, int& i, float& f)
+    {
+        if (v <= a[0]) { i = 0; f = 0.f; return; }
+        if (v >= a[n - 1]) { i = n - 2; f = 1.f; return; }
+        i = 0; while (i < n - 2 && v > a[i + 1]) ++i;
+        f = (v - a[i]) / (a[i + 1] - a[i]);
+    };
+    int xi, ri; float xf, rf;
+    idx (kFlvXs, kFlvX, octAboveNote, xi, xf); idx (kFlvRs, kFlvR, res, ri, rf);
+    const auto& T = kFlvDb[type];
+    const float a = T[xi][ri] + (T[xi][ri + 1] - T[xi][ri]) * rf, b = T[xi + 1][ri] + (T[xi + 1][ri + 1] - T[xi + 1][ri]) * rf;
+    return std::pow (10.f, (a + (b - a) * xf) / 20.f);
+}
 struct SemCkt
 {
     float bp = 0.f, lp = 0.f, t1 = 0.f, t2 = 0.f;
@@ -957,6 +1001,11 @@ private:
         if (P.ftype == 0) sy::Ms10Tab::get().controls (2.0 * fs * (double) gL, (double) res, msC, c1[16], c1[17], c1[18]);       // MS-10 : resistance des etages, retour PEAK
         if (P.ftype == 1) c1[16] = 4.04f * res;                                                                                  // CEM3320 : gain de retour (auto-oscillation au-dessus de 4)
         else if (P.ftype == 2) c1[16] = 1.9f * std::pow (1.f - res, 1.3f) + 0.03f;                                               // SEM : amortissement (potard RES)
+        {   // volume egalise des filtres (v24) : position de la coupure par rapport a la note jouee
+            const float noteHz = 440.f * std::exp2 ((v.pitch - 69.f) / 12.f);
+            const float g = P.fltLevel ? sy::fltLevelGain (P.ftype, std::log2 (std::max (1.f, lpfHz) / std::max (8.f, noteHz)), res) : 1.f;
+            c1[19] = P.ftype == 2 ? 1.f + (g - 1.f) * (1.f - morph) : g;                     // SEM : mesure en passe-bas, la correction s'efface vers notch / passe-haut
+        }
         if (! v.cInit) { for (int q = 0; q < 20; ++q) v.c0[q] = c1[q]; v.cInit = true; }
         float cd[20]; for (int q = 0; q < 20; ++q) cd[q] = (c1[q] - v.c0[q]) / (float) len;
         float cc[20]; for (int q = 0; q < 20; ++q) cc[q] = v.c0[q];
@@ -1056,6 +1105,7 @@ private:
                 const float dq = cc[16], g2 = sy::gHalfN (gL, facFlt);
                 lp = v.osV.run (dx, facFlt, [&v, g2, dq, morph] (float u) { return v.sck.run (u, g2, dq, morph); });
             }
+            lp *= cc[19];
             const float a = P.envLink ? v.aenv.tick (fA2, fD2, fS2, fR2, fs) : v.aenv.tick (aA2, aD2, aS2, aR2, fs);   // LINK : le volume suit l'enveloppe FILTRE (au rythme audio)
             const float y = lp * a * level * v.gainV * (0.35f + 0.65f * v.vel);
             if (! (std::fabs (y) < 8.f))                                   // garde-fou : NaN, infini ou valeur folle -> on remet les etats a zero (jamais de bruit ni de blocage)
