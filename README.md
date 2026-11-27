@@ -28,10 +28,11 @@ Dézipper et copier `Orage.vst3` et `Orage FX.vst3` dans `C:\Program Files\Commo
 - **8 pistes de modulation** (destination, longueur, glide), aussi sources de la matrice.
 
 ## Effets (onglet EFFECTS / Orage FX)
-- 12 modules, rack réordonnable, bypass par module : OCTAVER, DISTORSION (avec incertitude), COLOR, FILTER, DESTROY, COMP (à lampe), SPRING, GATE, BBD DELAY, REVERB (shimmer, freeze), STUTTER, CASSETTE / VHS.
+- 12 modules, rack réordonnable, bypass par module : OCTAVER, DISTORSION (avec incertitude), COLOR, FILTER, DESTROY, COMP (à lampe), SPRING, GATE, BBD DELAY, REVERB (shimmer, freeze), STUTTER, TAPE.
 - **PATCHBAY** (câbles audio et CV) **cachée par défaut** : sans câble, le rack joue les modules dans l'ordre. Le bouton **PATCH** (en haut à droite de l'onglet EFFECTS) la montre ; elle s'ouvre d'elle-même si le projet a des câbles (« PATCH · 3 câbles »).
 - **MODULATION** (LFO 1, LFO 2, S&H, suiveur d'enveloppe) dans un tiroir repliable.
 - Faces animées (circuits qui s'allument avec le niveau). Tous les modules démarrent neutres.
+- **TAPE** (remplace CASSETTE / VHS) : un magnétophone à cassette calé sur un **Philips D6410** mesuré (cassette type I). DRIVE (saturation de bande, 50 % = passe propre du Philips, 100 % = passe saturée), ALC (compression automatique d'enregistrement), COLOR (grave en moins, bosse d'aigus vers 8 kHz, plus rien au-dessus de 12 kHz), WOW et FLUTTER (50 % = Philips, au-delà : bande qui tangue), HISS (souffle, 100 % = celui du Philips, premiers crans discrets), HUM (50 Hz, 10 % = Philips), MIX, MONO. Tout à zéro : le son passe sans changement. Les projets d'avant gardent l'ancien CASSETTE dans le même emplacement (bouton « → TAPE » pour changer).
 
 ## MIDI et SETTINGS
 - Carte CC de l'**Hydrasynth** par défaut, MIDI learn par clic droit, reprise SCALE / PICKUP / DIRECT, lissage MIDI, courbe et réactivité de l'aftertouch.
