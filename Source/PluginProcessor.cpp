@@ -1729,6 +1729,17 @@ void OrageAudioProcessor::loadFactoryPreset (int i)
     if (i != 0 && juce::String (kFactory[i].category) == "Rack FX") legacyFxDefaults (*this);
     kFactory[i].apply (*this);
 #if ORAGE_SYNTH
+    {   // v26 : arpeges moins « pluck » : notes plus tenues (sustain, relache, filtre, gate) ; les autres Arp / Seq restent pinces exprès.
+        // Le volume est recale plus bas (table arpTenuDb) pour garder le meme niveau ressenti.
+        static const juce::StringArray tenus { "Arp Rain", "Pulse Climb", "Random Dreams", "Chord Pulse 82", "Half-Speed Memory", "Pine Forest Signal" };
+        if (tenus.contains (kFactory[i].name))
+        {
+            auto raise = [this] (const char* id, float v) { if (auto* r = apvts.getRawParameterValue (id)) if (r->load() < v) setParamReal (id, v); };
+            raise ("s_aS", 0.6f); raise ("s_aR", 0.45f); raise ("s_fS", 0.25f); raise ("s_arpGate", 0.75f);
+        }
+    }
+#endif
+#if ORAGE_SYNTH
     if (i != 0 && juce::String (kFactory[i].category) == "Pluck / Keys")                // plucks / keys : enveloppes moins sechees (decay et release allonges)
     {
         auto get = [this] (const char* id) { return apvts.getRawParameterValue (id)->load(); };
@@ -1758,6 +1769,13 @@ void OrageAudioProcessor::loadFactoryPreset (int i)
     }
     if (i != 0) pruneUnusedModules();
     if (kFactory[i].apply == fCassette || kFactory[i].apply == fRewind) engine.removeFromRack (NDist);   // presets cassette seule : pas de distorsion dans la chaine
+#if ORAGE_SYNTH
+    {   // v26 : arpeges devenus tenus -> meme volume ressenti qu'avant (mesure au banc : accord do-sol-do, velocite 100, 4 s, tempo 120)
+        static const std::map<juce::String, float> arpTenuDb { { "Arp Rain", -9.8f }, { "Pulse Climb", -11.1f }, { "Random Dreams", -10.5f }, { "Chord Pulse 82", -5.8f }, { "Half-Speed Memory", -3.8f }, { "Pine Forest Signal", -4.4f } };
+        if (const auto it = arpTenuDb.find (kFactory[i].name); it != arpTenuDb.end())
+            if (auto* o = apvts.getRawParameterValue ("output")) setParamReal ("output", o->load() + it->second);
+    }
+#endif
     presetName = kFactory[i].name;
     presetCategory = kFactory[i].category;
 }
