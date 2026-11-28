@@ -1,6 +1,7 @@
 // Orage synth engine : 6 voix, style Korg MS20-M (2 VCO, hard sync, FM, PWM, ring, filtres HPF/LPF resonants)
 // + 4 LFO parametrables (facon Serum), 4 macros, matrice de modulation. Aucune dependance JUCE.
 #pragma once
+#include <atomic>
 #include <cmath>
 #include <cstdint>
 #include <algorithm>

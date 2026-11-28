@@ -40,7 +40,7 @@ Carte du code : `Source/Synth.h` (voix, VCO, filtres circuit, enveloppes, LFO), 
 - Dernière version fusionnée sur `main` : **v26** (séquenceur CTRL+D / CTRL+Z + sélection, grille NOTE STEPS lisible, LFO animés, en-tête rangé, patchbay rangée, ON/OFF sans reset, arpèges plus tenus). Avant : v25 (TAPE) et v24 (Chord Seq).
   Code partagé : `FoudreAccords.h` et `FoudreTape.h` de **Foudre-Core** (FetchContent, figé sur un commit dans `CMakeLists.txt`). Banc d'essai : `C:\Dev\Foudre-Core\build\banc\FoudreBanc_artefacts\Release\foudre-banc.exe` ; captures : `foudre-banc capture <vst3> --onglet 1` (le plugin lit `FOUDRE_ONGLET`), `FOUDRE_PATCH=1` ouvre la patchbay.
 - Piège du banc : `--programme N` = index dans `kFactory`, 0 = **Init**.
-- CMake n'est pas dans le PATH : `C:/Program Files/Microsoft Visual Studio/18/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin/cmake.exe`. Pas de g++ local : `tools/tests/run.sh` tourne sur GitHub.
+- CMake n'est pas dans le PATH : `C:/Program Files/Microsoft Visual Studio/18/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin/cmake.exe`. Pas de g++ local : `tools/tests/run.sh` tourne sur GitHub ; en local, compiler chaque test sans JUCE avec `cl /std:c++17 /O2 /EHsc /D_USE_MATH_DEFINES /I..\..\Source /I<build>\_depsoudrecore-src\core` apres `vcvars64.bat` (Visual Studio 18). Piege : MSVC pardonne un `#include` manquant (ex. `<atomic>`) que g++ refuse.
 - À vérifier par lui : CTRL+D / CTRL+Z reçus par Ableton (sinon : petits boutons UNDO / REDO / DUP).
 - Ses goûts : adore les 12 modules et l'arpégiateur / séquenceur ; joue en thème ORIGINAL ; la patchbay l'intéresse de moins en moins.
 - Idées discutées, pas commencées (lui demander par quoi commencer) :
