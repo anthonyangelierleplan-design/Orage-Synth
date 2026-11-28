@@ -36,15 +36,14 @@ Carte du code : `Source/Synth.h` (voix, VCO, filtres circuit, enveloppes, LFO), 
 - **Thunder-VST** : claviers vintage créatifs (orgue à roues, Rhodes, Wurlitzer, Vox, Clavinet), moteur de synthèse (pas de samples).
 - Orage et Zephyr ont divergé : une fonction commune se reporte **à la main**, en gardant l'identité de chacun (ex. Orage v23 → Zephyr v4). Projet décidé : un dépôt commun **Foudre-Core** (ergonomie, thèmes, arpégiateur / séquenceur, modules identiques comme la cassette) ; les modules qui font la couleur de chaque synthé restent dans leur dépôt.
 
-## Où on en est (26 nov. 2026)
-- En test (27 nov. 2026) : **v24** sur sa branche (Chord Seq, Arp/Seq rangé, filtres au même volume, patchbay cachée), pas encore fusionnée.
-  Code partagé : `FoudreAccords.h` de **Foudre-Core** (FetchContent, figé sur un commit dans `CMakeLists.txt`). Captures de l'interface : `foudre-banc capture <vst3> --onglet 1` (le plugin lit `FOUDRE_ONGLET`).
-- Dernière version : **v23** (module CASSETTE / VHS, arpège CHORD, vitesse par pas), fusionnée sur `main`. Dépôt nettoyé (README / CHANGELOG / tests automatiques).
+## Où on en est (28 nov. 2026)
+- Dernière version fusionnée sur `main` (27 nov. 2026) : **v25** (module TAPE calé sur un Philips D6410, 6 presets façon Boards of Canada), qui inclut la **v24** (Chord Seq, Arp/Seq rangé, filtres au même volume, patchbay cachée).
+  Code partagé : `FoudreAccords.h` et `FoudreTape.h` de **Foudre-Core** (FetchContent, figé sur un commit dans `CMakeLists.txt`). Banc d'essai : `C:\Dev\Foudre-Core\build\banc\FoudreBanc_artefacts\Release\foudre-banc.exe` ; captures de l'interface : `foudre-banc capture <vst3> --onglet 1` (le plugin lit `FOUDRE_ONGLET`).
+- CMake n'est pas dans le PATH : `C:/Program Files/Microsoft Visual Studio/18/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin/cmake.exe`. Pas de g++ local : `tools/tests/run.sh` tourne sur GitHub.
 - Ses goûts : adore les 12 modules et l'arpégiateur / séquenceur ; joue en thème ORIGINAL ; la patchbay l'intéresse de moins en moins.
 - Idées discutées, pas commencées (lui demander par quoi commencer) :
   - onde des LFO animée à leur vitesse sur la page SYNTH (~60 images/s, ne redessiner que l'écran du LFO) ;
   - thèmes clairs : plus de contraste ;
   - patchbay en mode avancé (rack en simple chaîne par défaut, projets intacts) ;
   - son un peu « mat » comparé à l'Hydrasynth : mesurer le spectre (suréchantillonnage, modèle analogique, lampes) avant de corriger, éventuellement un réglage de brillance neutre par défaut ;
-  - banc d'essai local : un hôte sans Ableton qui charge le `.vst3`, joue du MIDI, enregistre en WAV et compare à un enregistrement de référence (Hydrasynth) ;
   - dépôt Foudre-Core (voir plus haut).
