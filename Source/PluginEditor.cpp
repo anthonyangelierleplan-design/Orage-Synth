@@ -1158,7 +1158,7 @@ void PatchPanel::layoutJacks()
         if (audioIn[n] != nullptr)  { audioIn[n]->setVisible (true);  audioIn[n]->setCentrePosition (inX, y); }
         if (audioOut[n] != nullptr) { audioOut[n]->setVisible (true); audioOut[n]->setCentrePosition (outX, y); }
     }
-    const int ySrc = y0 + 13 * pitch + 36;                                                   // sorties de modulation
+    ySrc = y0 + ((int) seq.size() - 1) * pitch + 76;                                         // sorties de modulation : juste sous la derniere ligne audio (v26 : avant, place reservee pour 13 modules -> grand vide)
     static const char* srcNames[kNumSrc] { "LFO 1", "LFO 2", "S&H", "ENV" };
     for (int s = 0; s < kNumSrc; ++s)
     {
@@ -1166,16 +1166,23 @@ void PatchPanel::layoutJacks()
         cvOut[s]->setCentrePosition (cx, ySrc);
         labels.push_back ({ srcNames[s], { cx - 35, ySrc + 20, 70, 12 }, false, true });
     }
-    const int yCv = ySrc + 78;                                                               // entrees CV
+    const int yCv = ySrc + 78;                                                               // entrees CV : celles des modules presents, serrees (pas de trou)
+    int k = 0;
     for (int d = 0; d < kNumCv; ++d)
     {
-        const int cx = 12 + 28 + (d % 5) * 56, cy = yCv + (d / 5) * 50;
         const int ow = cvOwner (d);
         const bool avail = ow < 0 || e.inRack (ow);
         cvIn[d]->setVisible (avail);
+        if (! avail) continue;
+        const int cx = 12 + 28 + (k % 5) * 56, cy = yCv + (k / 5) * 50;
         cvIn[d]->setCentrePosition (cx, cy);
-        labels.push_back ({ cvName (d), { cx - 28, cy + 20, 56, 12 }, ! avail, true });
+        labels.push_back ({ cvName (d), { cx - 28, cy + 20, 56, 12 }, false, true });
+        ++k;
     }
+    juce::StringArray absent;                                                                // les autres : simple liste grisee (module a ajouter au rack)
+    for (int d = 0; d < kNumCv; ++d) { const int ow = cvOwner (d); if (ow >= 0 && ! e.inRack (ow)) absent.add (cvName (d)); }
+    absentText = absent.isEmpty() ? juce::String() : fr ("Avec un module en plus : ") + absent.joinIntoString (juce::String (juce::CharPointer_UTF8 (" \xc2\xb7 ")));
+    absentY = yCv + ((k + 4) / 5) * 50 - 8;
     repaint();
 }
 
@@ -1191,15 +1198,19 @@ void PatchPanel::paint (juce::Graphics& g)
         g.fillRect (12, y + 19, getWidth() - 24, 1);
     };
     head ("PATCHBAY", 5);
-    const int y0 = 58, pitch = 26;
     g.setColour (look::print.withAlpha (0.7f));
     g.setFont (font (9.f));
     g.drawText ("IN", 196 - 20, 36, 40, 11, juce::Justification::centred, false);
     g.drawText ("OUT", 252 - 20, 36, 40, 11, juce::Justification::centred, false);
     g.drawText ("AUDIO", 12, 36, 100, 11, juce::Justification::centredLeft, false);
-    const int ySrc = y0 + 13 * pitch + 36;
     head ("MODULATION OUT", ySrc - 46);
     head ("CV IN", ySrc + 40);
+    if (absentText.isNotEmpty())
+    {
+        g.setColour (look::cvRing.withAlpha (0.4f));
+        g.setFont (font (8.5f, false));
+        g.drawFittedText (absentText, 14, absentY, getWidth() - 28, 30, juce::Justification::topLeft, 3);
+    }
     g.setColour (look::print.withAlpha (0.55f));
     g.setFont (font (8.5f, false));
     g.drawFittedText (fr ("Glisser d'une sortie vers une entr\xc3\xa9" "e.  Double-clic sur une prise : d\xc3\xa9" "brancher."),
@@ -1788,6 +1799,7 @@ OrageAudioProcessorEditor::OrageAudioProcessorEditor (OrageAudioProcessor& p, ju
     {   // tiroirs (v24) : la patchbay est cachee par defaut (le rack joue en simple chaine) ; elle s'ouvre d'elle-meme si le projet a des cables
         const int dv = loadDrawerPref(); stripOpen = (dv & 2) != 0;
         lastCables = proc.engine.cableCount(); patchOpen = lastCables > 0;
+        if (std::getenv ("FOUDRE_PATCH") != nullptr) patchOpen = true;                                  // banc d'essai (capture de la patchbay) ; jamais defini dans un DAW
         addAndMakeVisible (patchToggle); addAndMakeVisible (stripToggle);
         patchToggle.onClick = [this] { patchOpen = ! patchOpen; updateDrawers(); };
         stripToggle.onClick = [this] { stripOpen = ! stripOpen; updateDrawers(); };

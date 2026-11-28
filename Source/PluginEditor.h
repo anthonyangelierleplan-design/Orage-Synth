@@ -247,6 +247,8 @@ public:
 private:
     struct Label { juce::String text; juce::Rectangle<int> r; bool dim; bool cv; };
     std::vector<Label> labels;
+    int ySrc = 0;                                               // sorties de modulation : juste sous la derniere ligne audio (suit la longueur du rack)
+    juce::String absentText; int absentY = 0;                   // entrees CV des modules absents du rack : liste grisee sous les prises
     OrageAudioProcessorEditor& owner;
 };
 
