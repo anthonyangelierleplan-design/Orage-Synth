@@ -2,6 +2,9 @@
 
 Le plus récent en haut (v14 et suivantes ; les versions antérieures ne sont pas documentées). L'état actuel du plugin est décrit dans le README.
 
+## v27 (finition)
+- Menu du clic droit : « Réassigner MIDI » s'affichait « RÃ©assigner » (accent mal converti).
+
 ## v26 (ergonomie : séquenceur, en-tête, patchbay, LFO animés, arpèges plus tenus)
 - **Séquenceur** : sélection de pas (clic ou glisser sur les numéros, MAJ + clic, ÉCHAP), **CTRL+D** duplique la sélection juste après elle (sans sélection : tout le motif, longueur doublée), **CTRL+Z / CTRL+Y** annuler / refaire (64 retours : pas, notes, accords, pistes, RANDOM, CLEAR, ALL RATCHET, REST / TIE / BACK, molette, longueur). Les notes enregistrées au clavier en REC ne passent pas par l'historique.
 - **Grille NOTE STEPS** : numéros lisibles au-dessus des cases, groupes de 4 pas (pistes alignées), accent = case plus lumineuse (plus de barre blanche), vitesses et badges plus grands, tête de lecture = cadre blanc.
