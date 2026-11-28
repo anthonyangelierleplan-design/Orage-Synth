@@ -3,7 +3,7 @@
 Le plus récent en haut (v14 et suivantes ; les versions antérieures ne sont pas documentées). L'état actuel du plugin est décrit dans le README.
 
 ## v27 (orgues, finition)
-- **Nouvelle catégorie Organ** (5 presets, ajoutés à la fin : les numéros de Program Change existants ne bougent pas) : Tonewheel Drive (orgue rock, lampe, ressort, clic de percussion), Gospel Bars (8' + 4' + quinte, chorus-vibrato du BBD), Cathedral Pipes (8' + 16', attaque d'air, grande nef), Transistor Combo (orgue à transistors des années 60, vibrato), Haunted Harmonium (harmonium sur cassette TAPE). Cabine tournante par LFO 2 (volume + panoramique), **molette = cabine rapide**. Volumes calés au banc sur les Pluck / Keys (-17 à -18 LUFS), aucun clic ni écrêtage. Macros : celles des Pluck / Keys.
+- **Nouvelle catégorie Organ** (5 presets, ajoutés à la fin : les numéros de Program Change existants ne bougent pas) : Tonewheel Drive (orgue rock, lampe, ressort, clic de percussion), Gospel Bars (8' + 4' + quinte, chorus-vibrato du BBD), Cathedral Pipes (8' + 16', attaque d'air, grande nef), Transistor Combo (orgue à transistors des années 60, vibrato), Haunted Harmonium (harmonium sur cassette TAPE). Cabine tournante par LFO 2 (volume + panoramique), **molette = cabine rapide**. Volumes calés au banc sur les Pluck / Keys (-17 à -18 LUFS), aucun clic ni écrêtage. Macros : celles des Pluck / Keys. FM E-Piano et Wurly Drive (pianos électriques) rejoignent aussi Organ (même son, même numéro).
 - Menu du clic droit : « Réassigner MIDI » s'affichait « RÃ©assigner » (accent mal converti).
 
 ## v26 (ergonomie : séquenceur, en-tête, patchbay, LFO animés, arpèges plus tenus)
