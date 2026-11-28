@@ -2,6 +2,16 @@
 
 Le plus récent en haut (v14 et suivantes ; les versions antérieures ne sont pas documentées). L'état actuel du plugin est décrit dans le README.
 
+## v26 (ergonomie : séquenceur, en-tête, patchbay, LFO animés, arpèges plus tenus)
+- **Séquenceur** : sélection de pas (clic ou glisser sur les numéros, MAJ + clic, ÉCHAP), **CTRL+D** duplique la sélection juste après elle (sans sélection : tout le motif, longueur doublée), **CTRL+Z / CTRL+Y** annuler / refaire (64 retours : pas, notes, accords, pistes, RANDOM, CLEAR, ALL RATCHET, REST / TIE / BACK, molette, longueur). Les notes enregistrées au clavier en REC ne passent pas par l'historique.
+- **Grille NOTE STEPS** : numéros lisibles au-dessus des cases, groupes de 4 pas (pistes alignées), accent = case plus lumineuse (plus de barre blanche), vitesses et badges plus grands, tête de lecture = cadre blanc.
+- **Écran des LFO animé** : l'onde défile comme sur un oscilloscope à la vitesse réelle du LFO (bord droit = maintenant, point = valeur actuelle) ; en RETRIG, suit la note la plus récente. 60 images/s, seulement quand l'écran est visible. Le son ne change pas.
+- **En-tête** : MIDI, LOOK, SETTINGS et le moniteur MIDI passent dans la barre des onglets ; l'en-tête garde logo, lampe et preset, aligné sur la colonne de la patchbay ; CABLES / PATCH / MODULATION en deuxième ligne (onglet EFFECTS seulement). Orage FX : LOOK reste dans l'en-tête.
+- **Patchbay** : MODULATION OUT et CV IN suivent juste sous la liste audio (avant : place réservée pour 13 modules, grand vide) ; entrées CV des modules présents serrées, celles des modules absents en liste grisée.
+- **ON / OFF d'un module** : vraie comparaison A/B, les réglages sont conservés (avant : les potards repartaient à leur valeur par défaut au rallumage). Un module **ajouté** au rack repart de ses réglages neutres.
+- **Arpèges moins « pluck »** : Arp Rain, Pulse Climb, Random Dreams, Chord Pulse 82, Half-Speed Memory et Pine Forest Signal ont des notes plus tenues (sustain ≥ 0,6, relâche ≥ 0,45, sustain du filtre ≥ 0,25, gate ≥ 75 %), au **même volume ressenti** qu'avant (corrections -3,8 à -11,1 dB, mesurées au banc). Seq Pluck, Ratchet Pluck, Acid Lanes, Trance Gate Arp, Bass Sequence et Stutter Sequencer restent pincés exprès. Pine Forest Signal : crête -7,8 dBFS (avant -0,8).
+- Les anciens projets se rouvrent à l'identique (rien de sauvé n'a changé de format). Banc : `FOUDRE_PATCH=1` ouvre la patchbay pour les captures.
+
 ## v25 (module TAPE, calé sur un Philips D6410)
 - **Module TAPE** à la place de CASSETTE / VHS (même emplacement du rack, pas de module en plus) : un magnétophone à cassette calé sur un Philips D6410 mesuré au banc (fichier témoin enregistré sur cassette type I puis réenregistré). Code commun avec Zephyr dans Foudre-Core (`FoudreTape.h`).
   - DRIVE : saturation de bande suréchantillonnée ×4 (harmonique 3 surtout) ; 50 % = passe propre du Philips (H3 -24 dB, 6 à 9 % de distorsion), 100 % = passe saturée (12 à 17 %).
