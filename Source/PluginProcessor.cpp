@@ -204,7 +204,7 @@ void addSynthParams (juce::AudioProcessorValueTreeState::ParameterLayout& l)
 #endif
 
 struct Factory { const char* name; const char* category; void (*apply) (OrageAudioProcessor&); };
-const char* const kCategories[] = { "Pad", "Bass", "Lead", "Pluck / Keys", "Arp / Seq", "FX / Texture", "Rack FX" };
+const char* const kCategories[] = { "Pad", "Bass", "Lead", "Pluck / Keys", "Organ", "Arp / Seq", "FX / Texture", "Rack FX" };
 
 void fInit (OrageAudioProcessor&) {}
 // reglages par defaut d'origine des modules FX : seuls les presets "Rack FX" ont ete ecrits avec ces valeurs
@@ -287,7 +287,7 @@ void applyMacroSet (OrageAudioProcessor& p, const juce::String& cat)
     static const MacroDef arp[8]   { { MdLpf, 0.5f }, { MdReso, 0.4f }, { MdBbdMix, 0.5f }, { MdBbdFb, 0.4f }, { MdRevMix, 0.4f }, { MdFltEnv, 0.5f }, { MdDrive, 0.4f }, { MdFm, 0.4f } };
     static const MacroDef fx[8]    { { MdLpf, 0.5f }, { MdNoise, 0.5f }, { MdFm, 0.5f }, { MdRing, 0.5f }, { MdRevMix, 0.5f }, { MdFxDestroy, 0.5f }, { MdFxUnc, 0.5f }, { MdFxChaos, 0.5f } };
     static const MacroDef rack[8]  { { MdLpf, 0.5f }, { MdRevMix, 0.4f }, { MdBbdMix, 0.4f }, { MdFxPower, 0.4f }, { MdFxUnc, 0.4f }, { MdFxDestroy, 0.4f }, { MdFxSpring, 0.4f }, { MdFxChaos, 0.4f } };
-    const MacroDef* d = cat == "Pad" ? pad : cat == "Bass" ? bass : cat == "Lead" ? lead : cat == "Pluck / Keys" ? keys : cat == "Arp / Seq" ? arp : cat == "FX / Texture" ? fx : rack;
+    const MacroDef* d = cat == "Pad" ? pad : cat == "Bass" ? bass : cat == "Lead" ? lead : (cat == "Pluck / Keys" || cat == "Organ") ? keys : cat == "Arp / Seq" ? arp : cat == "FX / Texture" ? fx : rack;
     for (int k = 0; k < 8; ++k) M (p, 5 + k, macroSrc (k), d[k].dst, d[k].amt);
 #else
     juce::ignoreUnused (p, cat);
@@ -827,6 +827,42 @@ void v25_Film_Society (OrageAudioProcessor& p)
     setChords (p, { { 53, 56, 60, 63 }, { 49, 53, 56, 60 }, { 56, 60, 63 }, { 51, 55, 58 } });
     setSteps (p, "1111111111111111");
 }
+
+// ---- ORGAN (v27) : orgues construits avec les 2 VCO (tirettes), cabine tournante par LFO 2 (volume + panoramique, molette = cabine rapide),
+// clic de percussion par l'enveloppe du filtre ; demarrage a volume prudent, recale au banc sur les Pluck / Keys
+void v27_Tonewheel_Drive (OrageAudioProcessor& p)
+{   // orgue rock : carre 8' + scie 4' discrete, lampe chaude, ressort ; clic de percussion
+    S (p, { {"s_wave1",1},{"s_wave2",0},{"s_oct2",3},{"s_lvl1",0.75f},{"s_lvl2",0.22f},{"s_ftype",2},{"s_lpf",0.66f},{"s_lpfRes",0.05f},{"s_key",1.f},
+            {"s_fltEnv",0.22f},{"s_fA",0.f},{"s_fD",0.12f},{"s_fS",0.f},{"s_aA",0.f},{"s_aD",0.3f},{"s_aS",1.f},{"s_aR",0.1f},{"s_l2Rate",0.42f},
+            {"power",0.3f},{"material",1},{"springMix",0.18f},{"springDecay",0.45f},{"output",-13.8f} });
+    M (p, 1, MsLfo2, MdLevel, 0.1f); M (p, 2, MsLfo2, MdPan, 0.35f); M (p, 3, MsWheel, MdLfo2Rate, 0.55f); M (p, 4, MsVel, MdFxPower, 0.2f);
+}
+void v27_Gospel_Bars (OrageAudioProcessor& p)
+{   // tirettes 8' + 4' + quinte, douces ; chorus-vibrato par le BBD (sans repetition), reverb de salle
+    S (p, { {"s_wave1",3},{"s_wave2",3},{"s_oct2",3},{"s_tune2",7},{"s_lvl1",0.8f},{"s_lvl2",0.45f},{"s_ftype",2},{"s_lpf",0.8f},{"s_lpfRes",0.f},{"s_key",1.f},
+            {"s_fltEnv",0.f},{"s_aA",0.02f},{"s_aD",0.3f},{"s_aS",1.f},{"s_aR",0.18f},{"s_l2Rate",0.4f},
+            {"bbdMix",0.35f},{"bbdTime",0.04f},{"bbdFb",0.f},{"bbdMod",0.7f},{"bbdPing",0},{"revMix",0.22f},{"revDecay",0.6f},{"output",-7.1f} });
+    M (p, 1, MsLfo2, MdPan, 0.3f); M (p, 2, MsWheel, MdLfo2Rate, 0.55f); M (p, 3, MsWheel, MdBbdMix, 0.3f);
+}
+void v27_Cathedral_Pipes (OrageAudioProcessor& p)
+{   // orgue a tuyaux : 8' + 16', attaque d'air, grande nef
+    S (p, { {"s_wave1",0},{"s_wave2",1},{"s_oct2",1},{"s_lvl1",0.6f},{"s_lvl2",0.4f},{"s_pw2",0.4f},{"s_ftype",2},{"s_lpf",0.52f},{"s_lpfRes",0.05f},{"s_key",0.8f},
+            {"s_fltEnv",0.12f},{"s_fA",0.3f},{"s_fD",0.6f},{"s_fS",0.6f},{"s_aA",0.28f},{"s_aD",0.5f},{"s_aS",1.f},{"s_aR",0.55f},{"s_noise",0.04f},
+            {"revMix",0.42f},{"revSize",0.95f},{"revDecay",0.85f},{"revPre",0.2f},{"output",-7.5f} });
+}
+void v27_Transistor_Combo (OrageAudioProcessor& p)
+{   // orgue a transistors des annees 60 : impulsions fines et brillantes, vibrato, ressort
+    S (p, { {"s_wave1",1},{"s_pw1",0.22f},{"s_wave2",1},{"s_pw2",0.3f},{"s_oct2",3},{"s_lvl1",0.7f},{"s_lvl2",0.4f},{"s_ftype",0},{"s_lpf",0.82f},{"s_lpfRes",0.1f},{"s_key",1.f},
+            {"s_fltEnv",0.f},{"s_aA",0.f},{"s_aD",0.3f},{"s_aS",1.f},{"s_aR",0.08f},{"s_l1Rate",0.47f},
+            {"springMix",0.22f},{"springDecay",0.4f},{"output",-6.2f} });
+    M (p, 1, MsLfo1, MdPitch, 0.015f); M (p, 2, MsWheel, MdPitch, 0.02f);
+}
+void v27_Haunted_Harmonium (OrageAudioProcessor& p)
+{   // harmonium a anches passe sur une vieille cassette : triangle + impulsion, souffle, pleurage
+    S (p, { {"s_wave1",2},{"s_wave2",1},{"s_pw2",0.35f},{"s_tune2",0.06f},{"s_lvl1",0.7f},{"s_lvl2",0.4f},{"s_ftype",2},{"s_lpf",0.58f},{"s_lpfRes",0.1f},{"s_key",0.7f},
+            {"s_fltEnv",0.f},{"s_aA",0.14f},{"s_aD",0.4f},{"s_aS",1.f},{"s_aR",0.3f},{"s_noise",0.03f},
+            {"tpDrive",0.35f},{"tpColor",0.5f},{"tpWow",0.35f},{"tpFlutter",0.25f},{"tpHiss",0.12f},{"revMix",0.25f},{"revDecay",0.65f},{"output",-1.6f} });
+}
 #endif
 void fRewind (OrageAudioProcessor& p)
 {
@@ -868,6 +904,9 @@ const Factory kFactory[] = {
     { "Rainy Projector", "FX / Texture", v23_Rainy_Projector },
     { "Kodachrome Fade", "Pad", v25_Kodachrome_Fade }, { "Summer Camp 1979", "Lead", v25_Summer_Camp_1979 }, { "Pine Forest Signal", "Arp / Seq", v25_Pine_Forest_Signal },
     { "Overwound Spool", "Bass", v25_Overwound_Spool }, { "Film Society", "Arp / Seq", v25_Film_Society },
+    // v27 : orgues
+    { "Tonewheel Drive", "Organ", v27_Tonewheel_Drive }, { "Gospel Bars", "Organ", v27_Gospel_Bars }, { "Cathedral Pipes", "Organ", v27_Cathedral_Pipes },
+    { "Transistor Combo", "Organ", v27_Transistor_Combo }, { "Haunted Harmonium", "Organ", v27_Haunted_Harmonium },
 #endif
     { "Waters Of Nazareth (depart)", "Rack FX", fWaters },
     { "Gated Fuzz Wall", "Rack FX", fGated },

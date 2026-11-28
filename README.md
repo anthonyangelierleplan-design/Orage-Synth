@@ -46,7 +46,7 @@ Dézipper et copier `Orage.vst3` et `Orage FX.vst3` dans `C:\Program Files\Commo
 - Quatre thèmes : CHAMPAGNE, ARGENT, CUIVRE, ORIGINAL. Flancs en bois, anneaux lumineux, oscilloscope.
 - En-tête rangé : MIDI, LOOK, SETTINGS et le moniteur MIDI dans la barre des onglets ; logo, lampe et preset dans l'en-tête (CABLES / PATCH / MODULATION sous le preset, onglet EFFECTS).
 - Fenêtre redimensionnable, cran magnétique au zéro des potards, potards crantés pour les choix (MODE, OCTAVE, RATCHET…).
-- 88 presets d'usine + Init (Orage FX : 7 presets d'effets + Init).
+- 93 presets d'usine + Init, dont une catégorie **Organ** (Tonewheel Drive, Gospel Bars, Cathedral Pipes, Transistor Combo, Haunted Harmonium) (Orage FX : 7 presets d'effets + Init).
 
 ## Pour aller plus loin
 - `CHANGELOG.md` : ce qui a changé à chaque version, avec les mesures.
