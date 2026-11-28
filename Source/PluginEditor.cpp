@@ -2333,6 +2333,27 @@ void OrageAudioProcessorEditor::timerCallback()
 }
 
 // ---------------------------------------------------------------- mise en page
+void OrageAudioProcessorEditor::moveToolsTo (juce::Component& host)
+{
+    toolHost = &host;
+#if ORAGE_SYNTH
+    for (auto* c : { (juce::Component*) &midiMon, (juce::Component*) &midiBtn, (juce::Component*) &settingsBtn })
+        host.addAndMakeVisible (*c);
+    midiMon.setJustificationType (juce::Justification::centredRight);
+#endif
+    host.addAndMakeVisible (themeBtn);
+}
+
+void OrageAudioProcessorEditor::layoutTools (int right, int y)
+{   // de droite a gauche : SETTINGS | LOOK | MIDI | moniteur (meme hauteur et meme pas que les onglets)
+    settingsBtn.setBounds (right - 110, y, 110, 24);
+    themeBtn.setBounds (right - 110 - 6 - 100, y, 100, 24);
+#if ORAGE_SYNTH
+    midiBtn.setBounds (themeBtn.getX() - 6 - 100, y, 100, 24);
+    midiMon.setBounds (midiBtn.getX() - 8 - 150, y, 150, 24);
+#endif
+}
+
 void OrageAudioProcessorEditor::updateDrawers()
 {
     saveDrawerPref ((patchOpen ? 1 : 0) | (stripOpen ? 2 : 0));
@@ -2346,22 +2367,21 @@ void OrageAudioProcessorEditor::resized()
     headerArea = { 0, 0, W, kHeaderH };
 
     // ---- en-tete : presets
-    prevBtn.setBounds (W - 400, 42, 30, 28);
-    nameBtn.setBounds (W - 364, 42, 220, 28);
-    nextBtn.setBounds (W - 140, 42, 30, 28);
-    saveBtn.setBounds (W - 104, 42, 70, 28);
-    cablesBtn.setBounds (W - 540, 44, 108, 24);
-    themeBtn.setBounds (W - 640, 44, 100, 24);
-    midiBtn.setBounds (W - 640, 16, 100, 24);
-    midiMon.setBounds (W - 530, 16, 125, 24);
-    settingsBtn.setBounds (W - 300, 16, 110, 24);
+    // v26 : un bloc de 400 px aligne a droite sur la colonne de la patchbay (W - 10) ; ligne 1 = preset, ligne 2 = CABLES / PATCH / MODULATION
+    prevBtn.setBounds (W - 410, 28, 30, 28);
+    nameBtn.setBounds (W - 374, 28, 254, 28);
+    nextBtn.setBounds (W - 116, 28, 30, 28);
+    saveBtn.setBounds (W - 80, 28, 70, 28);
+    cablesBtn.setBounds (W - 410, 66, 94, 22);
+    if (toolHost == nullptr)                                        // Orage FX (pas de barre d'onglets) : LOOK reste dans l'en-tete, ligne 2
+        themeBtn.setBounds (W - 516, 66, 100, 22);
 
     // ---- colonnes : panneau lateral | rack | (bandeau de modulation en bas)
     const int vpW = patchOpen ? W - 170 - 310 : W - 170;
     const int top = kHeaderH + 8;
     const int stripH = stripOpen ? 172 + 8 : 0;
-    patchToggle.setBounds (W - 310, 72, 148, 20);
-    stripToggle.setBounds (W - 158, 72, 148, 20);
+    patchToggle.setBounds (W - 310, 66, 148, 22);
+    stripToggle.setBounds (W - 158, 66, 148, 22);
     {   // le texte des languettes suit l'etat (sans reappeler resized)
         juce::String pt = "PATCH";
         if (lastCables > 0) pt << juce::String (juce::CharPointer_UTF8 (" \xc2\xb7 ")) << lastCables << juce::String (juce::CharPointer_UTF8 (lastCables > 1 ? " c\xc3\xa2" "bles" : " c\xc3\xa2" "ble"));
@@ -2369,7 +2389,7 @@ void OrageAudioProcessorEditor::resized()
         stripToggle.setButtonText (juce::String (stripOpen ? juce::CharPointer_UTF8 ("MODULATION  \xe2\x96\xbe") : juce::CharPointer_UTF8 ("MODULATION  \xe2\x96\xb8")));
     }
     patchPanel.setVisible (patchOpen);
-    cablesBtn.setVisible (patchOpen); clearPatchBtn.setVisible (patchOpen);                                         // le calque des cables n'a de sens que patchbay ouverte
+    cablesBtn.setVisible (patchOpen && drawerTab); clearPatchBtn.setVisible (patchOpen);                                        // le calque des cables n'a de sens que patchbay ouverte
     patchPanel.setBounds (W - 310, top, 300, H - top - 10);
     side.setBounds (10, top, 140, H - top - 10);
     viewport.setBounds (160, top, vpW, H - top - 8 - stripH);
@@ -2437,7 +2457,7 @@ void OrageAudioProcessorEditor::rebuildFacade()
     g.drawText ("FOUDRE AUDIO  -  PATCH IT. BREAK IT.", 36, 81, 360, 11, juce::Justification::centredLeft, false);
     g.setColour (look::print.withAlpha (0.8f));
     g.setFont (font (9.5f));
-    g.drawText ("PRESET", W - 400, 26, 80, 13, juce::Justification::centredLeft, false);
+    g.drawText ("PRESET", W - 410, 11, 80, 13, juce::Justification::centredLeft, false);
     repaint();
 }
 

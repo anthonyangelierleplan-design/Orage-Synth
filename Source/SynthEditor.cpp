@@ -440,8 +440,8 @@ void WoodFrame::paint (juce::Graphics& g)
         }
     };
     flank (0, true); flank (W - kFlank, false);
-    // rail du haut : fente d'aeration en plaque metal (a droite des onglets)
-    const juce::Rectangle<float> vent ((float) W - 360.f, 5.f, 330.f, 20.f);
+    // rail du haut : fente d'aeration en plaque metal, entre les onglets et les outils (moniteur MIDI, MIDI, LOOK, SETTINGS : v26)
+    const juce::Rectangle<float> vent (750.f, 5.f, (float) W - 34.f - 110.f - 6.f - 100.f - 6.f - 100.f - 8.f - 150.f - 14.f - 750.f, 20.f);
     g.setColour (juce::Colours::black.withAlpha (0.55f)); g.fillRoundedRectangle (vent.expanded (1.5f), 4.f);
     g.setGradientFill (juce::ColourGradient (juce::Colour (0xff2a2724), 0.f, vent.getY(), juce::Colour (0xff12100f), 0.f, vent.getBottom(), false)); g.fillRoundedRectangle (vent, 3.f);
     for (float x = vent.getX() + 8.f; x < vent.getRight() - 6.f; x += 8.f)
@@ -1149,6 +1149,7 @@ SynthEditor::SynthEditor (OrageAudioProcessor& p)
     matrixBtn.setClickingTogglesState (true);
     content.addAndMakeVisible (matrixBtn);
     matrixBtn.onClick = [this] { matrix->setVisible (matrixBtn.getToggleState()); matrix->toFront (false); };
+    fx.moveToolsTo (content);                                       // v26 : MIDI / LOOK / SETTINGS dans la barre des onglets
     synthTab.setToggleState (true, juce::dontSendNotification);
     showTab (0);
     if (const char* ong = std::getenv ("FOUDRE_ONGLET")) { const int t = juce::jlimit (0, 2, std::atoi (ong)); showTab (t); (t == 0 ? synthTab : t == 1 ? arpTab : fxTab).setToggleState (true, juce::dontSendNotification); }   // banc d'essai (foudre-banc capture --onglet) ; jamais defini dans un DAW
@@ -1189,6 +1190,7 @@ void SynthEditor::resized()
     arpTab.setBounds (210, 3, 170, 24);
     fxTab.setBounds (386, 3, 170, 24);
     matrixBtn.setBounds (562, 3, 170, 24);
+    fx.layoutTools (designWidth() - 34, 3);
     wood.setBounds (0, 0, designWidth(), dh);
     const int fl = WoodFrame::kFlank, iw = designWidth() - 2 * fl;
     fx.setBounds (fl, 30, iw, kFxH);

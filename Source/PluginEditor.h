@@ -417,8 +417,13 @@ private:
     std::vector<std::unique_ptr<juce::Component>> ownedExtra;                                   // nombre de cables du patch (affiche sur la languette PATCH)
     void updateDrawers();
 public:
-    void setDrawerTogglesVisible (bool v) { patchToggle.setVisible (v); stripToggle.setVisible (v); }   // languettes PATCHBAY / MODULATION : onglet EFFECTS seulement
+    void setDrawerTogglesVisible (bool v) { drawerTab = v; patchToggle.setVisible (v); stripToggle.setVisible (v); cablesBtn.setVisible (v && patchOpen); }   // languettes PATCHBAY / MODULATION (et CABLES) : onglet EFFECTS seulement
+    // v26 (synthe) : MIDI, LOOK, SETTINGS et le moniteur MIDI montent dans la barre des onglets ; l'en-tete garde logo, lampe et preset
+    void moveToolsTo (juce::Component& host);
+    void layoutTools (int right, int y);                // aligne a droite, dans les coordonnees de l'hote
 private:
+    juce::Component* toolHost = nullptr;
+    bool drawerTab = true;
     juce::TextButton settingsBtn;                       // synthe : panneau des reglages globaux (qualite, lissage, aftertouch)
     juce::Label midiMon;
 
