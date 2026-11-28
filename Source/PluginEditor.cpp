@@ -1840,14 +1840,9 @@ ModuleUnit* OrageAudioProcessorEditor::newUnit (int node, const juce::String& ti
     u->onRemove = [this, node] { proc.engine.removeFromRack (node); refreshRack(); };
     u->isActive = [this, node] { return (proc.engine.bypassMask.load() & (1u << node)) == 0; };
     u->level = [this, node] { return proc.engine.nodeLvl[node].load (std::memory_order_relaxed); };
-    u->onToggleActive = [this, node, raw]
+    u->onToggleActive = [this, node]                                         // v26 : ON / OFF = vrai A/B, les reglages sont conserves (comme Zephyr)
     {
-        const bool wasBypassed = (proc.engine.bypassMask.load() & (1u << node)) != 0;
         proc.engine.bypassMask.fetch_xor (1u << node); lastBypass = proc.engine.bypassMask.load();
-        if (wasBypassed)                                                      // le module s'allume : tous ses potards repartent de leur valeur neutre (jamais un potard reste a fond)
-            for (auto* ch : raw->getChildren())
-                if (auto* k = dynamic_cast<KnobUnit*> (ch))
-                    if (auto* prm = proc.apvts.getParameter (k->getParamId())) prm->setValueNotifyingHost (prm->getDefaultValue());
     };
     rackView.addChildComponent (*raw);
     rackUnits[node] = std::move (u);
@@ -2093,7 +2088,16 @@ void OrageAudioProcessorEditor::buildUnits()
     {
         auto b = std::make_unique<juce::TextButton> (nodeName (n));
         b->setClickingTogglesState (false);
-        b->onClick = [this, n] { if (proc.engine.inRack (n)) proc.engine.removeFromRack (n); else proc.engine.addToRack (n); refreshRack(); };
+        b->onClick = [this, n]
+        {
+            if (proc.engine.inRack (n)) { proc.engine.removeFromRack (n); refreshRack(); return; }
+            proc.engine.addToRack (n);                                                        // v26 : un module ajoute au rack repart de ses reglages neutres (et non plus a chaque rallumage)
+            if (const auto it = rackUnits.find (n); it != rackUnits.end())
+                for (auto* ch : it->second->getChildren())
+                    if (auto* k = dynamic_cast<KnobUnit*> (ch))
+                        if (auto* prm = proc.apvts.getParameter (k->getParamId())) prm->setValueNotifyingHost (prm->getDefaultValue());
+            refreshRack();
+        };
         side.addAndMakeVisible (*b);
         tiles.push_back (std::move (b));
     }
