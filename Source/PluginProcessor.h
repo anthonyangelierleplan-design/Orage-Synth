@@ -119,6 +119,7 @@ public:
     std::atomic<int> arpStepShown { -1 };   // pas courant de l'arpegiateur (affichage)
     std::atomic<bool> recGroupClose { false };   // v24 : REST / TIE / BACK (interface) ferment l'accord en cours
     orage::ArpPattern arpPat;               // motif de l'arpegiateur / sequenceur (pas + pistes de modulation), edite par l'interface
+    orage::ArpHistory arpHistory;           // v26 : CTRL+Z / CTRL+Y du motif (thread de l'interface ; garde l'historique tant que le plugin est charge)
     orage::Arp arp;                         // arpegiateur (version instrument)
     orage::Engine engine;                   // rack + patchbay vivent ici ; l'editeur les lit et les modifie
     juce::String presetName { "Init" }, presetCategory;
